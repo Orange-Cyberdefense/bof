@@ -1,3 +1,4 @@
-# bof
+Boiboite Opener Framework
+=========================
 
-boiboite opener framework
+Industrial network protocols communication and packet crafting framework.
