@@ -1,0 +1,372 @@
+"""Network protocol global classes and abstract implementations.
+
+Provides classes for asynchronous network connection management on different
+transport protocols, to be used by higher-level protocol implementation classes.
+Relies on module ``asyncio``.
+
+:UDP: Implementation of asynchronous UDP communication and packet crafting.
+
+.. warning:: It is recommended not to use the content of this module as is
+             and to use subclasses instead. Please refer to this module only
+             if you plan to implement more network protocols.
+"""
+
+import asyncio
+from concurrent import futures
+from socket import AF_INET, gaierror
+from .base import BOFNetworkError, BOFProgrammingError, log
+from . import byte
+
+###############################################################################
+# UDP                                                                         #
+###############################################################################
+
+#-----------------------------------------------------------------------------#
+# Packet structures                                                           #
+#-----------------------------------------------------------------------------#
+
+class UDPField(object):
+    """Object representation of a UDP field inside a structure.
+
+    Contains a set of attributes useful for UDP fields building and
+    handling, they may not all be used depending on the type of field.
+
+    :param size: The size of the field (number of bytes in the bytearray)
+    :param value: The content of the field (bytearray)
+    :param fixed_size: Set to ``True`` if the ``size`` should not be modified
+                       automatically when changing the value.
+    :param fixed_value: Set to ``True`` if the ``value`` should not be
+                        modified automatically inside the module.
+
+    ``fixed_size`` and ``fixed_value`` parameters are set to True when the user
+    manually specified a value for them: this manual value should not be
+    overwritten by automated field updates.
+    """
+    _size:int
+    _value:bytes
+    fixed_size:bool
+    fixed_value:bool
+
+    def __init__(self, value, size:int=1, fixed_size:bool=False, fixed_value:bool=False):
+        # We need to set this value first
+        self.fixed_size = fixed_size
+        # Actual values, considering fixed and free
+        self._size = max(size, byte.get_size(value)) if not self.fixed_size else size
+        self.__set_value(value) # Call property setter
+        # We set this after we first set a value
+        self.fixed_value = fixed_value
+
+    def __str__(self):
+        return "<{0}: {1} ({2}b)>".format(type(self).__name__, self._value, self._size)
+
+    def __set_value(self, value):
+        """Accepts both int and byte for value and converts it to bytes."""
+        self.size = max(self._size, byte.get_size(value)) if not self.fixed_size else self._size
+        if isinstance(value, bytes):
+            self._value = byte.resize(value, self._size)
+        elif isinstance(value, int):
+            self._value = byte.from_int(value, self._size)
+        else:
+            raise BOFProgrammingError("Field value should be either bytes or int")
+
+    #--------------------------------------------------------------------------#
+    # Public                                                                   #
+    #--------------------------------------------------------------------------#
+
+    def update(self, value):
+        """Update field value, only if ``fixed_value`` is set to False.
+
+        :param value: Bytes or int (will be converted to bytes) to use as field
+                      value.
+
+        .. warning:: This method should be used mainly when automatically
+                     changing field values and not be called directly. Please
+                     use properties (getters) instead.
+        """
+        if not self.fixed_value:
+            self.__set_value(value)
+
+    #--------------------------------------------------------------------------#
+    # Properties                                                               #
+    #--------------------------------------------------------------------------#
+
+    @property
+    def value(self) -> bytes:
+        return self._value
+    @value.setter
+    def value(self, value):
+        self.__set_value(value)
+    @property
+    def size(self) -> int:
+        return self._size
+    @size.setter
+    def size(self, size:int):
+        self._size = size
+
+class UDPStructure(object):
+    """Object representation of a UDP structure (set of byte fields) inside a
+    packet.
+
+    Higher-level protocol implementations relying on UDP should inherit this
+    class for basic packet byte, field and structure definition.
+
+    :param structure: dictionary with format ``{index: value, ...}`` where
+                      ``index`` can be anything to refer to the field, e.g.
+                      index from an Enum and ``value`` is the content of a
+                      field on one ore more bytes.
+    """
+    _structure:dict
+
+    def __bytes__(self):
+        """:returns: the content of the ``_structure`` as a bytearray."""
+        structure = []
+        for field in list(self._structure.values()):
+            structure += [field.value[i:i+1] for i in range(field.size)] # Split by byte
+        return b''.join(structure)
+
+    def __str__(self):
+        """:returns: the bytearray built from the ``_structure`` dictionary
+        converted to a string.
+        """
+        return "{0}".format(bytes(self))
+
+    #-------------------------------------------------------------------------#
+    # Protected                                                               #
+    #-------------------------------------------------------------------------#
+
+    def _field(self, value, size:int=1, fixed_size:bool=False, fixed_value:bool=False) -> bytes:
+        """Creates a UDP Field object from a set of attributes.
+
+        :param value: The value of the field as bytes or as an int.
+        :param size: The size (in bytes) of the field as an integer. If the
+                     size does not match with the size of the ``value``, it
+                     may change automatically (unless ``fixed_size`` is True.
+        :param fixed_size: Bool to state if the size can be changed manually.
+        :param fixed_value: Bool to state if the value can be changed manually.
+        :raises BOFProgrammingError: If the UDP field cannot be created."""
+        return UDPField(value, size, fixed_size, fixed_value)
+
+    def _resize(self, field, size:int) -> None:
+        """Change size of a field and resize its value. If size is set,
+        we state that its value is now fixed and will not adapt if the value
+        of the field is changed.
+        """
+        value = byte.resize(self._structure[field].value, size)
+        self._structure[field].fixed_size = True
+        self._structure[field].size = size
+        self._structure[field].value = value
+
+#-----------------------------------------------------------------------------#
+# Protocol implementation                                                     #
+#-----------------------------------------------------------------------------#
+
+class _UDP(asyncio.DatagramProtocol):
+    """UDP protocol implementation interface from asyncio builtin UDP handler.
+    Will be called from protocol implementation class.
+    Not to be instantiated outside module (and outside UDP class).
+    """
+    __endpoint = None
+
+    def __init__(self, endpoint):
+        """Register instance of endpoint to process received data."""
+        self.__endpoint = endpoint
+
+    def connection_made(self, transport):
+        """Register transport information after connection is established."""
+        self.__endpoint.transport = transport
+
+    def connection_lost(self, exception):
+        """Request endpoint to disconnect when connection is lost."""
+        if self.__endpoint:
+            self.__endpoint.disconnect()
+
+    def datagram_received(self, data, address):
+        """Send received datagram to endpond for processing."""
+        self.__endpoint._receive(data, address)
+
+    def error_received(self, e):
+        """Send disconnect order if error is connection refused.
+        Else we let the error occur, it will be logged if logging is enabled.
+        """
+        if isinstance(e, ConnectionRefusedError) and self.__endpoint:
+            self.__endpoint.disconnect(in_error=e)
+
+class UDP(object):
+    """UDP protocol endpoint.
+
+    This is the parent class to higher-lever network protocol implementation.
+    It can be instantiated as is, however this is not the expected behavior.
+    Uses protected ``_UDP`` classes implementing ``asyncio`` UDP handler.
+    """
+    _transport: object # SelectorDatagramTransport
+    _address: tuple # (ip, port)
+    _socket:tuple # local (ip, port)
+    _queue: object
+    _loop: object
+
+    def __init__(self):        
+        self._queue = asyncio.Queue()
+        self._source = None
+
+    #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#
+
+    def connect(self, ip:str, port:int) -> object:
+        """Initialize asynchronous connection using UDP transport on remote
+        address specified with `ip` and `port`.
+
+        :param ip: IPv4 address as a string with format ``A.B.C.D``.
+        :param port: Port number as an integer.
+        :returns: The instance of the UDP class created,
+        :raises BOFNetworkError: if connection fails.
+        """
+        ip = "127.0.0.1" if ip == "localhost" else ip
+        self._loop = asyncio.get_event_loop()
+        try:
+            connect = self._loop.create_datagram_endpoint(lambda: _UDP(self),
+                                                           remote_addr=((ip, port)),
+                                                           family=AF_INET,
+                                                           allow_broadcast=True)
+            transport, protocol = self._loop.run_until_complete(connect)
+        except (gaierror, OverflowError) as e:
+            self._handle_exception(e, "Connection failed")
+            return None
+        self._address = (ip, port)
+        self._socket = self._transport.get_extra_info('socket')
+        log("Connected to {0}:{1}".format(ip, port))
+        return self
+
+    def send(self, data:bytes, address:tuple=None) -> int:
+        """Send ``data`` to ``address`` over UDP.
+
+        :param data: Raw byte array to send. 
+        :param address: Address to send ``data`` to, with format with format
+                        tuple ``(ipv4_address, port)``.  If address is not 
+                        specified, uses the address given to ``connect``.
+        :returns: The number of bytes sent, as an integer.
+        """
+        if type(data) == str:
+            bdata = data.encode('utf-8')
+        else:
+            bdata = data
+        address = address if address else self._address
+        if not self._transport:
+            log("Cannot send data to {0}:{1}".format(address[0], address[1]))
+            return 0
+        self._transport.sendto(bdata, address)
+        log("Send to {0}:{1} : {2}".format(address[0], address[1], data))
+        return len(bdata)
+
+    def receive(self, timeout:float=1.0) -> (bytes, tuple):
+        """Listen on the network until receiving a packet on the socket or until
+        ``timeout``.
+
+        :param timeout: Time out value in seconds,  as a float (default is 1.0s).
+        :returns: a tuple ``(data:bytes, address:tuple)`` where address is the
+                  remote address and has format ``(ip, port)``.
+        :raises BOFProgrammingError: if ``timeout`` is invalid.
+        :raises BOFNetworkError: if connection timed out before receiving a packet.
+        """
+        data, address = self._loop.run_until_complete(self.__listen_once(timeout))
+        log("Received from {0}:{1} : {2}".format(address[0], address[1], data))
+        return data, address
+
+    def send_receive(self, data:bytes, address:tuple=None, timeout:float=1.0) -> (bytes, tuple):
+        """sends a packet to ``address`` and wait for a response until
+        ``timeout``. Clever implementation of TCP over UDP, because this is
+        exactly what some BMS network protocols do (yay, KNX!).
+        
+        :param data: Raw byte array to send.
+        :param address: Remote network address with format ``(ip, port)``.
+        :param timeout: Time out value in seconds,  as a float (default is 1.0s).
+        :returns: a tuple ``(data:bytes, address:tuple)`` where address is the
+                  remote address and has format ``(ip, port)``.
+        :raises BOFProgrammingError: if ``timeout`` is invalid.
+        :raises BOFNetworkError: if connection timed out before receiving a packet.
+        """
+        self.send(data, address)
+        data, address = self.receive(timeout)
+        return data, address
+
+    def disconnect(self, in_error:bool=False) -> None:
+        """Closes the transport link.
+
+        :param in_error: Boolean to specify whether or not the connection was
+                         closed on error, as this method can be called from
+                         within the module in case of a network error.
+        :raises BOFNetworkError: if `in_error` is set to `True`.
+        """
+        if self._transport:
+            self._transport.close()
+            self._transport = None
+        if in_error:
+            self._handle_exception(in_error, "Connection ended unexpectedly")
+        else:
+            log("Disconnected.")
+
+    #-------------------------------------------------------------------------#
+    # Protected                                                               #
+    #-------------------------------------------------------------------------#
+
+    def _receive(self, data:bytes, address:tuple) -> None:
+        """Receives raw datagram and adds it to queue for processing.
+        
+        .. warning:: Should not be called directly.
+        """
+        try:
+            self._queue.put_nowait((data, address))
+        except asyncio.QueueFull:
+            log("Queue is full", "ERROR")
+            raise BOFNetworkError("Queue is full")
+
+    def _handle_exception(self, exception:object, message:str) -> None:
+        """Log exception and raise BOF-defined network exception instead.
+
+        .. seealso:: bof.base.BOFNetworkError"""
+        log("Exception occurred: {0}".format(repr(exception)), "ERROR")
+        message = "{0} ({1})".format(message, repr(exception))
+        raise BOFNetworkError(message) from None
+
+    #-------------------------------------------------------------------------#
+    # Private                                                                 #
+    #-------------------------------------------------------------------------#
+
+    async def __listen_once(self, timeout:float=1.0) -> (bytes, tuple):
+        """Listen until a packet is received from UDP connection or
+        until ``timeout`` (default: 1 second).
+        """
+        if not isinstance(timeout, float) and not isinstance(timeout, int):
+            raise BOFProgrammingError("Timeout expects a float (seconds)")
+        try:
+            data, address = await asyncio.wait_for(self._queue.get(),
+                                                   timeout=float(timeout))
+        except futures._base.TimeoutError as te:
+            self._handle_exception(te, "Connection timeout")
+        return data, address
+
+    #-------------------------------------------------------------------------#
+    # Properties                                                              #
+    #-------------------------------------------------------------------------#
+
+    @property
+    def transport(self):
+        """Get UDP transport object ``SelectorDatagramTransport``.
+        Relies on Python's builtin ``asyncio`` module.
+        """
+        return self._transport
+    @transport.setter
+    def transport(self, value):
+        """Set UDP transport object ``SelectorDatagramTransport``.
+        Relies on Python's builtin ``asyncio`` module.
+        """
+        self._transport = value
+
+    @property
+    def source(self):
+        """Get source information on a socket with format tuple
+        ``(ipv4_source_address:str, source_port:int)``.
+        Requires the connection to be established.
+        Relies on Python's builtin ``socket`` module.
+        """
+        return self._socket.getsockname()

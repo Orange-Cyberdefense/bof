@@ -4,7 +4,7 @@ Boiboite Opener Framework's documentation
 =========================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 3
+   :caption: Table of content:
 
    bof
