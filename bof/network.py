@@ -6,9 +6,19 @@ Relies on module ``asyncio``.
 
 :UDP: Implementation of asynchronous UDP communication and packet crafting.
 
-.. warning:: It is recommended not to use the content of this module as is
-             and to use subclasses instead. Please refer to this module only
-             if you plan to implement more network protocols.
+Network connection and example example with raw UDP::
+
+    from bof import UDP
+    udp = UDP()
+    udp.connect("192.168.1.1", 3671)
+    udp.send(b"Hi!")
+    udp.disconnect()
+
+.. warning:: Direct initialization of UDP object is not recommended. The user
+             should use classes inherited from UDP, such as the KNX protocol
+             implementation class (``bof.knx.KnxNet``). Regular network usage
+             is the same except for protocol-specific actions and attributes.
+             Details are given in the chapter dedicated to the chosen protocol.
 """
 
 import asyncio
@@ -220,6 +230,10 @@ class UDP(object):
         :param port: Port number as an integer.
         :returns: The instance of the UDP class created,
         :raises BOFNetworkError: if connection fails.
+
+        Example::
+
+            udp = bof.UDP().connect("127.0.0.1", 13671)
         """
         ip = "127.0.0.1" if ip == "localhost" else ip
         self._loop = asyncio.get_event_loop()
@@ -245,6 +259,11 @@ class UDP(object):
                         tuple ``(ipv4_address, port)``.  If address is not 
                         specified, uses the address given to ``connect``.
         :returns: The number of bytes sent, as an integer.
+
+        Example::
+
+            udp.send("test_send")
+            udp.send(b'\x06\x10\x02\x03')
         """
         if type(data) == str:
             bdata = data.encode('utf-8')
@@ -267,6 +286,10 @@ class UDP(object):
                   remote address and has format ``(ip, port)``.
         :raises BOFProgrammingError: if ``timeout`` is invalid.
         :raises BOFNetworkError: if connection timed out before receiving a packet.
+
+        Example::
+
+            response, address = udp.receive()
         """
         data, address = self._loop.run_until_complete(self.__listen_once(timeout))
         log("Received from {0}:{1} : {2}".format(address[0], address[1], data))
@@ -284,6 +307,11 @@ class UDP(object):
                   remote address and has format ``(ip, port)``.
         :raises BOFProgrammingError: if ``timeout`` is invalid.
         :raises BOFNetworkError: if connection timed out before receiving a packet.
+
+        Example::
+
+            result, _ = udp.send_receive("test_send_receive", timeout=10)
+            result = result.decode('utf-8') # with echo server: "test_send_receive"
         """
         self.send(data, address)
         data, address = self.receive(timeout)

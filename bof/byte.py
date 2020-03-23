@@ -21,6 +21,10 @@ def set_byteorder(byteorder:str) -> None:
     :param byteorder: Accepts two values: ``big`` for big endian (default) or
                       ``little`` for little endian
     :raises BOFProgrammingError: If ``byteorder`` is invalid.
+
+    Example::
+
+        set_byteorder(byteorder:str) -> None
     """
     if byteorder not in ["big", "little"]:
         raise BOFProgrammingError("Byte order is either 'big' or 'little'")
@@ -52,6 +56,16 @@ def resize(array:bytes, size:int, byteorder:str=None) -> bytes:
     :param array: Byte array to resize.
     :param size: The expected size of the byte array after padding/truncation.
     :returns: The resized byte array.
+
+    Example::
+
+        >>> x = bof.byte.from_int(1234)
+        >>> x = bof.byte.resize(x, 1)
+        >>> x
+        b'\xd2'
+        >>> x = bof.byte.resize(x, 4)
+        >>> x
+        b'\x00\x00\x00\xd2'
     """
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
@@ -76,6 +90,13 @@ def from_int(value:int, size:int=0, byteorder:str=None) -> bytes:
     :returns: The value resized as a bytearray.
     :raises BOFProgrammingError: If ``value`` is not int or ``byteorder`` is
                                  invalid.
+
+    Example::
+
+        >>> bof.byte.from_int(65980)
+        b'\x01\x01\xbc'
+        >>> bof.byte.from_int(65980, size=8, byteorder='big')
+        b'\x00\x00\x00\x00\x00\x01\x01\xbc'
     """
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
@@ -95,6 +116,11 @@ def to_int(array:bytes, byteorder:str=None) -> int:
     :returns: The value of the bytearray converted to an integer.
     :raises BOFProgrammingError: If ``array`` is not bytes or ``byteorder`` is
                                  invalid.
+
+    Example::
+
+        >>> bof.byte.to_int(b'\x01\x01\xbc')
+        65980
     """
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
@@ -112,6 +138,10 @@ def from_ipv4(ip:str, size:int=0, byteorder:str=None) -> bytes:
     :param byteorder: If not set, global ``byteorder`` will be used (set with
                       ``set_byteorder()``).
     :returns: The IPv4 address as a bytearray (should be on 4 bytes).
+
+    Example::
+
+        value = byte.from_ipv4("127.0.0.1")
     """
     return bytes(map(int, ip.split('.')))
 
