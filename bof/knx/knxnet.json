@@ -1,0 +1,45 @@
+{
+    "service identifiers": [
+	{"name": "SEARCH REQUEST", "id": "0201"},
+	{"name": "SEARCH RESPONSE", "id": "0202"},
+	{"name": "DESCRIPTION REQUEST", "id": "0203"},
+	{"name": "DESCRIPTION RESPONSE", "id": "0204"},
+	{"name": "CONNECT REQUEST", "id": "0205"},
+	{"name": "CONNECT RESPONSE", "id": "0206"},
+	{"name": "CONNECTIONSTATE REQUEST", "id": "0207"},
+	{"name": "CONNECTIONSTATE RESPONSE", "id": "0208"},
+	{"name": "DISCONNECT REQUEST", "id": "0209"},
+	{"name": "DISCONNECT RESPONSE", "id": "020A"}
+    ],
+    "structures": {
+	"HEADER": [
+	    {"name": "header length", "type": "field", "size": 1, "default": "06"},
+	    {"name": "protocol version", "type": "field", "size": 1, "default": "10"},
+	    {"name": "service identifier", "type": "field", "size": 2},
+	    {"name": "total length", "type": "field", "size": 2}
+	],
+	"HPAI": [
+	    {"name": "structure length", "type": "field", "size": 1},
+	    {"name": "host protocol code", "type": "field", "size": 1},
+	    {"name": "host protocol data", "type": "field", "size": 0}
+	]
+    },
+    "bodies": {
+	"SEARCH REQUEST": [
+	    {"name": "discovery endpoint", "type": "HPAI"}
+	],
+	"SEARCH RESPONSE": [
+	    {"name": "control endpoint", "type": "HPAI"},
+	    {"name": "device hardware", "type": "DIB", "dibtype": "DEVICE INFO"},
+	    {"name": "supported service families", "type": "DIB", "dibtype": "SUPP SVC FAMILIES"}
+	],
+	"DESCRIPTION REQUEST": [
+	    {"name": "control endpoint", "type": "HPAI"}
+	],
+	"DESCRIPTION RESPONSE": [
+	    {"name": "device hardware", "type": "DIB", "dibtype": "DEVICE INFO"},
+	    {"name": "supported service families", "type": "DIB", "dibtype": "SUPP SVC FAMILIES"},
+	    {"name": "other device information", "type": "DIB", "dibtype": "DEVICE INFO", "optional": true}
+	]
+    }
+}

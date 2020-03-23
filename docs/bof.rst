@@ -11,3 +11,4 @@ BOF source code documentation
    :caption: Available submodules:
 
    base
+   knx
