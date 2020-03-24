@@ -84,7 +84,7 @@ class KnxField(UDPField):
             self.content = bytes(self.__size) # Empty bytearray
 
     def __bytes__(self):
-        return bytes(content)
+        return bytes(self.__content)
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -269,6 +269,7 @@ class KnxFrame(object):
         # Empty frame (no parameter)
         self.__source = ("",0)
         self.__header = KnxStructure(name="header")
+        self.__header.append(KnxStructure.factory(KNXSPEC[STRUCTURES]["HEADER"]))
         self.__body = KnxStructure(name="body")
         # Fill in the frame according to parameters
         if "sid" in kwargs:
@@ -322,6 +323,16 @@ class KnxFrame(object):
     #-------------------------------------------------------------------------#
     # Properties                                                              #
     #-------------------------------------------------------------------------#
+
+    @property
+    def header(self):
+        """Builds the raw byte set and returns it."""
+        return self.__header
+
+    @property
+    def body(self):
+        """Builds the raw byte set and returns it."""
+        return self.__body
 
     @property
     def raw(self):
