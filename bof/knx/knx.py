@@ -5,7 +5,22 @@ UDP classes.
 Network connection
 ------------------
 
-TODO
+KNX usually works over UDP, however KNX specification v2.1 state that TCP can
+also be used. The communication between BOF and a KNX object still acts like
+a TCP-based protocol, as (almost) every request expects a response.
+
+``KnxNet`` class (for establishing and maintaining a connection) is inherited
+from the ``UDP`` class from ``bof.network`` submodule and uses most of its
+features. Fill free to change the inheritance to TCP, it may work as long as
+the ``TCP`` class mostly follows the same structure as ``UDP`` class.
+
+Usage::
+
+    knxnet = knx.KnxNet()
+    knxnet.connect("192.168.0.100", 3671)
+    datagram = knxnet.receive()
+    print(datagram)
+    knxnet.disconnect()
 
 KNX frame handling
 ------------------
@@ -33,7 +48,7 @@ from enum import Enum
 from os import path
 
 from ..network import UDP, UDPStructure, UDPField
-from ..base import BOFProgrammingError, load_json
+from ..base import BOFProgrammingError, load_json, to_property
 
 ###############################################################################
 # KNX PROTOCOLS AND FRAMES CONSTANTs                                          #
@@ -60,31 +75,34 @@ BODIES = "bodies"
 #-----------------------------------------------------------------------------#
 
 class KnxField(UDPField):
-    """A ``KnxField`` is a set of raw bytes with a name, a size and a content.
+    """A ``KnxField`` is a set of raw bytes with a name, a size and a content
+    (``value``).
 
     :param name: Name of the field, to be referred to using a property.
-    :param size: Size of the field (number of bytes).
-    :param content: Value contained in the field (in bytes)
+    :param size: Size of the field (number of bytes), from ``UDPField``.
+    :param value: Value contained in the field (in bytes), from ``UDPFIield``.
+    :param fixed_size: Set to ``True`` if the ``size`` should not be modified
+                       automatically when changing the value (``UDPField``).
+    :param fixed_value: Set to ``True`` if the ``value`` should not be
+                        modified automatically inside the module (``UDPField``).
 
     **KNX Standard v2.1 03_08_02**
     """
     __name:str
-    __size:int
-    __content:bytes
 
     def __init__(self, **kwargs):
         """Initialize the field according to a set of keyword arguments."""
-        self.__size = int(kwargs["size"]) if "size" in kwargs else 1
+        self._size = int(kwargs["size"]) if "size" in kwargs else 1
         self.__name = kwargs["name"].lower() if "name" in kwargs else ""
         if "default" in kwargs:
-            self.content = kwargs["default"]
-        elif "content" in kwargs:
-            self.content = kwargs["content"]
+            self.value = kwargs["default"]
+        elif "value" in kwargs:
+            self.value = kwargs["value"]
         else:
-            self.content = bytes(self.__size) # Empty bytearray
+            self.value = bytes(self._size) # Empty bytearray
 
     def __bytes__(self):
-        return bytes(self.__content)
+        return bytes(self._value)
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -93,25 +111,27 @@ class KnxField(UDPField):
     @property
     def name(self) -> str:
         return self.__name
-
     @name.setter
     def name(self, name:str) -> None:
-        self.__name = name.lower()
+        if isinstance(name, str):
+            self.__name = name.lower()
+        else:
+            raise BOFProgrammingError("Field name should be a string.")
 
     @property
-    def content(self) -> bytes:
-        return self.__content
+    def value(self) -> bytes:
+        return self._value
 
-    @content.setter
-    def content(self, value) -> None:
-        if isinstance(value, bytes):
-            self.__content = value
-        elif isinstance(value, str):
-            self.__content = bytes.fromhex(value)
-        elif isinstance(value, int):
-            self.__content = byte.from_int(value)
+    @value.setter
+    def value(self, content) -> None:
+        if isinstance(content, bytes):
+            self._value = content
+        elif isinstance(content, str):
+            self._value = bytes.fromhex(content)
+        elif isinstance(content, int):
+            self._value = byte.from_int(content)
         else:
-            raise BOFProgrammingError("Field content should be bytes, str or int.")
+            raise BOFProgrammingError("Field value should be bytes, str or int.")
 
 
 #-----------------------------------------------------------------------------#
@@ -150,7 +170,7 @@ class KnxStructure(UDPStructure):
         Some other keywords arguments depend on the type given (``size``,
         ``dibtype``, ``default``, etc.).
         """
-        self.__name = kwargs["name"].lower() if "name" in kwargs else ""
+        self.name = kwargs["name"] if "name" in kwargs else ""
         self.__structure = []
 
     def __bytes__(self):
@@ -199,14 +219,45 @@ class KnxStructure(UDPStructure):
 
     def append(self, structure) -> None:
         """Appends a structure, a field of a list of structures and/fields to
-        current structure's content.
+        current structure's content. Adds the name of the structure to the list
+        of current's structure properties. Ex: if ``structure.name`` is ``foo``,
+        it could be referred to as ``self.foo``.
 
         :param structure: ``KnxStructure``, ``KnxField`` or a list of such objects.
         """
         if isinstance(structure, KnxField) or isinstance(structure, KnxStructure):
             self.__structure.append(structure)
+            # Add the name of the structure as a property to this instance
+            if len(structure.name) > 0:
+                setattr(self, to_property(structure.name), structure)
         elif isinstance(structure, list):
-            self.__structure += structure
+            for item in structure:
+                self.append(item)
+
+    #-------------------------------------------------------------------------#
+    # Properties                                                              #
+    #-------------------------------------------------------------------------#
+
+    @property
+    def name(self) -> str:
+        return self.__name
+
+    @name.setter
+    def name(self, name:str):
+        if isinstance(name, str):
+            self.__name = name.lower()
+        else:
+            raise BOFProgrammingError("Structure name should be a string.")
+
+    @property
+    def fields(self) -> list:
+        fieldlist = []
+        for item in self.__structure:
+            if isinstance(item, KnxStructure):
+                fieldlist += item.fields
+            elif isinstance(item, KnxField):
+                fieldlist.append(item)
+        return fieldlist
 
 class KnxHPAI(KnxStructure):
     """TODO"""

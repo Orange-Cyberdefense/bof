@@ -69,7 +69,7 @@ class UDPField(object):
     def __str__(self):
         return "<{0}: {1} ({2}b)>".format(type(self).__name__, self._value, self._size)
 
-    def __set_value(self, value):
+    def _set_value(self, value):
         """Accepts both int and byte for value and converts it to bytes."""
         self.size = max(self._size, byte.get_size(value)) if not self.fixed_size else self._size
         if isinstance(value, bytes):
@@ -94,7 +94,7 @@ class UDPField(object):
                      use properties (getters) instead.
         """
         if not self.fixed_value:
-            self.__set_value(value)
+            self._set_value(value)
 
     #--------------------------------------------------------------------------#
     # Properties                                                               #

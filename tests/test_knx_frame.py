@@ -20,3 +20,10 @@ class Test01BasicKnxFrame(unittest.TestCase):
         """Test that frame header has been initialized with default values."""
         frame = knx.KnxFrame()
         self.assertEqual(bytes(frame.header), b"\x06\x10\x00\x00\x00\x00")
+    def test_03_knxframe_header_field(self):
+        """Test that frame header has been initialized with properties."""
+        frame = knx.KnxFrame()
+        self.assertEqual(bytes(frame.header.header_length), b"\x06")
+        self.assertEqual(bytes(frame.header.protocol_version), b"\x10")
+        self.assertEqual(bytes(frame.header.service_identifier), b"\x00\x00")
+        self.assertEqual(bytes(frame.header.total_length), b"\x00\x00")

@@ -8,6 +8,7 @@
 import logging
 import json
 from datetime import datetime
+from re import sub
 
 ###############################################################################
 # BOF EXCEPTIONS                                                              #
@@ -115,3 +116,11 @@ def load_json(filename:str) -> dict:
             return json.load(jsonfile)
     except Exception as e:
         raise BOFLibraryError("JSON File {0} cannot be used.".format(filename)) from None
+
+###############################################################################
+# STRING MANIPULATION                                                         #
+###############################################################################
+
+def to_property(value:str) -> str:
+    """Replace all non alphanumeric characters in a string with ``_``"""
+    return sub('[^0-9a-zA-Z]+', '_', value)
