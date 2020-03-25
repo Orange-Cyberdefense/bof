@@ -1,8 +1,12 @@
 TODOs
 =====
 
+- [ ] Find a way to fill a known service with correct default values
+- [ ] Correctly handle length fields so that they are updated when a value is changed in a structure
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
-- [ ] `KNXSPEC` may be moved to a singleton class with parsing methods and properties instead
-- [ ] `KnxStructure.factory()` could be refactored / improved
-- [ ] `type` in knxnet dictionary could be used to generate structure directly if in `KNXSPEC[STRUCTURES]`
-- [X] Script to emulate boiboite (just reply valid DESCRIPTION_RESPONSE when sending valid DESCRIPTION_REQUEST :))
+- [ ] Should `KNXSPEC` be moved to a singleton class with parsing methods and properties instead ??
+- [ ] `_TCP` and `TCP` classes in `bof/network.py` 
+- [ ] Replace `DIB` type and `dibtype`s with distinct DIB structures
+- [X] `KnxStructure.factory()` could be refactored / improved
+- [X] `type` in knxnet dictionary could be used to generate structure directly if in `KNXSPEC[STRUCTURES]`
+- [X] Script to simulate boiboite (just reply valid DESCRIPTION_RESPONSE when sending valid DESCRIPTION_REQUEST :))

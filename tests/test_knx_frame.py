@@ -27,3 +27,9 @@ class Test01BasicKnxFrame(unittest.TestCase):
         self.assertEqual(bytes(frame.header.protocol_version), b"\x10")
         self.assertEqual(bytes(frame.header.service_identifier), b"\x00\x00")
         self.assertEqual(bytes(frame.header.total_length), b"\x00\x00")
+    def test_04_knxframe_body_from_sid(self):
+        """Test that frame body is initialized according to a valid sid."""
+        frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
+        self.assertEqual(bytes(frame.body.structure_length), b"\x00")
+        self.assertEqual(bytes(frame.body.host_protocol_code), b"\x00")
+        self.assertEqual(bytes(frame.body.host_protocol_data), b"")

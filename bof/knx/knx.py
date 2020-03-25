@@ -193,11 +193,6 @@ class KnxStructure(UDPStructure):
         :returns: A list of ``KnxStructure`` object (one by item in ``structure``).
         :raises BOFProgrammingError: If the value of argument "type" in a
                                      structure dictionary is unknown.
-
-        **TODO**:
-
-        - Missing types of structures to be added to the choices.
-        - Refactor object selection based on types.
         """
         structlist = []
         if isinstance(structure, list):
@@ -205,16 +200,13 @@ class KnxStructure(UDPStructure):
                 structlist += KnxStructure.factory(item)
         elif isinstance(structure, dict):
             if not "type" in structure or structure["type"] == "structure":
-                instance = KnxStructure
+                structlist.append(KnxStructure(**structure))
             elif structure["type"] == "field":
-                instance = KnxField
-            elif structure["type"] == "HPAI":
-                instance = KnxHPAI
-            elif structure["type"] == "DIB":
-                instance = KnxDIB
+                structlist.append(KnxField(**structure))
+            elif structure["type"] in KNXSPEC[STRUCTURES].keys():
+                structlist += KnxStructure.factory(KNXSPEC[STRUCTURES][structure["type"]])
             else:
                 raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
-            structlist.append(instance(**structure)) # instance
         return structlist
 
     def append(self, structure) -> None:
