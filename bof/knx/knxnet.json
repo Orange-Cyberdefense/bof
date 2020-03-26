@@ -19,9 +19,10 @@
 	    {"name": "total length", "type": "field", "size": 2}
 	],
 	"HPAI": [
-	    {"name": "structure length", "type": "field", "size": 1},
-	    {"name": "host protocol code", "type": "field", "size": 1},
-	    {"name": "host protocol data", "type": "field", "size": 0}
+	    {"name": "structure length", "type": "field", "size": 1, "default": "08"},
+	    {"name": "host protocol code", "type": "field", "size": 1, "default": "01"},
+	    {"name": "ip address", "type": "field", "size": 4},
+	    {"name": "port", "type": "field", "size": 2}
 	]
     },
     "bodies": {

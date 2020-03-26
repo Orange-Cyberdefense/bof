@@ -46,9 +46,11 @@ A field (``KnxField``) is a byte or a byte array with:
 
 from enum import Enum
 from os import path
+from ipaddress import ip_address
 
 from ..network import UDP, UDPStructure, UDPField
 from ..base import BOFProgrammingError, load_json, to_property
+from .. import byte
 
 ###############################################################################
 # KNX PROTOCOLS AND FRAMES CONSTANTs                                          #
@@ -92,7 +94,10 @@ class KnxField(UDPField):
 
     def __init__(self, **kwargs):
         """Initialize the field according to a set of keyword arguments."""
+        # Inherited from UDPField
+        self._value = b''
         self._size = int(kwargs["size"]) if "size" in kwargs else 1
+        # KnxField initialization
         self.__name = kwargs["name"].lower() if "name" in kwargs else ""
         if "default" in kwargs:
             self.value = kwargs["default"]
@@ -121,15 +126,20 @@ class KnxField(UDPField):
     @property
     def value(self) -> bytes:
         return self._value
-
     @value.setter
     def value(self, content) -> None:
         if isinstance(content, bytes):
-            self._value = content
+            self._value = byte.resize(content, self.size)
         elif isinstance(content, str):
-            self._value = bytes.fromhex(content)
+            # Check if IPv4:
+            try:
+                ip_address(content)
+                self._value = byte.from_ipv4(content)
+            except ValueError:
+                self._value = bytes.fromhex(content)
+                self._value = byte.resize(self._value, self.size)
         elif isinstance(content, int):
-            self._value = byte.from_int(content)
+            self._value = byte.from_int(content, size=self.size)
         else:
             raise BOFProgrammingError("Field value should be bytes, str or int.")
 
@@ -178,6 +188,10 @@ class KnxStructure(UDPStructure):
         for item in self.__structure:
             raw += bytes(item)
         return raw
+
+    def __len__(self):
+        """Return the size of the structure in total number of bytes."""
+        return len(bytes(self))
 
     #-------------------------------------------------------------------------#
     # Public                                                                  #
@@ -251,13 +265,10 @@ class KnxStructure(UDPStructure):
                 fieldlist.append(item)
         return fieldlist
 
-class KnxHPAI(KnxStructure):
-    """TODO"""
-    pass
-
-class KnxDIB(KnxStructure):
-    """TODO"""
-    pass
+    @property
+    def attrs(self) -> list:
+        """Gives the list of attributes added to the structure (fields)."""
+        return list(self.__dict__.keys())
 
 #-----------------------------------------------------------------------------#
 # KNX frames / datagram representation                                        #
@@ -319,6 +330,8 @@ class KnxFrame(object):
             self.build_from_sid(kwargs["sid"])
         elif "frame" in kwargs:
             self.build_from_frame(kwargs["frame"], kwargs["source"])
+        if "total_length" in self.__header.attrs:
+            self.__header.total_length.value = byte.from_int(len(self.__header) + len(self.__body))
 
     def __bytes__(self):
         """Overload so that bytes(frame) returns the raw KnxFrame bytearray."""
@@ -351,6 +364,10 @@ class KnxFrame(object):
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
         self.__body.append(KnxStructure.factory(KNXSPEC[BODIES][sid]))
+        # Change header according to sid
+        for service in KNXSPEC[SIDS]:
+            if service["name"] == sid:
+                self.__header.service_identifier.value = service["id"]
 
     def build_from_frame(self, frame:bytes, source:tuple=None) -> None:
         """Fill in the KnxFrame object using a frame as a raw byte array. This
