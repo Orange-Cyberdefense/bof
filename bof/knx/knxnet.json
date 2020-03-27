@@ -13,13 +13,13 @@
     ],
     "structures": {
 	"HEADER": [
-	    {"name": "header length", "type": "field", "size": 1, "default": "06"},
+	    {"name": "header length", "type": "field", "size": 1, "default": "06", "length": true},
 	    {"name": "protocol version", "type": "field", "size": 1, "default": "10"},
 	    {"name": "service identifier", "type": "field", "size": 2},
 	    {"name": "total length", "type": "field", "size": 2}
 	],
 	"HPAI": [
-	    {"name": "structure length", "type": "field", "size": 1, "default": "08"},
+	    {"name": "structure length", "type": "field", "size": 1, "default": "08", "length": true},
 	    {"name": "host protocol code", "type": "field", "size": 1, "default": "01"},
 	    {"name": "ip address", "type": "field", "size": 4},
 	    {"name": "port", "type": "field", "size": 2}
@@ -31,16 +31,16 @@
 	],
 	"SEARCH RESPONSE": [
 	    {"name": "control endpoint", "type": "HPAI"},
-	    {"name": "device hardware", "type": "DIB", "dibtype": "DEVICE INFO"},
-	    {"name": "supported service families", "type": "DIB", "dibtype": "SUPP SVC FAMILIES"}
+	    {"name": "device hardware", "type": "DIB_DEVICE_INFO"},
+	    {"name": "supported service families", "type": "DIB_SUPP_SVC_FAMILIES"}
 	],
 	"DESCRIPTION REQUEST": [
 	    {"name": "control endpoint", "type": "HPAI"}
 	],
 	"DESCRIPTION RESPONSE": [
-	    {"name": "device hardware", "type": "DIB", "dibtype": "DEVICE INFO"},
-	    {"name": "supported service families", "type": "DIB", "dibtype": "SUPP SVC FAMILIES"},
-	    {"name": "other device information", "type": "DIB", "dibtype": "DEVICE INFO", "optional": true}
+	    {"name": "device hardware", "type": "DIB_DEVICE INFO"},
+	    {"name": "supported service families", "type": "DIB_SUPP_SVC_FAMILIES"},
+	    {"name": "other device information", "type": "DIB_DEVICE INFO", "optional": true}
 	]
     }
 }

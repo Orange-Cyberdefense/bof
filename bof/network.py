@@ -57,12 +57,21 @@ class UDPField(object):
     fixed_size:bool
     fixed_value:bool
 
-    def __init__(self, value, size:int=1, fixed_size:bool=False, fixed_value:bool=False):
+    def __init__(self, value, size:int=1, fixed_size:bool=False, fixed_value:bool=False, **kwargs):
+        """Initialize a field, requires at least a value to store to the field.
+
+        :param value: Value to store as byte or int
+        :param size: Size of the field (number of bytes)
+        :param fixed_size: Boolean to state if the size can or cannot be changed.
+        :param fixed_value: Boolean to state if the value can be modified.
+        :param kwargs: Not used here but subclasses may use more keyword
+                       arguments.
+        """
         # We need to set this value first
         self.fixed_size = fixed_size
         # Actual values, considering fixed and free
         self._size = max(size, byte.get_size(value)) if not self.fixed_size else size
-        self.__set_value(value) # Call property setter
+        self._set_value(value) # Call property setter
         # We set this after we first set a value
         self.fixed_value = fixed_value
 

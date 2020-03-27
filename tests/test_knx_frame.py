@@ -58,3 +58,13 @@ class Test01BasicKnxFrame(unittest.TestCase):
         ip, port = knxnet.source # Returns 127.0.0.1, looks weird
         frame.body.ip_address.value = ip
         self.assertEqual(bytes(frame.body), b"\x08\x01\x7f\x00\x00\x01\x00\x00")
+
+class Test01AdvancedKnxHeaderCrafting(unittest.TestCase):
+    """Test class for advanced header fields handling and altering."""
+    def test_01_basic_knx_header_from_frame(self):
+        """Test basic header build from frame with toal_length update."""
+        header = knx.KnxFrame().header
+        self.assertEqual(bytes(header), b"\x06\x10\x00\x00\x00\x06")
+    def test_02_basic_knx_header(self):
+        header = knx.KnxStructure.build_header()
+        self.assertEqual(bytes(header), b"\x06\x10\x00\x00\x00\x00")

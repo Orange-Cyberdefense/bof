@@ -49,7 +49,7 @@ from os import path
 from ipaddress import ip_address
 
 from ..network import UDP, UDPStructure, UDPField
-from ..base import BOFProgrammingError, load_json, to_property
+from ..base import BOFProgrammingError, load_json, to_property, log
 from .. import byte
 
 ###############################################################################
@@ -87,24 +87,33 @@ class KnxField(UDPField):
                        automatically when changing the value (``UDPField``).
     :param fixed_value: Set to ``True`` if the ``value`` should not be
                         modified automatically inside the module (``UDPField``).
+    :param is_length: This boolean states if the field is the length field of
+                      the structure. If True, this value is updated when a field
+                      in the structure changes (except if this field has arg
+                      ``fixed_value`` set to True.
 
     **KNX Standard v2.1 03_08_02**
     """
     __name:str
+    __is_length:bool
 
     def __init__(self, **kwargs):
         """Initialize the field according to a set of keyword arguments."""
+        super().__init__(b'', **kwargs)
         # Inherited from UDPField
-        self._value = b''
-        self._size = int(kwargs["size"]) if "size" in kwargs else 1
+        self._size = int(kwargs["size"]) if "size" in kwargs else self._size
         # KnxField initialization
         self.__name = kwargs["name"].lower() if "name" in kwargs else ""
+        self.__is_length = kwargs["length"] if "length" in kwargs else False
         if "default" in kwargs:
             self.value = kwargs["default"]
         elif "value" in kwargs:
             self.value = kwargs["value"]
         else:
             self.value = bytes(self._size) # Empty bytearray
+
+    def __len__(self):
+        return len(self._value)
 
     def __bytes__(self):
         return bytes(self._value)
@@ -128,6 +137,9 @@ class KnxField(UDPField):
         return self._value
     @value.setter
     def value(self, content) -> None:
+        if self.fixed_value:
+            log("Tried to modified field {0} but value is fixed.".format(self.__name))
+            return
         if isinstance(content, bytes):
             self._value = byte.resize(content, self.size)
         elif isinstance(content, str):
@@ -143,6 +155,12 @@ class KnxField(UDPField):
         else:
             raise BOFProgrammingError("Field value should be bytes, str or int.")
 
+    @property
+    def is_length(self) -> bool:
+        return self.__is_length
+    @is_length.setter
+    def is_length(self, value:bool) -> None:
+        self.__is_length = value
 
 #-----------------------------------------------------------------------------#
 # KNX structures (set of fields) representation                               #
@@ -223,6 +241,17 @@ class KnxStructure(UDPStructure):
                 raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
         return structlist
 
+    @classmethod
+    def build_header(cls) -> object:
+        """Creates a KnxStructure with header template and attributes, with no
+        argument. You will have to add them later.
+
+        :returns: The instance of a new KnxStructure object.
+        """
+        header = cls(name="header")
+        header.append(cls.factory(KNXSPEC[STRUCTURES]["HEADER"]))
+        return header
+
     def append(self, structure) -> None:
         """Appends a structure, a field of a list of structures and/fields to
         current structure's content. Adds the name of the structure to the list
@@ -239,6 +268,19 @@ class KnxStructure(UDPStructure):
         elif isinstance(structure, list):
             for item in structure:
                 self.append(item)
+
+    def update(self):
+        """Update all fields corresponding to structure lengths. Ex: if a
+        structure has been modified, the update will change the value of
+        the structure length field to match (unless this field's ``fixed_value``
+        boolean is set to True.
+        """
+        for item in self.__structure:
+            if isinstance(item, KnxStructure):
+                item.update()
+            elif isinstance(item, KnxField):
+                if item.is_length:
+                    item.value = len(self)
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -266,8 +308,8 @@ class KnxStructure(UDPStructure):
         return fieldlist
 
     @property
-    def attrs(self) -> list:
-        """Gives the list of attributes added to the structure (fields)."""
+    def field_names(self) -> list:
+        """Gives the list of attributes added to the structure (field names)."""
         return list(self.__dict__.keys())
 
 #-----------------------------------------------------------------------------#
@@ -322,19 +364,22 @@ class KnxFrame(object):
         """
         # Empty frame (no parameter)
         self.__source = ("",0)
-        self.__header = KnxStructure(name="header")
-        self.__header.append(KnxStructure.factory(KNXSPEC[STRUCTURES]["HEADER"]))
+        self.__header = KnxStructure.build_header()
         self.__body = KnxStructure(name="body")
         # Fill in the frame according to parameters
         if "sid" in kwargs:
             self.build_from_sid(kwargs["sid"])
+            log("Created new frame from service identifier {0}".format(kwargs["sid"]))
         elif "frame" in kwargs:
             self.build_from_frame(kwargs["frame"], kwargs["source"])
-        if "total_length" in self.__header.attrs:
-            self.__header.total_length.value = byte.from_int(len(self.__header) + len(self.__body))
+            log("Created new frame from byte array {0} (source: {1})".format(kwargs["kwargs"],
+                                                                             kwargs["source"]))
+        # Update total frame length in header
+        self.update()
 
     def __bytes__(self):
         """Overload so that bytes(frame) returns the raw KnxFrame bytearray."""
+        self.update()
         return self.raw
 
     #-------------------------------------------------------------------------#
@@ -368,6 +413,7 @@ class KnxFrame(object):
         for service in KNXSPEC[SIDS]:
             if service["name"] == sid:
                 self.__header.service_identifier.value = service["id"]
+        self.update()
 
     def build_from_frame(self, frame:bytes, source:tuple=None) -> None:
         """Fill in the KnxFrame object using a frame as a raw byte array. This
@@ -380,6 +426,20 @@ class KnxFrame(object):
         """
         raise NotImplementedError("Build from frame.")
 
+    def update(self):
+        """Update all fields corresponding to structure lengths. Ex: if a
+        structure has been modified, the update will change the value of
+        the structure length field to match (unless this field's ``fixed_value``
+        boolean is set to True.
+
+        For frames, the ``update()`` methods also update the ``total length``
+        field in header, which requires an additional operation.
+        """
+        self.__body.update()
+        self.__header.update()
+        if "total_length" in self.__header.field_names:
+            self.__header.total_length.value = byte.from_int(len(self.__header) + len(self.__body))
+
     #-------------------------------------------------------------------------#
     # Properties                                                              #
     #-------------------------------------------------------------------------#
@@ -387,16 +447,19 @@ class KnxFrame(object):
     @property
     def header(self):
         """Builds the raw byte set and returns it."""
+        self.update()
         return self.__header
 
     @property
     def body(self):
         """Builds the raw byte set and returns it."""
+        self.update()
         return self.__body
 
     @property
     def raw(self):
         """Builds the raw byte set and returns it."""
+        self.update()
         return bytes(self.__header) + bytes(self.__body)
 
 ###############################################################################
