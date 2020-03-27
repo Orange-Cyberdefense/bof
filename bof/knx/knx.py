@@ -268,6 +268,7 @@ class KnxStructure(UDPStructure):
         elif isinstance(structure, list):
             for item in structure:
                 self.append(item)
+        self.update()
 
     def update(self):
         """Update all fields corresponding to structure lengths. Ex: if a
@@ -299,6 +300,7 @@ class KnxStructure(UDPStructure):
 
     @property
     def fields(self) -> list:
+        self.update()
         fieldlist = []
         for item in self.__structure:
             if isinstance(item, KnxStructure):
@@ -493,7 +495,10 @@ class KnxNet(UDP):
         """
         super().connect(ip, port)
         if init:
-            return self.send_receive(bytes(KnxFrame(sid="DESCRIPTION REQUEST")))
+            init_frame = KnxFrame(sid="DESCRIPTION REQUEST")
+            init_frame.body.ip_address.value = self.source[0]
+            init_frame.body.port.value = self.source[1]
+            return self.send_receive(bytes(init_frame))
         return None
 
     def receive(self, timeout:float=1.0) -> object:

@@ -69,24 +69,14 @@ class UDPField(object):
         """
         # We need to set this value first
         self.fixed_size = fixed_size
-        # Actual values, considering fixed and free
         self._size = max(size, byte.get_size(value)) if not self.fixed_size else size
-        self._set_value(value) # Call property setter
+        self.fixed_value = False # Initialize to false before it fails x)
+        self.value = value # Call property setter
         # We set this after we first set a value
-        self.fixed_value = fixed_value
+        self.fixed_value = fixed_value # Now we set the correct value
 
     def __str__(self):
         return "<{0}: {1} ({2}b)>".format(type(self).__name__, self._value, self._size)
-
-    def _set_value(self, value):
-        """Accepts both int and byte for value and converts it to bytes."""
-        self.size = max(self._size, byte.get_size(value)) if not self.fixed_size else self._size
-        if isinstance(value, bytes):
-            self._value = byte.resize(value, self._size)
-        elif isinstance(value, int):
-            self._value = byte.from_int(value, self._size)
-        else:
-            raise BOFProgrammingError("Field value should be either bytes or int")
 
     #--------------------------------------------------------------------------#
     # Public                                                                   #
@@ -113,14 +103,26 @@ class UDPField(object):
     def value(self) -> bytes:
         return self._value
     @value.setter
-    def value(self, value):
-        self.__set_value(value)
+    def value(self, content) -> None:
+        if not self.fixed_value:
+            if isinstance(content, bytes):
+                self._value = byte.resize(content, self.size)
+            elif isinstance(content, str):
+                self._value = bytes.fromhex(content)
+                self._value = byte.resize(self._value, self.size)
+            elif isinstance(content, int):
+                self._value = byte.from_int(content, size=self.size)
+            else:
+                raise BOFProgrammingError("Field value should be bytes, str or int.")
+
     @property
     def size(self) -> int:
         return self._size
     @size.setter
     def size(self, size:int):
-        self._size = size
+        if not self.fixed_size:
+            self._size = size
+            self._value = byte.resize(self._value, self._size)
 
 class UDPStructure(object):
     """Object representation of a UDP structure (set of byte fields) inside a

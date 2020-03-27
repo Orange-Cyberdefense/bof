@@ -39,7 +39,7 @@ class Test02KNXConnection(unittest.TestCase):
         """Test error handling for bad port."""
         with self.assertRaises(BOFNetworkError):
             knx.KnxNet().connect("192.168.0.10", 666666)
-    @unittest.skip("Initialization frames not built yet")
+    @unittest.skip("Response frames not parsed yet")
     def test_05_knx_connect_with_init(self):
         """Test regular KNX connection.
         Sends init packet DescrReq and expects DescrResp from dest.

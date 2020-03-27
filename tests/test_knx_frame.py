@@ -66,5 +66,17 @@ class Test01AdvancedKnxHeaderCrafting(unittest.TestCase):
         header = knx.KnxFrame().header
         self.assertEqual(bytes(header), b"\x06\x10\x00\x00\x00\x06")
     def test_02_basic_knx_header(self):
+        """Test direct creation of a knx header, automated lengths update
+        is disabled for total length (which is handled at frame level.
+        """
         header = knx.KnxStructure.build_header()
         self.assertEqual(bytes(header), b"\x06\x10\x00\x00\x00\x00")
+    def test_03_knx_header_resize(self):
+        """Test that header length is resized automatically when modifying
+        the size of a field.
+        """
+        header = knx.KnxStructure.build_header()
+        header.service_identifier.size = 3
+        header.update()
+        self.assertEqual(byte.to_int(header.header_length.value), 7)
+        self.assertEqual(bytes(header), b"\x07\x10\x00\x00\x00\x00\x00")

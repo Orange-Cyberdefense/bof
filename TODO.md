@@ -1,9 +1,9 @@
 TODOs
 =====
 
+- [ ] Write unittest for fields resizing and structure length updates
 - [ ] Add missing structures/bodies in `knxnet.json`
 - [ ] Handle `optional` key from `knxnet.json`
-- [ ] Use more calls to `log()` in `knx.py`
 - [ ] `KnxNet.source` (`UDP.source` property) returns 127.0.0.1 as source IP, is it normal? 
 - [ ] Find a way to fill a known service with correct default values (or should we let the user do it?)
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
