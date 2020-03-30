@@ -13,13 +13,13 @@
     ],
     "structures": {
 	"HEADER": [
-	    {"name": "header length", "type": "field", "size": 1, "default": "06", "length": true},
+	    {"name": "header length", "type": "field", "size": 1, "default": "06", "is_length": true},
 	    {"name": "protocol version", "type": "field", "size": 1, "default": "10"},
 	    {"name": "service identifier", "type": "field", "size": 2},
 	    {"name": "total length", "type": "field", "size": 2}
 	],
 	"HPAI": [
-	    {"name": "structure length", "type": "field", "size": 1, "default": "08", "length": true},
+	    {"name": "structure length", "type": "field", "size": 1, "default": "08", "is_length": true},
 	    {"name": "host protocol code", "type": "field", "size": 1, "default": "01"},
 	    {"name": "ip address", "type": "field", "size": 4},
 	    {"name": "port", "type": "field", "size": 2}

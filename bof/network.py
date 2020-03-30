@@ -57,7 +57,7 @@ class UDPField(object):
     fixed_size:bool
     fixed_value:bool
 
-    def __init__(self, value, size:int=1, fixed_size:bool=False, fixed_value:bool=False, **kwargs):
+    def __init__(self, value=b'', size:int=1, fixed_size:bool=False, fixed_value:bool=False, **kwargs):
         """Initialize a field, requires at least a value to store to the field.
 
         :param value: Value to store as byte or int

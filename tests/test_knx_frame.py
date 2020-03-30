@@ -59,7 +59,7 @@ class Test01BasicKnxFrame(unittest.TestCase):
         frame.body.ip_address.value = ip
         self.assertEqual(bytes(frame.body), b"\x08\x01\x7f\x00\x00\x01\x00\x00")
 
-class Test01AdvancedKnxHeaderCrafting(unittest.TestCase):
+class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
     """Test class for advanced header fields handling and altering."""
     def test_01_basic_knx_header_from_frame(self):
         """Test basic header build from frame with toal_length update."""
@@ -103,3 +103,54 @@ class Test01AdvancedKnxHeaderCrafting(unittest.TestCase):
         self.assertEqual(bytes(header.header_length), b'\x02')
         header.update()
         self.assertEqual(bytes(header.header_length), b'\x02')
+    def test_07_knx_header_set_content_different_size(self):
+        """Test behavior when trying to set different size bytearrays 
+        as field values."""
+        header = knx.KnxStructure.build_header()
+        header.service_identifier.value = b'\x10\x10\x10'
+        self.assertEqual(bytes(header.service_identifier), b'\x10\x10')
+        header.service_identifier.value = b'\x10'
+        self.assertEqual(bytes(header.service_identifier), b'\x00\x10')
+    def test_08_knx_header_set_invalid_content(self):
+        """Test negative value for size."""
+        header = knx.KnxStructure.build_header()
+        header.header_length.size = -4
+        self.assertEqual(header.header_length.size, -4)
+        self.assertEqual(bytes(header.header_length), b'')
+    def test_09_knx_header_set_invalid_content(self):
+        """Test total length field behavior."""
+        frame = knx.KnxFrame()
+        frame.header.header_length.size = 2
+        self.assertEqual(bytes(frame.header.total_length), b'\x00\x07')
+
+class Test03AdvancedFieldCrafting(unittest.TestCase):
+    """Test class for advanced structures and fields crafting."""
+    def test_01_knx_create_field(self):
+        """Test that we can craft a structure and assign it as frame header."""
+        new_header = knx.KnxStructure()
+        new_header.append(knx.KnxField(name="gasoline", size=3, value=666))
+        self.assertIn("gasoline", new_header.field_names)
+        self.assertEqual(bytes(new_header), b'\x00\x02\x9a')
+    def test_02_knx_create_field_length(self):
+        """Test that we can craft a structure and assign it as frame header."""
+        new_header = knx.KnxStructure()
+        new_header.append(knx.KnxField(name="gasoline", size=3, is_length=True))
+        new_header.append(knx.KnxField(name="fuel", size=2, value=666))
+        new_header.update()
+        self.assertEqual(bytes(new_header.gasoline), b'\x00\x00\x05')
+    def test_03_knx_remove_field_by_name(self):
+        """Test that a field can be removed according to its name."""
+        frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
+        self.assertIn("ip_address", frame.body.field_names)
+        frame.body.remove("ip_address")
+        self.assertNotIn("ip_address", frame.body.field_names)
+        self.assertEqual(bytes(frame.body), b'\x04\x01\x00\x00')
+    def test_04_knx_multiple_fields_same_name(self):
+        """Test the behavior in case multiple fields have the same name."""
+        body = knx.KnxStructure()
+        body.append(knx.KnxField(name="gasoline", size=1, value=1))
+        body.append(knx.KnxField(name="gasoline", size=2, value=666))
+        body.gasoline.value = 21
+        self.assertEqual(bytes(body), b'\x01\x00\x15')
+        body.remove("gasoline")
+        self.assertEqual(bytes(body), b'\x00\x15')

@@ -99,12 +99,12 @@ class KnxField(UDPField):
 
     def __init__(self, **kwargs):
         """Initialize the field according to a set of keyword arguments."""
-        super().__init__(b'', **kwargs)
+        super().__init__(**kwargs)
         # Inherited from UDPField
         self._size = int(kwargs["size"]) if "size" in kwargs else self._size
         # KnxField initialization
         self.__name = kwargs["name"].lower() if "name" in kwargs else ""
-        self.__is_length = kwargs["length"] if "length" in kwargs else False
+        self.__is_length = kwargs["is_length"] if "is_length" in kwargs else False
         if "default" in kwargs:
             self._update_value(kwargs["default"])
         elif "value" in kwargs:
@@ -303,6 +303,24 @@ class KnxStructure(UDPStructure):
                 if item.is_length:
                     item._update_value(len(self))
 
+    def remove(self, name:str) -> None:
+        """Remove the field ``name`` from the structure (or substructure).
+        If several fields have the same name, only the first one is removed.
+        
+        :param name: Name of the field to remove.
+        :raises BOFProgrammingError: if there is no corresponding field.
+        """
+        name = name.lower()
+        for item in self.__structure:
+            if isinstance(item, KnxStructure):
+                item.remove()
+            elif isinstance(item, KnxField):
+                if item.name == name or to_property(item.name) == name:
+                    self.__structure.remove(item)
+                    delattr(self, to_property(item.name))
+                    del(item)
+                    break
+
     #-------------------------------------------------------------------------#
     # Properties                                                              #
     #-------------------------------------------------------------------------#
@@ -332,7 +350,7 @@ class KnxStructure(UDPStructure):
     @property
     def field_names(self) -> list:
         """Gives the list of attributes added to the structure (field names)."""
-        return list(self.__dict__.keys())
+        return [x for x in self.__dict__.keys() if not x.startswith("_KnxStructure__")]
 
 #-----------------------------------------------------------------------------#
 # KNX frames / datagram representation                                        #
