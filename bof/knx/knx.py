@@ -161,14 +161,16 @@ class KnxField(UDPField):
         """
         if isinstance(content, bytes):
             self._value = byte.resize(content, self.size)
+        elif isinstance(content, str) and content.isdigit():
+            self._value = bytes.fromhex(content)
+            self._value = byte.resize(self._value, self.size)
         elif isinstance(content, str):
             # Check if IPv4:
             try:
                 ip_address(content)
                 self._value = byte.from_ipv4(content)
             except ValueError:
-                self._value = bytes.fromhex(content)
-                self._value = byte.resize(self._value, self.size)
+                self._value = content.encode('utf-8')
         elif isinstance(content, int):
             self._value = byte.from_int(content, size=self.size)
         else:
@@ -266,11 +268,31 @@ class KnxStructure(UDPStructure):
         """Creates a KnxStructure with header template and attributes, with no
         argument. You will have to add them later.
 
-        :returns: The instance of a new KnxStructure object.
+        :returns: The instance of a new ``KnxStructure`` object.
         """
         header = cls(name="header")
         header.append(cls.factory(KNXSPEC[STRUCTURES]["HEADER"]))
         return header
+
+    @classmethod
+    def build_from_type(cls, structtype:str, name:str="") -> object:
+        """Creates a KnxStructure with a predefined structure type as specified
+        in specification.
+
+        :param structtype: Name (string) of the structure template to use (as
+                           written in JSON specification file).
+        :param name; Optional name of the structure. If not set, ``name`` is
+                     defined to ``structtype``.
+        :returns: The instance of a new ``KnxStructure`` object.
+        :raises BOFProgrammingError: if ``structtype`` is not in the structure
+                                     list in the specification file.
+        """
+        if not structtype in KNXSPEC[STRUCTURES].keys():
+            raise BOFProgrammingError("Unknown structure type ({0})".format(structtype))
+            name = name if len(name) else structtype
+        structure = cls(name=name)
+        structure.append(cls.factory(KNXSPEC[STRUCTURES][structtype]))            
+        return structure
 
     def append(self, structure) -> None:
         """Appends a structure, a field of a list of structures and/fields to
@@ -443,9 +465,17 @@ class KnxFrame(object):
                     sid = service["name"]
                     break
         # Now check that the service id exists and has an associated body
+        # (Ex: DESCRIPTION REQUEST)
         if isinstance(sid, str):
             if sid not in KNXSPEC[BODIES]:
-                raise BOFProgrammingError("Service {0} does not exist.".format(sid))
+                # Try with underscores (Ex: DESCRIPTION_REQUEST)
+                if sid in [to_property(x) for x in KNXSPEC[BODIES]]:
+                    for body in KNXSPEC[BODIES]:
+                        if sid == to_property(body):
+                            sid = body
+                            break
+                else:
+                    raise BOFProgrammingError("Service {0} does not exist.".format(sid))
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
         self.__body.append(KnxStructure.factory(KNXSPEC[BODIES][sid]))
@@ -501,6 +531,18 @@ class KnxFrame(object):
         """Builds the raw byte set and returns it."""
         self.update()
         return bytes(self.__header) + bytes(self.__body)
+
+    @property
+    def fields(self) -> list:
+        """Build an array with all the fields in header + body."""
+        self.update()
+        return self.__header.fields + self.__body.fields
+
+    @property
+    def field_names(self) -> list:
+        """Builds an array with the names of all fields in header + body."""
+        self.update()
+        return self.__header.field_names + self.__body.field_names
 
 ###############################################################################
 # KNXNET/IP NETWORK CONNECTION                                                #

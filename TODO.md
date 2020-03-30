@@ -1,10 +1,12 @@
 TODOs
 =====
 
+- [ ] Rename dup field names so that they don't have the same names
+- [ ] Implement `repeat` keyword in spec (one or more fields repeated, as in `supp svc families`
 - [ ] Add missing structures/bodies in `knxnet.json`
 - [ ] Handle `optional` key from `knxnet.json`
 - [ ] `KnxNet.source` (`UDP.source` property) returns 127.0.0.1 as source IP, is it normal? 
-- [ ] Find a way to fill a known service with correct default values (or should we let the user do it?)
+- [ ] Fill a known service with correct default values (or should we let the user do it?)
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
 - [ ] Move `KNXSPEC` to a singleton class with dictionary names == properties
 - [ ] `_TCP` and `TCP` classes in `bof/network.py` 
