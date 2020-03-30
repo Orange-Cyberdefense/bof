@@ -173,15 +173,15 @@ class Test04DIBStructureFromSpec(unittest.TestCase):
         """
         structure = knx.KnxStructure.build_from_type("DIB_SUPP_SVC_FAMILIES")
         self.assertEqual(byte.to_int(structure.structure_length.value), 4)
-        self.assertEqual(bytes(structure.service_family_id), b'\x00')
-        self.assertEqual(bytes(structure.service_family_version), b'\x00')
+        self.assertEqual(bytes(structure.service_family.id), b'\x00')
+        self.assertEqual(bytes(structure.service_family.version), b'\x00')
         structure.append(knx.KnxStructure.build_from_type("SERVICE_FAMILY"))
         self.assertEqual(byte.to_int(structure.structure_length.value), 6)
-    @unittest.skip("We don't use structure names yet (only in frames)")
     def test_04_knx_body_description_response(self):
         """Test correct building of a DESCRIPTION RESPONSE KNX frame."""
         frame = knx.KnxFrame(sid="DESCRIPTION_RESPONSE")
         self.assertEqual(bytes(frame.header.service_identifier), b'\x02\x04')
-        print(frame.device_hardware)
+        frame.body.device_hardware.friendly_name.value = "sushi"
         frame.body.friendly_name.value = "pizza"
-        self.assertEqual(bytes(frame.other_device_information.friendly_name).decode('utf-8'), "pizza")
+        self.assertEqual(bytes(frame.body.device_hardware.friendly_name).decode('utf-8'), "sushi")
+        self.assertEqual(bytes(frame.body.other_device_information.friendly_name).decode('utf-8'), "pizza")

@@ -258,7 +258,9 @@ class KnxStructure(UDPStructure):
             elif structure["type"] == "field":
                 structlist.append(KnxField(**structure))
             elif structure["type"] in KNXSPEC[STRUCTURES].keys():
-                structlist += KnxStructure.factory(KNXSPEC[STRUCTURES][structure["type"]])
+                substructure = KnxStructure(name=structure["name"])
+                substructure.append(KnxStructure.factory(KNXSPEC[STRUCTURES][structure["type"]]))
+                structlist.append(substructure)
             else:
                 raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
         return structlist
@@ -335,11 +337,12 @@ class KnxStructure(UDPStructure):
         name = name.lower()
         for item in self.__structure:
             if isinstance(item, KnxStructure):
-                item.remove()
+                delattr(self, to_property(name))
+                item.remove(name)
             elif isinstance(item, KnxField):
                 if item.name == name or to_property(item.name) == name:
                     self.__structure.remove(item)
-                    delattr(self, to_property(item.name))
+                    delattr(self, to_property(name))
                     del(item)
                     break
 
@@ -373,6 +376,23 @@ class KnxStructure(UDPStructure):
     def field_names(self) -> list:
         """Gives the list of attributes added to the structure (field names)."""
         return [x for x in self.__dict__.keys() if not x.startswith("_KnxStructure__")]
+
+    @property
+    def structure(self) -> list:
+        return self.__structure
+
+    #-------------------------------------------------------------------------#
+    # Internal (should not be used by end users)                              #
+    #-------------------------------------------------------------------------#
+
+    def _add_property(self, name:str, pointer:object) -> None:
+        """Add a property to the object using ``setattr``, should not be used
+        outside module.
+
+        :param name: Property name
+        :param pointer: The object the property refers to.
+        """
+        setattr(self, to_property(name), pointer)
 
 #-----------------------------------------------------------------------------#
 # KNX frames / datagram representation                                        #
@@ -479,7 +499,9 @@ class KnxFrame(object):
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
         self.__body.append(KnxStructure.factory(KNXSPEC[BODIES][sid]))
-        # Change header according to sid
+        # Add substructure fields names as properties to body :)
+        for field in self.__body.fields:
+            self.__body._add_property(field.name, field)
         for service in KNXSPEC[SIDS]:
             if service["name"] == sid:
                 self.__header.service_identifier._update_value(service["id"])

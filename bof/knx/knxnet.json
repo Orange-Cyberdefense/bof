@@ -42,8 +42,8 @@
 	    {"name": "service family", "type": "SERVICE_FAMILY", "size": 2, "repeat": true}
 	],
 	"SERVICE_FAMILY": [
-	    {"name": "service family id", "type": "field", "size": 1},
-	    {"name": "service family version", "type": "field", "size": 1}
+	    {"name": "id", "type": "field", "size": 1},
+	    {"name": "version", "type": "field", "size": 1}
 	]
     },
     "bodies": {
