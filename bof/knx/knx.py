@@ -106,17 +106,33 @@ class KnxField(UDPField):
         self.__name = kwargs["name"].lower() if "name" in kwargs else ""
         self.__is_length = kwargs["length"] if "length" in kwargs else False
         if "default" in kwargs:
-            self.value = kwargs["default"]
+            self._update_value(kwargs["default"])
         elif "value" in kwargs:
-            self.value = kwargs["value"]
+            self._update_value(kwargs["value"])
         else:
-            self.value = bytes(self._size) # Empty bytearray
+            self._update_value(bytes(self._size)) # Empty bytearray
 
     def __len__(self):
         return len(self._value)
 
     def __bytes__(self):
         return bytes(self._value)
+
+    #-------------------------------------------------------------------------#
+    # Properties                                                              #
+    #-------------------------------------------------------------------------#
+
+    def _update_value(self, content) -> None:
+        """Change the value according to automated updated from within the code
+        si that nothing is changed in ``fixed_value`` is set to True.
+
+        :param content: A byte array, an integer, or an IPv4 string.
+        """
+        if self.fixed_value:
+            log("Tried to modified field {0} but value is fixed.".format(self.__name))
+            return
+        self.value = content
+        self.fixed_value = False # Property changes this value, we switch back
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -137,9 +153,12 @@ class KnxField(UDPField):
         return self._value
     @value.setter
     def value(self, content) -> None:
-        if self.fixed_value:
-            log("Tried to modified field {0} but value is fixed.".format(self.__name))
-            return
+        """Set ``content`` to value according to 3 types of data: byte array,
+        integer or string representation of an IPv4 address.
+        
+        Sets ``fixed_value`` to True to avoid rechanging the value automatically
+        using length updated.
+        """
         if isinstance(content, bytes):
             self._value = byte.resize(content, self.size)
         elif isinstance(content, str):
@@ -154,6 +173,7 @@ class KnxField(UDPField):
             self._value = byte.from_int(content, size=self.size)
         else:
             raise BOFProgrammingError("Field value should be bytes, str or int.")
+        self.fixed_value = True
 
     @property
     def is_length(self) -> bool:
@@ -281,7 +301,7 @@ class KnxStructure(UDPStructure):
                 item.update()
             elif isinstance(item, KnxField):
                 if item.is_length:
-                    item.value = len(self)
+                    item._update_value(len(self))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -414,7 +434,7 @@ class KnxFrame(object):
         # Change header according to sid
         for service in KNXSPEC[SIDS]:
             if service["name"] == sid:
-                self.__header.service_identifier.value = service["id"]
+                self.__header.service_identifier._update_value(service["id"])
         self.update()
 
     def build_from_frame(self, frame:bytes, source:tuple=None) -> None:
@@ -440,7 +460,7 @@ class KnxFrame(object):
         self.__body.update()
         self.__header.update()
         if "total_length" in self.__header.field_names:
-            self.__header.total_length.value = byte.from_int(len(self.__header) + len(self.__body))
+            self.__header.total_length._update_value(byte.from_int(len(self.__header) + len(self.__body)))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -496,8 +516,8 @@ class KnxNet(UDP):
         super().connect(ip, port)
         if init:
             init_frame = KnxFrame(sid="DESCRIPTION REQUEST")
-            init_frame.body.ip_address.value = self.source[0]
-            init_frame.body.port.value = self.source[1]
+            init_frame.body.ip_address._update_value(self.source[0])
+            init_frame.body.port._update_value(self.source[1])
             return self.send_receive(bytes(init_frame))
         return None
 

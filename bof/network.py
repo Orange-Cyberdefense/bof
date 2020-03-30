@@ -71,7 +71,7 @@ class UDPField(object):
         self.fixed_size = fixed_size
         self._size = max(size, byte.get_size(value)) if not self.fixed_size else size
         self.fixed_value = False # Initialize to false before it fails x)
-        self.value = value # Call property setter
+        self._value = value # Call property setter
         # We set this after we first set a value
         self.fixed_value = fixed_value # Now we set the correct value
 

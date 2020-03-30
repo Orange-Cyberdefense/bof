@@ -55,7 +55,7 @@ class Test01BasicKnxFrame(unittest.TestCase):
         knxnet = knx.KnxNet()
         knxnet.connect("localhost", 13671, init=False)
         frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
-        ip, port = knxnet.source # Returns 127.0.0.1, looks weird
+        ip, _ = knxnet.source # Returns 127.0.0.1, looks weird
         frame.body.ip_address.value = ip
         self.assertEqual(bytes(frame.body), b"\x08\x01\x7f\x00\x00\x01\x00\x00")
 
@@ -80,3 +80,26 @@ class Test01AdvancedKnxHeaderCrafting(unittest.TestCase):
         header.update()
         self.assertEqual(byte.to_int(header.header_length.value), 7)
         self.assertEqual(bytes(header), b"\x07\x10\x00\x00\x00\x00\x00")
+    def test_04_knx_header_resize_total_length(self):
+        """Test that header length is updated when a field is expanded."""
+        header = knx.KnxStructure.build_header()
+        header.total_length.size = 3
+        header.total_length.value = 123456
+        header.update()
+        self.assertEqual(bytes(header.header_length), b'\x07')
+    def test_05_knx_header_resize(self):
+        """Test that resize changes the value of the field's bytearray"""
+        header = knx.KnxStructure.build_header()
+        header.header_length.size = 2
+        self.assertEqual(bytes(header.header_length), b'\x00\x06')
+        header.update()
+        self.assertEqual(bytes(header.header_length), b'\x00\x07')
+    def test_06_knx_header_fixed_value(self):
+        """Test that manual field value changes enable fixed_value boolean,
+        which prevent from automatically updating the field.
+        """
+        header = knx.KnxStructure.build_header()
+        header.header_length.value = b'\x02'
+        self.assertEqual(bytes(header.header_length), b'\x02')
+        header.update()
+        self.assertEqual(bytes(header.header_length), b'\x02')
