@@ -129,7 +129,7 @@ class Test03AdvancedFieldCrafting(unittest.TestCase):
         """Test that we can craft a structure and assign it as frame header."""
         new_header = knx.KnxStructure()
         new_header.append(knx.KnxField(name="gasoline", size=3, value=666))
-        self.assertIn("gasoline", new_header.field_names)
+        self.assertIn("gasoline", new_header.attributes)
         self.assertEqual(bytes(new_header), b'\x00\x02\x9a')
     def test_02_knx_create_field_length(self):
         """Test that we can craft a structure and assign it as frame header."""
@@ -141,9 +141,9 @@ class Test03AdvancedFieldCrafting(unittest.TestCase):
     def test_03_knx_remove_field_by_name(self):
         """Test that a field can be removed according to its name."""
         frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
-        self.assertIn("ip_address", frame.body.field_names)
+        self.assertIn("ip_address", frame.body.attributes)
         frame.body.remove("ip_address")
-        self.assertNotIn("ip_address", frame.body.field_names)
+        self.assertNotIn("ip_address", frame.body.attributes)
         self.assertEqual(bytes(frame.body), b'\x04\x01\x00\x00')
     def test_04_knx_multiple_fields_same_name(self):
         """Test the behavior in case multiple fields have the same name."""
@@ -154,6 +154,15 @@ class Test03AdvancedFieldCrafting(unittest.TestCase):
         self.assertEqual(bytes(body), b'\x01\x00\x15')
         body.remove("gasoline")
         self.assertEqual(bytes(body), b'\x00\x15')
+    def test_05_knx_structception(self):
+        """Test that we can do structception"""
+        structure = knx.KnxStructure(name="atoll")
+        structure.append(knx.KnxField(name="pom-"))
+        structure.append(knx.KnxField(name="pom"))
+        structure.append(knx.KnxStructure(name="galli"))
+        structure.galli.append(knx.KnxField(name="sout pacific", value=b"10"))
+        self.assertEqual(structure.attributes, ["pom_", "pom", "galli"])
+        self.assertEqual([x.name for x in structure.fields], ["pom-", "pom", "sout pacific"])
 
 class Test04DIBStructureFromSpec(unittest.TestCase):
     """Test class for structures with dib types (from a service identifier)."""

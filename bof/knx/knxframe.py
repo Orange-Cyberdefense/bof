@@ -1,29 +1,9 @@
 """
-KNXnet/IP connection and frames implementations, implementing ``bof.network``'s
-UDP classes.
-
-Network connection
-------------------
-
-KNX usually works over UDP, however KNX specification v2.1 state that TCP can
-also be used. The communication between BOF and a KNX object still acts like
-a TCP-based protocol, as (almost) every request expects a response.
-
-``KnxNet`` class (for establishing and maintaining a connection) is inherited
-from the ``UDP`` class from ``bof.network`` submodule and uses most of its
-features. Fill free to change the inheritance to TCP, it may work as long as
-the ``TCP`` class mostly follows the same structure as ``UDP`` class.
-
-Usage::
-
-    knxnet = knx.KnxNet()
-    knxnet.connect("192.168.0.100", 3671)
-    datagram = knxnet.receive()
-    print(datagram)
-    knxnet.disconnect()
-
 KNX frame handling
 ------------------
+
+KNXnet/IP frames handling implementation, implementing ``bof.network``'s
+``UDPStructure`` and ``UDPField`` classes.
 
 A KNX frame (``KnxFrame``) is a byte array divided into a set of structures. A
 frame always has the following format:
@@ -44,12 +24,11 @@ A field (``KnxField``) is a byte or a byte array with:
 :Content: A byte or a byte array with the actual content.
 """
 
-from enum import Enum
 from os import path
 from ipaddress import ip_address
 
-from ..network import UDP, UDPStructure, UDPField
 from ..base import BOFProgrammingError, load_json, to_property, log
+from ..network import UDPField, UDPStructure
 from .. import byte
 
 ###############################################################################
@@ -92,6 +71,10 @@ class KnxField(UDPField):
                       in the structure changes (except if this field has arg
                       ``fixed_value`` set to True.
 
+    Instantiate::
+
+        KnxField(name="header length", size=1, default="06")
+
     **KNX Standard v2.1 03_08_02**
     """
     __name:str
@@ -122,22 +105,6 @@ class KnxField(UDPField):
     # Properties                                                              #
     #-------------------------------------------------------------------------#
 
-    def _update_value(self, content) -> None:
-        """Change the value according to automated updated from within the code
-        si that nothing is changed in ``fixed_value`` is set to True.
-
-        :param content: A byte array, an integer, or an IPv4 string.
-        """
-        if self.fixed_value:
-            log("Tried to modified field {0} but value is fixed.".format(self.__name))
-            return
-        self.value = content
-        self.fixed_value = False # Property changes this value, we switch back
-
-    #-------------------------------------------------------------------------#
-    # Properties                                                              #
-    #-------------------------------------------------------------------------#
-
     @property
     def name(self) -> str:
         return self.__name
@@ -158,6 +125,10 @@ class KnxField(UDPField):
         
         Sets ``fixed_value`` to True to avoid rechanging the value automatically
         using length updated.
+
+        Example::
+
+            field.value = "192.168.1.1"
         """
         if isinstance(content, bytes):
             self._value = byte.resize(content, self.size)
@@ -184,6 +155,22 @@ class KnxField(UDPField):
     def is_length(self, value:bool) -> None:
         self.__is_length = value
 
+    #-------------------------------------------------------------------------#
+    # Internal (should not be used by end users)                              #
+    #-------------------------------------------------------------------------#
+
+    def _update_value(self, content) -> None:
+        """Change the value according to automated updated from within the code
+        si that nothing is changed in ``fixed_value`` is set to True.
+
+        :param content: A byte array, an integer, or an IPv4 string.
+        """
+        if self.fixed_value:
+            log("Tried to modified field {0} but value is fixed.".format(self.__name))
+            return
+        self.value = content
+        self.fixed_value = False # Property changes this value, we switch back
+
 #-----------------------------------------------------------------------------#
 # KNX structures (set of fields) representation                               #
 #-----------------------------------------------------------------------------#
@@ -203,6 +190,12 @@ class KnxStructure(UDPStructure):
     :param name: Name of structure, so that it can be accessed by its name
                  using a property.
     :param structure: List of structures, fields or both.
+
+    Instantiate::
+
+        descr_resp = KnxStructure(name="description response")
+        descr_resp.append(KnxStructure.build_from_type("DIB_DEVICE_INFO"))
+        descr_resp.append(KnxStructure.build_from_type("DIB_SUPP_SVC_FAMILIES"))
     """
     __name:str
     __structure:list
@@ -247,6 +240,11 @@ class KnxStructure(UDPStructure):
         :returns: A list of ``KnxStructure`` object (one by item in ``structure``).
         :raises BOFProgrammingError: If the value of argument "type" in a
                                      structure dictionary is unknown.
+
+        Example::
+
+            structure = KnxStructure(name="structure")
+            structure.append(KnxStructure.factory(KNXSPEC[STRUCTURES]["structure"]))
         """
         structlist = []
         if isinstance(structure, list):
@@ -271,6 +269,12 @@ class KnxStructure(UDPStructure):
         argument. You will have to add them later.
 
         :returns: The instance of a new ``KnxStructure`` object.
+
+        Usage::
+
+            header = KnxStructure.build_header()
+            header.service_identifier.value = b"\x02\x03"
+            print(bytes(header))
         """
         header = cls(name="header")
         header.append(cls.factory(KNXSPEC[STRUCTURES]["HEADER"]))
@@ -283,11 +287,15 @@ class KnxStructure(UDPStructure):
 
         :param structtype: Name (string) of the structure template to use (as
                            written in JSON specification file).
-        :param name; Optional name of the structure. If not set, ``name`` is
-                     defined to ``structtype``.
+        :param name: Optional name of the structure. If not set, ``name`` is
+                     set to ``structtype``.
         :returns: The instance of a new ``KnxStructure`` object.
         :raises BOFProgrammingError: if ``structtype`` is not in the structure
                                      list in the specification file.
+
+        Example::
+
+            KnxStructure.build_from_type("DESCRIPTION_REQUEST")
         """
         if not structtype in KNXSPEC[STRUCTURES].keys():
             raise BOFProgrammingError("Unknown structure type ({0})".format(structtype))
@@ -303,6 +311,12 @@ class KnxStructure(UDPStructure):
         it could be referred to as ``self.foo``.
 
         :param structure: ``KnxStructure``, ``KnxField`` or a list of such objects.
+
+        Example::
+
+            structure = KnxStructure(name="atoll")
+            structure.append(KnxField(name="pom"))
+            structure.append(KnxStructure(name="galli"))
         """
         if isinstance(structure, KnxField) or isinstance(structure, KnxStructure):
             self.__structure.append(structure)
@@ -319,6 +333,12 @@ class KnxStructure(UDPStructure):
         structure has been modified, the update will change the value of
         the structure length field to match (unless this field's ``fixed_value``
         boolean is set to True.
+
+        Example::
+
+            header.service_identifier.value = b"\x01\x02\x03"
+            header.update()
+            print(header.header_length.value)
         """
         for item in self.__structure:
             if isinstance(item, KnxStructure):
@@ -333,6 +353,14 @@ class KnxStructure(UDPStructure):
         
         :param name: Name of the field to remove.
         :raises BOFProgrammingError: if there is no corresponding field.
+
+        Example::
+
+            body = knx.KnxStructure()
+            body.append(knx.KnxField(name="abitbol", size=30, value="monde de merde"))
+            body.append(knx.KnxField(name="francky", size=30, value="cest oit"))
+            body.remove("abitbol")
+            print([x.name for x in body.fields])
         """
         name = name.lower()
         for item in self.__structure:
@@ -373,8 +401,9 @@ class KnxStructure(UDPStructure):
         return fieldlist
 
     @property
-    def field_names(self) -> list:
+    def attributes(self) -> list:
         """Gives the list of attributes added to the structure (field names)."""
+        self.update()
         return [x for x in self.__dict__.keys() if not x.startswith("_KnxStructure__")]
 
     @property
@@ -414,6 +443,11 @@ class KnxFrame(object):
     :param header: Frame header as a ``KnxStructure`` object.
     :param body: Frame body as a ``KnxStructure`` which can also contain a set
                  of other ``KnxStructure`` objects.
+
+    Instantiate::
+
+        KnxFrame(sid="DESCRIPTION REQUEST")
+        KnxFrame(frame=data, source=address)
 
     **KNX Standard v2.1 03_08_02**
     """
@@ -477,6 +511,11 @@ class KnxFrame(object):
                     byte array (normally on 2 bytes but, whatever).
         :raises BOFProgrammingError: If the service identifier cannot be found
                                      in given JSON file.
+
+        Example::
+
+            frame = KnxFrame()
+            frame.build_from_sid("DESCRIPTION REQUEST")
         """
         # If sid is bytes, replace the id (as bytes) by the service name
         if isinstance(sid, bytes):
@@ -515,6 +554,12 @@ class KnxFrame(object):
         :param source: If byte array is received from a remote object, source
                        should be the address of that object as a tuple with
                        format ``(ip:str, port:int)``. Else, None.
+
+        Example::
+
+            data, address = knx_connection.receive()
+            frame = KnxFrame()
+            frame.build_from_frame(data, address)
         """
         raise NotImplementedError("Build from frame.")
 
@@ -529,7 +574,7 @@ class KnxFrame(object):
         """
         self.__body.update()
         self.__header.update()
-        if "total_length" in self.__header.field_names:
+        if "total_length" in self.__header.attributes:
             self.__header.total_length._update_value(byte.from_int(len(self.__header) + len(self.__body)))
 
     #-------------------------------------------------------------------------#
@@ -561,54 +606,7 @@ class KnxFrame(object):
         return self.__header.fields + self.__body.fields
 
     @property
-    def field_names(self) -> list:
-        """Builds an array with the names of all fields in header + body."""
+    def attributes(self) -> list:
+        """Builds an array with the names of all attributes in header + body."""
         self.update()
-        return self.__header.field_names + self.__body.field_names
-
-###############################################################################
-# KNXNET/IP NETWORK CONNECTION                                                #
-###############################################################################
-
-class KnxNet(UDP):
-    """KNXnet/IP communication over UDP with protocol KNX.
-
-    - Data transmission details are in **KNX Standard v2.1 - 03_03_04**.
-    - Sent and received datagrams are returned as ``KnxFrame`` objects.
-    - Relies on ``bof.network.UDP()``.
-    - Only ``connect()`` and ``receive()`` are overriden from class ``UDP``.
-    """
-
-    #-------------------------------------------------------------------------#
-    # Override                                                                #
-    #-------------------------------------------------------------------------#
-
-    def connect(self, ip:str, port:int=3671, init:bool=True) -> object:
-        """Initialize KNXnet/IP connection over UDP.
-
-        :param ip: IPv4 address as a string with format ("A.B.C.D").
-        :param port: Default KNX port is 3671 but can be changed.
-        :param init: If set to ``True``, a KNX frame ``DESCRIPTION_REQUEST``
-                     is sent when establishing the connection. The other part
-                     should reply with a ``DESCRIPTION_RESPONSE`` returned as
-                     a ``KnxFrame`` object.
-        :returns: A ``KnxFrame`` with the parsed ``DESCRIPTION_RESPONSE`` if
-                  any, else returns ``None``.
-        """
-        super().connect(ip, port)
-        if init:
-            init_frame = KnxFrame(sid="DESCRIPTION REQUEST")
-            init_frame.body.ip_address._update_value(self.source[0])
-            init_frame.body.port._update_value(self.source[1])
-            return self.send_receive(bytes(init_frame))
-        return None
-
-    def receive(self, timeout:float=1.0) -> object:
-        """Overrides ``UDP``'s ``receive()`` method so that it returns a parsed
-        ``KnxFrame`` object when receiving a datagram instead of raw byte array.
-
-        ;param timeout: Time to wait (in seconds) to receive a frame (default 1s)
-        :returns: A parsed KnxFrame with the received frame's representation.
-        """
-        data, address = super().receive(timeout)
-        return KnxFrame(frame=data, source=address)
+        return self.__header.attributes + self.__body.attributes

@@ -6,7 +6,12 @@ KNX protocol (BMS)
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: bof.knx.knx
+.. automodule:: bof.knx.knxnet
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: bof.knx.knxframe
    :members:
    :undoc-members:
    :show-inheritance:

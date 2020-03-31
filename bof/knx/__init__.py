@@ -9,4 +9,5 @@ format. Therefore, a user can copy, modify or replace the specification file to
 include or change any content they want.
 """
 
-from .knx import *
+from .knxnet import *
+from .knxframe import *
