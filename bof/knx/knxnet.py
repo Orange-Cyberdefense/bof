@@ -22,11 +22,7 @@ Usage::
     knxnet.disconnect()
 """
 
-from os import path
-from ipaddress import ip_address
-
 from ..network import UDP
-from ..base import BOFProgrammingError
 from .knxframe import KnxFrame
 
 ###############################################################################

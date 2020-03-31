@@ -164,7 +164,18 @@ class Test03AdvancedFieldCrafting(unittest.TestCase):
         self.assertEqual(structure.attributes, ["pom_", "pom", "galli"])
         self.assertEqual([x.name for x in structure.fields], ["pom-", "pom", "sout pacific"])
 
-class Test04DIBStructureFromSpec(unittest.TestCase):
+class Test04DIBSpecificationClass(unittest.TestCase):
+    """Test class for specification class building from JSON file."""
+    def test_01_knx_spec_instantiate(self):
+        spec = knx.KnxSpec()
+        self.assertEqual(spec.service_identifiers[0]["name"], "SEARCH REQUEST")
+    def test_01_knx_spec_clear(self):
+        spec = knx.KnxSpec()
+        spec.clear()
+        with self.assertRaises(AttributeError):
+            print(spec.service_identifiers)
+
+class Test05DIBStructureFromSpec(unittest.TestCase):
     """Test class for structures with dib types (from a service identifier)."""
     def test_01_knx_structure_unknown_type(self):
         """Test that an exception is rose when creating a structure from

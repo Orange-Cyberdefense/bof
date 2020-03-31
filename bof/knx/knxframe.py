@@ -32,20 +32,82 @@ from ..network import UDPField, UDPStructure
 from .. import byte
 
 ###############################################################################
-# KNX PROTOCOLS AND FRAMES CONSTANTs                                          #
+# KNX SPECIFICATION CONTENT                                                   #
 ###############################################################################
 
-KNXSPEC = load_json(path.join(path.dirname(path.realpath(__file__)), "knxnet.json"))
-MULTICAST_ADDR = "224.0.23.12"
-PORT = 3671
+KNXSPECFILE = "knxnet.json"
 
-#-----------------------------------------------------------------------------#
-# KNXNET.JSON section keys                                                    #
-#-----------------------------------------------------------------------------#
+class KnxSpec(object):
+    """Singleton class for KnxSpec specification content usage.
 
-SIDS = "service identifiers"
-STRUCTURES = "structures"
-BODIES = "bodies"
+    Specification file is a JSON file with the following format::
+
+        {
+            "category1": [
+                {"name": "1-1", "attr1": "attr1-1", "attr2": "attr1-1"},
+                {"name": "1-2", "attr1": "attr1-2", "attr2": "attr1-2"}
+            ],
+            "category2": [
+                {"name": "2-1", "type": "type1", "attr1": "attr2-1", "attr2": "attr2-1"},
+                {"name": "2-2", "type": "type2", "attr1": "attr2-2", "attr2": "attr2-2"}
+            ],
+        }
+
+    ``categories`` can be accessed from this object using attributes. Ex::
+
+        for template in KnxSpec().category1:
+            print(template.name)
+
+    The default specification is ``knxnet.json`` however the end user is free
+    to modify this file (add categories, contents and attributes) or create a
+    new file following this format.
+    """
+    __instance = None
+ 
+    def __new__(cls):
+        if cls.__instance is None:
+            cls.__instance = object.__new__(cls)
+        return cls.__instance
+
+    def __init__(self, filepath:str=None):
+        """If filepath is not specified, we load the default file."""
+        if filepath:
+            self.load(filepath)
+        else:
+            self.load(path.join(path.dirname(path.realpath(__file__)), "knxnet.json"))
+
+    def load(self, filepath):
+        """Loads the content of a JSON file and adds its categories as attributes
+        to this class.
+
+        If a file was loaded previously, the content will be added to previously
+        added content, unless the ``clear()`` method is called first.
+
+        :param filepath: Absolute path of a JSON file to load.
+        :raises BOFLibraryError: If file cannot be used as JSON spec file.
+
+        Usage::
+
+            spec.load("knxpec_extention.json")
+        """
+        content = load_json(filepath)
+        for key in content.keys():
+            setattr(self, to_property(key), content[key])
+
+    def clear(self):
+        """Remove all content loaded in class KnxSpec previously, and associated
+        attributes.
+
+        Usage::
+
+            KnxSpec
+            spec.clear()
+            spec.load("knxpec.json")
+        """
+        # Wee need to save the dict first as it changes in the loop
+        attributes = list(self.__dict__.keys()).copy()
+        for key in attributes:
+            delattr(self, key)
 
 ###############################################################################
 # KNX FRAME CONTENT                                                           #
@@ -244,9 +306,10 @@ class KnxStructure(UDPStructure):
         Example::
 
             structure = KnxStructure(name="structure")
-            structure.append(KnxStructure.factory(KNXSPEC[STRUCTURES]["structure"]))
+            structure.append(KnxStructure.factory(KnxSpec().structures["structure"]))
         """
         structlist = []
+        specs = KnxSpec()
         if isinstance(structure, list):
             for item in structure:
                 structlist += KnxStructure.factory(item)
@@ -255,9 +318,9 @@ class KnxStructure(UDPStructure):
                 structlist.append(KnxStructure(**structure))
             elif structure["type"] == "field":
                 structlist.append(KnxField(**structure))
-            elif structure["type"] in KNXSPEC[STRUCTURES].keys():
+            elif structure["type"] in specs.structures.keys():
                 substructure = KnxStructure(name=structure["name"])
-                substructure.append(KnxStructure.factory(KNXSPEC[STRUCTURES][structure["type"]]))
+                substructure.append(KnxStructure.factory(specs.structures[structure["type"]]))
                 structlist.append(substructure)
             else:
                 raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
@@ -277,7 +340,7 @@ class KnxStructure(UDPStructure):
             print(bytes(header))
         """
         header = cls(name="header")
-        header.append(cls.factory(KNXSPEC[STRUCTURES]["HEADER"]))
+        header.append(cls.factory(KnxSpec().structures["HEADER"]))
         return header
 
     @classmethod
@@ -297,11 +360,11 @@ class KnxStructure(UDPStructure):
 
             KnxStructure.build_from_type("DESCRIPTION_REQUEST")
         """
-        if not structtype in KNXSPEC[STRUCTURES].keys():
+        if not structtype in KnxSpec().structures.keys():
             raise BOFProgrammingError("Unknown structure type ({0})".format(structtype))
             name = name if len(name) else structtype
         structure = cls(name=name)
-        structure.append(cls.factory(KNXSPEC[STRUCTURES][structtype]))            
+        structure.append(cls.factory(KnxSpec().structures[structtype]))            
         return structure
 
     def append(self, structure) -> None:
@@ -454,6 +517,7 @@ class KnxFrame(object):
     __source:tuple
     __header:KnxStructure
     __body:KnxStructure
+    __specs:KnxSpec
 
     def __init__(self, **kwargs):
         """Initialize a KnxFrame object from various origins using values from
@@ -482,6 +546,7 @@ class KnxFrame(object):
         self.__source = ("",0)
         self.__header = KnxStructure.build_header()
         self.__body = KnxStructure(name="body")
+        self.__specs = KnxSpec()
         # Fill in the frame according to parameters
         if "sid" in kwargs:
             self.build_from_sid(kwargs["sid"])
@@ -519,17 +584,17 @@ class KnxFrame(object):
         """
         # If sid is bytes, replace the id (as bytes) by the service name
         if isinstance(sid, bytes):
-            for service in KNXSPEC[SIDS]:
+            for service in self.__specs.service_identifiers:
                 if bytes.fromhex(service["id"]) == sid:
                     sid = service["name"]
                     break
         # Now check that the service id exists and has an associated body
         # (Ex: DESCRIPTION REQUEST)
         if isinstance(sid, str):
-            if sid not in KNXSPEC[BODIES]:
+            if sid not in self.__specs.bodies:
                 # Try with underscores (Ex: DESCRIPTION_REQUEST)
-                if sid in [to_property(x) for x in KNXSPEC[BODIES]]:
-                    for body in KNXSPEC[BODIES]:
+                if sid in [to_property(x) for x in self.__specs.bodies]:
+                    for body in self.__specs.bodies:
                         if sid == to_property(body):
                             sid = body
                             break
@@ -537,11 +602,11 @@ class KnxFrame(object):
                     raise BOFProgrammingError("Service {0} does not exist.".format(sid))
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        self.__body.append(KnxStructure.factory(KNXSPEC[BODIES][sid]))
+        self.__body.append(KnxStructure.factory(self.__specs.bodies[sid]))
         # Add substructure fields names as properties to body :)
         for field in self.__body.fields:
             self.__body._add_property(field.name, field)
-        for service in KNXSPEC[SIDS]:
+        for service in self.__specs.service_identifiers:
             if service["name"] == sid:
                 self.__header.service_identifier._update_value(service["id"])
         self.update()
