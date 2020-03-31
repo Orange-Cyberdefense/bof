@@ -292,8 +292,8 @@ class KnxStructure(UDPStructure):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    @staticmethod
-    def factory(structure) -> list:
+    @classmethod
+    def factory(cls, structure) -> list:
         """Creates a list of ``KnxStructure``-inherited object according to the
         list of templates specified in parameter ``structure``.
 
@@ -312,15 +312,15 @@ class KnxStructure(UDPStructure):
         specs = KnxSpec()
         if isinstance(structure, list):
             for item in structure:
-                structlist += KnxStructure.factory(item)
+                structlist += cls.factory(item)
         elif isinstance(structure, dict):
             if not "type" in structure or structure["type"] == "structure":
                 structlist.append(KnxStructure(**structure))
             elif structure["type"] == "field":
                 structlist.append(KnxField(**structure))
             elif structure["type"] in specs.structures.keys():
-                substructure = KnxStructure(name=structure["name"])
-                substructure.append(KnxStructure.factory(specs.structures[structure["type"]]))
+                substructure = cls(name=structure["name"])
+                substructure.append(cls.factory(specs.structures[structure["type"]]))
                 structlist.append(substructure)
             else:
                 raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
@@ -366,6 +366,21 @@ class KnxStructure(UDPStructure):
         structure = cls(name=name)
         structure.append(cls.factory(KnxSpec().structures[structtype]))            
         return structure
+
+    def fill(self, frame:bytes) -> bytes:
+        """Fills in the fields in object with the content of the frame.
+
+        The frame is read byte by byte and used to fill the field in ``fields()``
+        order according to each field's size. Hopefully, the frame is the same
+        size as what is expected for the format of this structure.
+        
+        :param frame: A raw byte array corresponding to part of a KNX frame.
+        :returns: The remainder of the frame (if any) or 0
+        """
+        cursor = 0
+        for field in self.fields:
+            field.value = frame[cursor:cursor+field.size]
+            cursor += field.size
 
     def append(self, structure) -> None:
         """Appends a structure, a field of a list of structures and/fields to
@@ -548,12 +563,14 @@ class KnxFrame(object):
         self.__body = KnxStructure(name="body")
         self.__specs = KnxSpec()
         # Fill in the frame according to parameters
+        if "source" in kwargs:
+            self.__source = kwargs["source"]
         if "sid" in kwargs:
             self.build_from_sid(kwargs["sid"])
             log("Created new frame from service identifier {0}".format(kwargs["sid"]))
         elif "frame" in kwargs:
-            self.build_from_frame(kwargs["frame"], kwargs["source"])
-            log("Created new frame from byte array {0} (source: {1})".format(kwargs["kwargs"],
+            self.build_from_frame(kwargs["frame"])
+            log("Created new frame from byte array {0} (source: {1})".format(kwargs["frame"],
                                                                              kwargs["source"]))
         # Update total frame length in header
         self.update()
@@ -611,22 +628,42 @@ class KnxFrame(object):
                 self.__header.service_identifier._update_value(service["id"])
         self.update()
 
-    def build_from_frame(self, frame:bytes, source:tuple=None) -> None:
+    def build_from_frame(self, frame:bytes) -> None:
         """Fill in the KnxFrame object using a frame as a raw byte array. This
         method is used when receiving and parsing a file from a KNX object.
 
+        The parsing relies on the structure lengths stated in first byte of
+        each part (structure) of the frame.
+
         :param frame: KNX frame as a byte array (or anything, whatever)
-        :param source: If byte array is received from a remote object, source
-                       should be the address of that object as a tuple with
-                       format ``(ip:str, port:int)``. Else, None.
 
         Example::
 
             data, address = knx_connection.receive()
-            frame = KnxFrame()
-            frame.build_from_frame(data, address)
+            frame = KnxFrame(frame=data, source=address)
         """
-        raise NotImplementedError("Build from frame.")
+        # HEADER
+        self.__header = KnxStructure.build_from_type(structtype="HEADER",
+                                                     name="header")
+        self.__header.fill(frame[:frame[0]])
+        for service in self.__specs.service_identifiers:
+            if bytes(self.__header.service_identifier) == bytes.fromhex(service["id"]):
+                structurelist = self.__specs.bodies[service["name"]]
+                break
+        # BODY
+        cursor = frame[0] # We start at index len(header) (== 6)
+        for structure in structurelist:
+            if cursor >= len(frame):
+                break
+            # factory returns a list but we only expect one item
+            structure_object = KnxStructure.factory(structure)[0]
+            if isinstance(structure_object, KnxField):
+                structure_object.fill(frame[cursor:cursor+structure_object.size])
+                cursor += structure_object.size
+            else:
+                structure_object.fill(frame[cursor:cursor+frame[cursor]])
+                cursor += frame[cursor]
+            self.__body.append(structure_object)
 
     def update(self):
         """Update all fields corresponding to structure lengths. Ex: if a

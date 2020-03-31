@@ -69,6 +69,22 @@ class KnxNet(UDP):
             return self.send_receive(bytes(init_frame))
         return None
 
+    def send_receive(self, data:bytes, address:tuple=None, timeout:float=1.0) -> object:
+        """Overrides ``UDP``'s ``send_receive()`` method so that it returns a
+        parsed ``KnxFrame`` object when receiving a datagram instead of a raw
+        byte array.
+
+        :param data: Raw byte array to send.
+        :param address: Remote network address with format ``(ip, port)``.
+        :param timeout: Time out value in seconds, as a float (default 1.0s).
+        :returns: A KnxFrame object filled with the content of the received
+                  frame.
+        :raises BOFProgrammingError: if ``timeout`` is invalid.
+        :raises BOFNetworkError: if connection timed out before receiving a packet.
+        """
+        self.send(data, address)
+        return self.receive(timeout)
+
     def receive(self, timeout:float=1.0) -> object:
         """Overrides ``UDP``'s ``receive()`` method so that it returns a parsed
         ``KnxFrame`` object when receiving a datagram instead of raw byte array.

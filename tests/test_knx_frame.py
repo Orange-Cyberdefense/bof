@@ -205,3 +205,15 @@ class Test05DIBStructureFromSpec(unittest.TestCase):
         frame.body.friendly_name.value = "pizza"
         self.assertEqual(bytes(frame.body.device_hardware.friendly_name).decode('utf-8'), "sushi")
         self.assertEqual(bytes(frame.body.other_device_information.friendly_name).decode('utf-8'), "pizza")
+
+class Test05ReceivedFrameParsing(unittest.TestCase):
+    """Test class for received frame parsing."""
+    def setUp(self):
+        self.connection = knx.KnxNet()
+        self.connection.connect("localhost", 13671, init=False)
+    def tearDown(self):
+        self.connection.disconnect()
+    def test_01_knx_parse_descrresp(self):
+        self.connection.send(bytes(knx.KnxFrame(sid="DESCRIPTION_REQUEST")))
+        datagram = self.connection.receive()
+        self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")

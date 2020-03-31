@@ -1,6 +1,7 @@
 TODOs
 =====
 
+- [ ] `CONNECT RESPONSE` and `CONNECTIONSTATE REQUEST` have to be tested, as they do not start with a length field, and the code written to handle this (in `build_from_frame()` has not been tested)
 - [ ] Rename dup field names so that they don't have the same names
 - [ ] Add missing structures/bodies in `knxnet.json`
 - [ ] Implement `repeat` keyword in spec (one or more fields repeated, as in `supp svc families`
@@ -9,6 +10,9 @@ TODOs
 - [ ] Fill a known service with correct default values (or should we let the user do it?)
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
 - [ ] `_TCP` and `TCP` classes in `bof/network.py` 
+- [ ] Gather details about exchanges from Wireshark traces
+- [ ] Write discovery script
+- [ ] Write simple script for "write" actions on all KNX objects on range
 - [ ] DOCS: Move Overview and TL;DR from **source code documentation** to **user manual**
 
 - [X] Move `KNXSPEC` to a singleton class with dictionary names == properties

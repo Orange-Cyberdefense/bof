@@ -44,6 +44,14 @@
 	"SERVICE_FAMILY": [
 	    {"name": "id", "type": "field", "size": 1},
 	    {"name": "version", "type": "field", "size": 1}
+	],
+	"CRI_CRD": [
+	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
+	    {"name": "connection type code", "type": "field", "size": 1, "default": "02"},
+	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
+	    {"name": "port", "type": "field", "size": 2, "optional": true},
+	    {"name": "ip address 2", "type": "field", "size": 4, "optional": true},
+	    {"name": "port 2", "type": "field", "size": 2, "optional": true}
 	]
     },
     "bodies": {
@@ -62,6 +70,35 @@
 	    {"name": "device hardware", "type": "DIB_DEVICE_INFO"},
 	    {"name": "supported service families", "type": "DIB_SUPP_SVC_FAMILIES"},
 	    {"name": "other device information", "type": "DIB_DEVICE_INFO", "optional": true}
+	],
+	"CONNECT REQUEST": [
+	    {"name": "control endpoint", "type": "HPAI"},
+	    {"name": "data endpoint", "type": "HPAI"},
+	    {"name": "connection request information", "type": "CRI_CRD"}
+	],
+	"CONNECT RESPONSE": [
+	    {"name": "communication channel id", "type": "field", "size": 1},
+	    {"name": "status", "type": "field", "size": 1},
+	    {"name": "data endpoint", "type": "HPAI"},
+	    {"name": "connection response data block", "type": "CRI_CRD"}
+	],
+	"CONNECTIONSTATE REQUEST": [
+	    {"name": "communication channel id", "type": "field", "size": 1},
+	    {"name": "reserved", "type": "field", "size": 1},
+	    {"name": "control endpoint", "type": "HPAI"}
+	],
+	"CONNECTIONSTATE RESPONSE": [
+	    {"name": "communication channel id", "type": "field", "size": 1},
+	    {"name": "status", "type": "field", "size": 1}
+	],
+	"DISCONNECT REQUEST": [
+	    {"name": "communication channel id", "type": "field", "size": 1},
+	    {"name": "reserved", "type": "field", "size": 1},
+	    {"name": "control endpoint", "type": "HPAI"}
+	],
+	"DISCONNECT RESPONSE": [
+	    {"name": "communication channel id", "type": "field", "size": 1},
+	    {"name": "status", "type": "field", "size": 1}
 	]
     }
 }
