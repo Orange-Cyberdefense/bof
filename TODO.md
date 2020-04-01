@@ -1,6 +1,7 @@
 TODOs
 =====
 
+- [ ] Implement cEMI frames (Management frames, KNX specification 03_08_03)
 - [ ] Add a few default values for fields from the spec
 - [ ] Add missing structures/bodies in `knxnet.json`
 - [ ] Implement `repeat` keyword in spec (one or more fields repeated, as in `supp svc families`

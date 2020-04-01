@@ -78,7 +78,7 @@
 	],
 	"CONNECT RESPONSE": [
 	    {"name": "communication channel id", "type": "field", "size": 1},
-	    {"name": "status", "type": "field", "size": 1},
+	    {"name": "status", "type": "field", "size": 1, "default": "00"},
 	    {"name": "data endpoint", "type": "HPAI"},
 	    {"name": "connection response data block", "type": "CRI_CRD"}
 	],
@@ -89,7 +89,7 @@
 	],
 	"CONNECTIONSTATE RESPONSE": [
 	    {"name": "communication channel id", "type": "field", "size": 1},
-	    {"name": "status", "type": "field", "size": 1}
+	    {"name": "status", "type": "field", "size": 1, "default": "00"}
 	],
 	"DISCONNECT REQUEST": [
 	    {"name": "communication channel id", "type": "field", "size": 1},
@@ -98,7 +98,7 @@
 	],
 	"DISCONNECT RESPONSE": [
 	    {"name": "communication channel id", "type": "field", "size": 1},
-	    {"name": "status", "type": "field", "size": 1}
+	    {"name": "status", "type": "field", "size": 1, "default": "00"}
 	]
     }
 }
