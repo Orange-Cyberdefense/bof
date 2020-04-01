@@ -1,37 +1,28 @@
 """
-Overview
-========
-
 Boiboite Opener Framework / Ouvre-Boiboite Framework contains a set of features
 to write scripts using industrial network protocols for test and attack
-purposes. Functions/tools can be used for:
+purposes.
 
-:Communication: Network connection, initialization and message exchange
-                (send/receive)
-:Analysis:      Parsing and use of received messages
-:Crafting:      Messages forging (valid, invalid, malicious)
-:Interaction:   Simple actions such as network discovery, flood, etc.
+The following submodules are available:
 
-TL;DR
-=====
+:base:
+    Basic helpers for correct module usage (error handling, logging, some
+    parsing features. Available from direct bof import (``import bof``).
 
-Import the module and submodules::
+:network:
+    Global network classes, used by protocol implementations in submodules.
+    The content of this class should not be used directly, unless writing a
+    new protocol submodule. Available from direct bof import (``import bof``)
 
-    import bof
-    from bof import byte
+:byte:
+    Set of functions for byte conversion and handling. Accessed via import of
+    the byte submodule (``from bof import byte``).
 
-Error handling::
-
-    try:
-        knx.connect("invalid", 3671)
-    except bof.BOFNetworkError as bne:
-        print("Connection failure: ".format(str(bne)))
-
-Logging::
-
-    bof.enable_logging()
-    bof.log("Cannot send data to {0}:{1}".format(address[0], address[1]), level="ERROR")
-
+:knx:
+    Implementation of the BMS protocol KNX, relying on ``bof.UDP``. Provides
+    classes and methods for sending and receiving KNX datagrams on the network
+    over KNXnet/IP, and for reading and writing valid or invalid KNX
+    frames.
 """
 
 ###############################################################################

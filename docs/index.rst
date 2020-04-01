@@ -7,4 +7,5 @@ Boiboite Opener Framework's documentation
    :maxdepth: 3
    :caption: Table of content:
 
+   usermanual
    bof

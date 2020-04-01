@@ -1,5 +1,5 @@
-BOF source code documentation
-=============================
+Source code documentation
+=========================
 
 .. automodule:: bof
    :members:
