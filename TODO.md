@@ -1,13 +1,10 @@
 TODOs
 =====
 
-- [ ] `CONNECT RESPONSE` and `CONNECTIONSTATE REQUEST` have to be tested, as they do not start with a length field, and the code written to handle this (in `build_from_frame()` has not been tested)
-- [ ] Rename dup field names so that they don't have the same names
+- [ ] Add a few default values for fields from the spec
 - [ ] Add missing structures/bodies in `knxnet.json`
 - [ ] Implement `repeat` keyword in spec (one or more fields repeated, as in `supp svc families`
-- [ ] Handle `optional` key from `knxnet.json`
 - [ ] `KnxNet.source` (`UDP.source` property) returns 127.0.0.1 as source IP, is it normal? 
-- [ ] Fill a known service with correct default values (or should we let the user do it?)
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
 - [ ] `_TCP` and `TCP` classes in `bof/network.py` 
 - [ ] Gather details about exchanges from Wireshark traces
@@ -15,6 +12,10 @@ TODOs
 - [ ] Write simple script for "write" actions on all KNX objects on range
 - [ ] DOCS: Move Overview and TL;DR from **source code documentation** to **user manual**
 
+- [X] Fill a known service with correct default values # DROP, we let the user do it, that's a framework
+- [X] Handle `optional` key from `knxnet.json`
+- [X] Rename dup field names so that they don't have the same names # DROP, we don't care (for now)
+- [X] Test `CONNECT RESPONSE`, as it does not start with a length field and the code handling such case has not been tested
 - [X] Move `KNXSPEC` to a singleton class with dictionary names == properties
 - [X] Write unittest for fields resizing and structure length updates
 - [X] Replace `DIB` type and `dibtype`s with distinct DIB structures

@@ -47,7 +47,7 @@
 	],
 	"CRI_CRD": [
 	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "connection type code", "type": "field", "size": 1, "default": "02"},
+	    {"name": "connection type code", "type": "field", "size": 1},
 	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
 	    {"name": "port", "type": "field", "size": 2, "optional": true},
 	    {"name": "ip address 2", "type": "field", "size": 4, "optional": true},

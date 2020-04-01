@@ -293,12 +293,13 @@ class KnxStructure(UDPStructure):
     #-------------------------------------------------------------------------#
 
     @classmethod
-    def factory(cls, structure) -> list:
+    def factory(cls, structure, optional:bool=False) -> list:
         """Creates a list of ``KnxStructure``-inherited object according to the
         list of templates specified in parameter ``structure``.
 
         :param structure: template dictionary or list of template dictionaries
                           for ``KnxStructure`` object instantiation.
+        :param optional: build optional templates (default: no/False)
         :returns: A list of ``KnxStructure`` object (one by item in ``structure``).
         :raises BOFProgrammingError: If the value of argument "type" in a
                                      structure dictionary is unknown.
@@ -312,15 +313,17 @@ class KnxStructure(UDPStructure):
         specs = KnxSpec()
         if isinstance(structure, list):
             for item in structure:
-                structlist += cls.factory(item)
+                structlist += cls.factory(item, optional)
         elif isinstance(structure, dict):
+            if "optional" in structure.keys() and structure["optional"] == True and not optional:
+                return structlist
             if not "type" in structure or structure["type"] == "structure":
                 structlist.append(KnxStructure(**structure))
             elif structure["type"] == "field":
                 structlist.append(KnxField(**structure))
             elif structure["type"] in specs.structures.keys():
                 substructure = cls(name=structure["name"])
-                substructure.append(cls.factory(specs.structures[structure["type"]]))
+                substructure.append(cls.factory(specs.structures[structure["type"]], optional))
                 structlist.append(substructure)
             else:
                 raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
@@ -553,6 +556,8 @@ class KnxFrame(object):
         :param sid: Service identifier as a string or bytearray (2 bytes),
                     sid is used to build a frame according to the structure
                     template associated to this service identifier.
+        :param optional: Boolean, set to True if we want to create a frame with
+                         optional fields (from spec).
         :param frame: Raw bytearray used to build a KnxFrame object.
         :param source: Source address of a frame, as a tuple (ip;str, port:int)
                        Only used is param `frame` is set.
@@ -566,7 +571,8 @@ class KnxFrame(object):
         if "source" in kwargs:
             self.__source = kwargs["source"]
         if "sid" in kwargs:
-            self.build_from_sid(kwargs["sid"])
+            optional = kwargs["optional"] if "optional" in kwargs else False
+            self.build_from_sid(kwargs["sid"], optional)
             log("Created new frame from service identifier {0}".format(kwargs["sid"]))
         elif "frame" in kwargs:
             self.build_from_frame(kwargs["frame"])
@@ -584,13 +590,15 @@ class KnxFrame(object):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def build_from_sid(self, sid) -> None:
+    def build_from_sid(self, sid, optional:bool=False) -> None:
         """Fill in the KnxFrame object according to a predefined frame format
         corresponding to a service identifier. The frame format (structures
         and field) can be found or added in the KNX specification JSON file.
 
         :param sid: Service identifier as a string (service name) or as a
                     byte array (normally on 2 bytes but, whatever).
+        :param optional: Boolean, set to True if we want to build the optional
+                         structures/fields as stated in the specs.
         :raises BOFProgrammingError: If the service identifier cannot be found
                                      in given JSON file.
 
@@ -619,7 +627,7 @@ class KnxFrame(object):
                     raise BOFProgrammingError("Service {0} does not exist.".format(sid))
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        self.__body.append(KnxStructure.factory(self.__specs.bodies[sid]))
+        self.__body.append(KnxStructure.factory(self.__specs.bodies[sid], optional))
         # Add substructure fields names as properties to body :)
         for field in self.__body.fields:
             self.__body._add_property(field.name, field)
@@ -658,12 +666,13 @@ class KnxFrame(object):
             # factory returns a list but we only expect one item
             structure_object = KnxStructure.factory(structure)[0]
             if isinstance(structure_object, KnxField):
-                structure_object.fill(frame[cursor:cursor+structure_object.size])
+                structure_object.value = frame[cursor:cursor+structure_object.size]
                 cursor += structure_object.size
             else:
                 structure_object.fill(frame[cursor:cursor+frame[cursor]])
                 cursor += frame[cursor]
             self.__body.append(structure_object)
+
 
     def update(self):
         """Update all fields corresponding to structure lengths. Ex: if a

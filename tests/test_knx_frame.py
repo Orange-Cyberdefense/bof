@@ -203,8 +203,11 @@ class Test05DIBStructureFromSpec(unittest.TestCase):
         self.assertEqual(bytes(frame.header.service_identifier), b'\x02\x04')
         frame.body.device_hardware.friendly_name.value = "sushi"
         frame.body.friendly_name.value = "pizza"
-        self.assertEqual(bytes(frame.body.device_hardware.friendly_name).decode('utf-8'), "sushi")
-        self.assertEqual(bytes(frame.body.other_device_information.friendly_name).decode('utf-8'), "pizza")
+        self.assertEqual(bytes(frame.body.device_hardware.friendly_name).decode('utf-8'), "pizza")
+    def test_05_knx_body_with_optional(self):
+        """Test that we can build a frame with the optional keyword."""
+        frame = knx.KnxFrame(sid="CONNECT REQUEST", optional=True)
+        self.assertEqual(bytes(frame.body.port_2), b'\x00\x00')
 
 class Test05ReceivedFrameParsing(unittest.TestCase):
     """Test class for received frame parsing."""
@@ -217,3 +220,10 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
         self.connection.send(bytes(knx.KnxFrame(sid="DESCRIPTION_REQUEST")))
         datagram = self.connection.receive()
         self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")
+    def test_02_knx_parse_connectresp(self):
+        connectreq = knx.KnxFrame(sid="CONNECT_REQUEST")
+        self.connection.send(bytes(connectreq))
+        connectresp = self.connection.receive()
+        self.assertEqual(bytes(connectresp.header.service_identifier), b"\x02\x06")
+        self.assertEqual(bytes(connectresp.body.status), b"\x00")
+        self.assertEqual(bytes(connectresp.body.connection_response_data_block), b"\x02\x03")
