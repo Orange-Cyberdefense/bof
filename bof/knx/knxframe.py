@@ -367,7 +367,7 @@ class KnxStructure(UDPStructure):
             raise BOFProgrammingError("Unknown structure type ({0})".format(structtype))
             name = name if len(name) else structtype
         structure = cls(name=name)
-        structure.append(cls.factory(KnxSpec().structures[structtype]))            
+        structure.append(cls.factory(KnxSpec().structures[structtype]))
         return structure
 
     def fill(self, frame:bytes) -> bytes:
@@ -586,6 +586,11 @@ class KnxFrame(object):
         self.update()
         return self.raw
 
+    def __len__(self):
+        """Return the size of the structure in total number of bytes."""
+        self.update()
+        return len(self.raw)
+
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
@@ -673,6 +678,31 @@ class KnxFrame(object):
                 cursor += frame[cursor]
             self.__body.append(structure_object)
 
+    def remove(self, name:str) -> None:
+        """Remove the structure ``name`` from the header or body, as long as
+        name is in the frame's attributes.
+
+        If several fields have the same name, only the first one is removed.
+        
+        :param name: Name of the field to remove.
+        :raises BOFProgrammingError: if there is no corresponding field.
+
+        Example::
+
+            frame.remove("control_endpoint")
+            print([x for x in frame.attributes])
+        """
+        name = name.lower()
+        for structure in [self.__header, self.__body]:
+            for item in structure.attributes:
+                if item == to_property(name):
+                    item = getattr(structure, item)
+                    if isinstance(item, KnxStructure):
+                        for field in item.fields:
+                            item.remove(to_property(field.name))
+                            delattr(structure, to_property(field.name))
+                        delattr(structure, to_property(name))
+                        del item
 
     def update(self):
         """Update all fields corresponding to structure lengths. Ex: if a

@@ -15,12 +15,14 @@ ConnectResp = b"\x06\x10\x02\x06\x00\x12\x01\x00\x08\x01\xc0\xa8\x00\x0a\x0e\x57
               b"\x02\x03"
 
 def do_boiboite_stuff(data):
-    print(data)
+    print("Received: {0}".format(data))
     if data.startswith(DescrReq):
-        print("sending back DescrResp")
+        print("This is a description request, sending back a description response")
+        print("Sent: {0}".format(DescrResp))
         return DescrResp
     if data.startswith(ConnectReq):
-        print("sending back ConnectResp")
+        print("This is a connect request, sending back a connect response")
+        print("Sent: {0}".format(ConnectResp))
         return ConnectResp
     # Else echo
     return data
@@ -32,4 +34,6 @@ sock.bind(server_address)
 while True:
     data, address = sock.recvfrom(4096)
     if data:
-        sock.sendto(do_boiboite_stuff(data), address)
+        response = do_boiboite_stuff(data)
+        if response:
+            sock.sendto(response, address)
