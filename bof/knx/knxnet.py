@@ -49,7 +49,7 @@ class KnxNet(UDP):
     # Override                                                                #
     #-------------------------------------------------------------------------#
 
-    def connect(self, ip:str, port:int=3671, init:bool=True) -> object:
+    def connect(self, ip:str, port:int=3671, init:bool=False) -> object:
         """Initialize KNXnet/IP connection over UDP.
 
         :param ip: IPv4 address as a string with format ("A.B.C.D").
@@ -57,7 +57,7 @@ class KnxNet(UDP):
         :param init: If set to ``True``, a KNX frame ``DESCRIPTION_REQUEST``
                      is sent when establishing the connection. The other part
                      should reply with a ``DESCRIPTION_RESPONSE`` returned as
-                     a ``KnxFrame`` object.
+                     a ``KnxFrame`` object. Default is ``False``.
         :returns: A ``KnxFrame`` with the parsed ``DESCRIPTION_RESPONSE`` if
                   any, else returns ``None``.
         """

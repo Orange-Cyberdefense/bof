@@ -29,7 +29,7 @@ class Test02KNXConnection(unittest.TestCase):
         Pass even when no gateway (thx UDP).
         """
         knxnet = knx.KnxNet()
-        knxnet.connect("192.168.0.10", init=False)
+        knxnet.connect("192.168.0.10")
         knxnet.disconnect()
     def test_03_knx_connect_bad_addr(self):
         """Test error handling for bad address."""
@@ -39,14 +39,13 @@ class Test02KNXConnection(unittest.TestCase):
         """Test error handling for bad port."""
         with self.assertRaises(BOFNetworkError):
             knx.KnxNet().connect("192.168.0.10", 666666)
-    # @unittest.skip("Response frames not parsed yet")
     def test_05_knx_connect_with_init(self):
         """Test regular KNX connection.
         Sends init packet DescrReq and expects DescrResp from dest.
         """
         knxnet = knx.KnxNet()
         # knxnet.connect("192.168.0.10", 3671)
-        datagram = knxnet.connect("localhost", 13671)
+        datagram = knxnet.connect("localhost", 13671, init=True)
         self.assertTrue(isinstance(datagram, knx.KnxFrame))
         self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")
         knxnet.disconnect()

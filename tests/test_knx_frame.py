@@ -53,7 +53,7 @@ class Test01BasicKnxFrame(unittest.TestCase):
         values from KNX connection.
         """
         knxnet = knx.KnxNet()
-        knxnet.connect("localhost", 13671, init=False)
+        knxnet.connect("localhost", 13671)
         frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
         ip, _ = knxnet.source # Returns 127.0.0.1, looks weird
         frame.body.ip_address.value = ip
@@ -213,7 +213,7 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
     """Test class for received frame parsing."""
     def setUp(self):
         self.connection = knx.KnxNet()
-        self.connection.connect("localhost", 13671, init=False)
+        self.connection.connect("localhost", 13671)
     def tearDown(self):
         self.connection.disconnect()
     def test_01_knx_parse_descrresp(self):

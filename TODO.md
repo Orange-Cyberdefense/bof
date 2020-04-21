@@ -1,6 +1,8 @@
 TODOs
 =====
 
+- [ ] Rename and refactor KnxStructure factories
+- [ ] Write unittest for `KnxFrame.remove()` (use `examples/frame_building.py`)
 - [ ] Implement cEMI frames (Management frames, KNX specification 03_08_03)
 - [ ] Add a few default values for fields from the spec
 - [ ] Add missing structures/bodies in `knxnet.json`
@@ -9,9 +11,8 @@ TODOs
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
 - [ ] `_TCP` and `TCP` classes in `bof/network.py` 
 - [ ] Gather details about exchanges from Wireshark traces
-- [ ] Write discovery script
+- [ ] Write discovery methods (search, discover) in 
 - [ ] Write simple script for "write" actions on all KNX objects on range
-- [ ] DOCS: Move Overview and TL;DR from **source code documentation** to **user manual**
 
 - [X] Fill a known service with correct default values # DROP, we let the user do it, that's a framework
 - [X] Handle `optional` key from `knxnet.json`
@@ -26,3 +27,5 @@ TODOs
 - [X] `type` in knxnet dictionary could be used to generate structure directly if in `KNXSPEC[STRUCTURES]`
 - [X] Script to simulate boiboite (just reply valid DESCRIPTION_RESPONSE when sending valid DESCRIPTION_REQUEST :))
 - [X] Write methods to add and remove fields (properties) from a structure / frame
+- [X] DOCS: Move Overview and TL;DR from **source code documentation** to **user manual**
+- [X] The `init` parameter from `KnxNet.connect()` should be false by default

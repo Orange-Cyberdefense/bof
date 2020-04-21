@@ -26,6 +26,7 @@ A field (``KnxField``) is a byte or a byte array with:
 
 from os import path
 from ipaddress import ip_address
+from textwrap import indent
 
 from ..base import BOFProgrammingError, load_json, to_property, log
 from ..network import UDPField, UDPStructure
@@ -163,6 +164,9 @@ class KnxField(UDPField):
     def __bytes__(self):
         return bytes(self._value)
 
+    def __str__(self):
+        return "<{0}: {1} ({2}B)>".format(self.__name, self.value, self.size)
+
     #-------------------------------------------------------------------------#
     # Properties                                                              #
     #-------------------------------------------------------------------------#
@@ -288,6 +292,12 @@ class KnxStructure(UDPStructure):
         """Return the size of the structure in total number of bytes."""
         return len(bytes(self))
 
+    def __str__(self):
+        ret = ["{0}: {1}".format(self.__class__.__name__, self.__name)]
+        for item in self.__structure:
+            ret += [indent(str(item), "    ")]
+        return "\n".join(ret)
+        
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
@@ -590,6 +600,16 @@ class KnxFrame(object):
         """Return the size of the structure in total number of bytes."""
         self.update()
         return len(self.raw)
+
+    def __str__(self):
+        ret = ["{0} object: {1}".format(self.__class__.__name__, repr(self))]
+        ret += ["[HEADER]"]
+        for attr in self.header.structure:
+            ret += [indent(str(attr), "    ")]
+        ret += ["[BODY]"]
+        for attr in self.body.structure:
+            ret += [indent(str(attr), "    ")]
+        return "\n".join(ret)
 
     #-------------------------------------------------------------------------#
     # Public                                                                  #
