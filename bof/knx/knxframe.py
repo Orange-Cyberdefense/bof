@@ -281,6 +281,11 @@ class KnxStructure(UDPStructure):
         """
         self.name = kwargs["name"] if "name" in kwargs else ""
         self.__structure = []
+        if "type" in kwargs:
+            if not kwargs["type"].upper() in KnxSpec().structures.keys():
+                raise BOFProgrammingError("Unknown structure type ({0})".format(kwargs["type"]))
+            self.name = self.name if len(self.name) else kwargs["type"]
+            self.append(self.factory(structure=KnxSpec().structures[kwargs["type"].upper()]))
 
     def __bytes__(self):
         raw = b''
@@ -303,7 +308,17 @@ class KnxStructure(UDPStructure):
     #-------------------------------------------------------------------------#
 
     @classmethod
-    def factory(cls, structure, optional:bool=False) -> list:
+    def factory(cls, **kwargs) -> object:
+        if "structure" in kwargs:
+            optional = kwargs["optional"] if "optional" in kwargs else False
+            return cls.create_from_structure(kwargs["structure"],
+                                                      optional)
+        if "type" in kwargs:
+            return cls(type=kwargs["type"], name=name)
+        return None
+
+    @classmethod
+    def create_from_structure(cls, structure, optional:bool=False) -> list:
         """Creates a list of ``KnxStructure``-inherited object according to the
         list of templates specified in parameter ``structure``.
 
@@ -317,13 +332,13 @@ class KnxStructure(UDPStructure):
         Example::
 
             structure = KnxStructure(name="structure")
-            structure.append(KnxStructure.factory(KnxSpec().structures["structure"]))
+            structure.append(KnxStructure.factory(structure=KnxSpec().structures["structure"]))
         """
         structlist = []
         specs = KnxSpec()
         if isinstance(structure, list):
             for item in structure:
-                structlist += cls.factory(item, optional)
+                structlist += cls.create_from_structure(item, optional)
         elif isinstance(structure, dict):
             if "optional" in structure.keys() and structure["optional"] == True and not optional:
                 return structlist
@@ -333,52 +348,12 @@ class KnxStructure(UDPStructure):
                 structlist.append(KnxField(**structure))
             elif structure["type"] in specs.structures.keys():
                 substructure = cls(name=structure["name"])
-                substructure.append(cls.factory(specs.structures[structure["type"]], optional))
+                substructure.append(cls.create_from_structure(specs.structures[structure["type"]],
+                                                              optional))
                 structlist.append(substructure)
             else:
                 raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
         return structlist
-
-    @classmethod
-    def build_header(cls) -> object:
-        """Creates a KnxStructure with header template and attributes, with no
-        argument. You will have to add them later.
-
-        :returns: The instance of a new ``KnxStructure`` object.
-
-        Usage::
-
-            header = KnxStructure.build_header()
-            header.service_identifier.value = b"\x02\x03"
-            print(bytes(header))
-        """
-        header = cls(name="header")
-        header.append(cls.factory(KnxSpec().structures["HEADER"]))
-        return header
-
-    @classmethod
-    def build_from_type(cls, structtype:str, name:str="") -> object:
-        """Creates a KnxStructure with a predefined structure type as specified
-        in specification.
-
-        :param structtype: Name (string) of the structure template to use (as
-                           written in JSON specification file).
-        :param name: Optional name of the structure. If not set, ``name`` is
-                     set to ``structtype``.
-        :returns: The instance of a new ``KnxStructure`` object.
-        :raises BOFProgrammingError: if ``structtype`` is not in the structure
-                                     list in the specification file.
-
-        Example::
-
-            KnxStructure.build_from_type("DESCRIPTION_REQUEST")
-        """
-        if not structtype in KnxSpec().structures.keys():
-            raise BOFProgrammingError("Unknown structure type ({0})".format(structtype))
-            name = name if len(name) else structtype
-        structure = cls(name=name)
-        structure.append(cls.factory(KnxSpec().structures[structtype]))
-        return structure
 
     def fill(self, frame:bytes) -> bytes:
         """Fills in the fields in object with the content of the frame.
@@ -574,7 +549,7 @@ class KnxFrame(object):
         """
         # Empty frame (no parameter)
         self.__source = ("",0)
-        self.__header = KnxStructure.build_header()
+        self.__header = KnxStructure(type="header")
         self.__body = KnxStructure(name="body")
         self.__specs = KnxSpec()
         # Fill in the frame according to parameters
@@ -652,7 +627,8 @@ class KnxFrame(object):
                     raise BOFProgrammingError("Service {0} does not exist.".format(sid))
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        self.__body.append(KnxStructure.factory(self.__specs.bodies[sid], optional))
+        self.__body.append(KnxStructure.factory(structure=self.__specs.bodies[sid],
+                                                optional=optional))
         # Add substructure fields names as properties to body :)
         for field in self.__body.fields:
             self.__body._add_property(field.name, field)
@@ -676,8 +652,7 @@ class KnxFrame(object):
             frame = KnxFrame(frame=data, source=address)
         """
         # HEADER
-        self.__header = KnxStructure.build_from_type(structtype="HEADER",
-                                                     name="header")
+        self.__header = KnxStructure(type="HEADER", name="header")
         self.__header.fill(frame[:frame[0]])
         for service in self.__specs.service_identifiers:
             if bytes(self.__header.service_identifier) == bytes.fromhex(service["id"]):
@@ -689,7 +664,7 @@ class KnxFrame(object):
             if cursor >= len(frame):
                 break
             # factory returns a list but we only expect one item
-            structure_object = KnxStructure.factory(structure)[0]
+            structure_object = KnxStructure.factory(structure=structure)[0]
             if isinstance(structure_object, KnxField):
                 structure_object.value = frame[cursor:cursor+structure_object.size]
                 cursor += structure_object.size

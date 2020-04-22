@@ -85,6 +85,14 @@ class KnxNet(UDP):
         self.send(data, address)
         return self.receive(timeout)
 
+    def send(self, data, address:tuple=None) -> int:
+        """Relies on ``UDP`` to send data. ``UDP.send()`` expects bytes so we
+        convert it first if we received data as a ``KnxFrame`` object.
+        """
+        if isinstance(data, KnxFrame):
+            data = bytes(data)
+        super().send(data, address)
+
     def receive(self, timeout:float=1.0) -> object:
         """Overrides ``UDP``'s ``receive()`` method so that it returns a parsed
         ``KnxFrame`` object when receiving a datagram instead of raw byte array.

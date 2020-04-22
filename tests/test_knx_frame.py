@@ -69,27 +69,27 @@ class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
         """Test direct creation of a knx header, automated lengths update
         is disabled for total length (which is handled at frame level.
         """
-        header = knx.KnxStructure.build_header()
+        header = knx.KnxStructure(type="header")
         self.assertEqual(bytes(header), b"\x06\x10\x00\x00\x00\x00")
     def test_03_knx_header_resize(self):
         """Test that header length is resized automatically when modifying
         the size of a field.
         """
-        header = knx.KnxStructure.build_header()
+        header = knx.KnxStructure(type="header")
         header.service_identifier.size = 3
         header.update()
         self.assertEqual(byte.to_int(header.header_length.value), 7)
         self.assertEqual(bytes(header), b"\x07\x10\x00\x00\x00\x00\x00")
     def test_04_knx_header_resize_total_length(self):
         """Test that header length is updated when a field is expanded."""
-        header = knx.KnxStructure.build_header()
+        header = knx.KnxStructure(type="header")
         header.total_length.size = 3
         header.total_length.value = 123456
         header.update()
         self.assertEqual(bytes(header.header_length), b'\x07')
     def test_05_knx_header_resize(self):
         """Test that resize changes the value of the field's bytearray"""
-        header = knx.KnxStructure.build_header()
+        header = knx.KnxStructure(type="header")
         header.header_length.size = 2
         self.assertEqual(bytes(header.header_length), b'\x00\x06')
         header.update()
@@ -98,7 +98,7 @@ class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
         """Test that manual field value changes enable fixed_value boolean,
         which prevent from automatically updating the field.
         """
-        header = knx.KnxStructure.build_header()
+        header = knx.KnxStructure(type="header")
         header.header_length.value = b'\x02'
         self.assertEqual(bytes(header.header_length), b'\x02')
         header.update()
@@ -106,14 +106,14 @@ class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
     def test_07_knx_header_set_content_different_size(self):
         """Test behavior when trying to set different size bytearrays 
         as field values."""
-        header = knx.KnxStructure.build_header()
+        header = knx.KnxStructure(type="header")
         header.service_identifier.value = b'\x10\x10\x10'
         self.assertEqual(bytes(header.service_identifier), b'\x10\x10')
         header.service_identifier.value = b'\x10'
         self.assertEqual(bytes(header.service_identifier), b'\x00\x10')
     def test_08_knx_header_set_invalid_content(self):
         """Test negative value for size."""
-        header = knx.KnxStructure.build_header()
+        header = knx.KnxStructure(type="header")
         header.header_length.size = -4
         self.assertEqual(header.header_length.size, -4)
         self.assertEqual(bytes(header.header_length), b'')
@@ -181,21 +181,21 @@ class Test05DIBStructureFromSpec(unittest.TestCase):
         """Test that an exception is rose when creating a structure from
         an unknown template."""
         with self.assertRaises(BOFProgrammingError):
-            frame = knx.KnxStructure.build_from_type("WTF")
+            frame = knx.KnxStructure(type="WTF")
     def test_02_knx_structure_device_info(self):
         """Test that an exception is rose when creating a structure from
         an unknown template."""
-        structure = knx.KnxStructure.build_from_type("DIB_DEVICE_INFO")
+        structure = knx.KnxStructure(type="DIB_DEVICE_INFO")
         self.assertEqual((byte.to_int(bytes(structure.structure_length))), 54)
     def test_03_knx_structure_supp_svc_families(self):
         """Test that special structure supported service families containing
         inner structure with repeat keyword is correctly instantiated.
         """
-        structure = knx.KnxStructure.build_from_type("DIB_SUPP_SVC_FAMILIES")
+        structure = knx.KnxStructure(type="DIB_SUPP_SVC_FAMILIES")
         self.assertEqual(byte.to_int(structure.structure_length.value), 4)
         self.assertEqual(bytes(structure.service_family.id), b'\x00')
         self.assertEqual(bytes(structure.service_family.version), b'\x00')
-        structure.append(knx.KnxStructure.build_from_type("SERVICE_FAMILY"))
+        structure.append(knx.KnxStructure(type="SERVICE_FAMILY"))
         self.assertEqual(byte.to_int(structure.structure_length.value), 6)
     def test_04_knx_body_description_response(self):
         """Test correct building of a DESCRIPTION RESPONSE KNX frame."""
@@ -217,12 +217,12 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
     def tearDown(self):
         self.connection.disconnect()
     def test_01_knx_parse_descrresp(self):
-        self.connection.send(bytes(knx.KnxFrame(sid="DESCRIPTION_REQUEST")))
+        self.connection.send(knx.KnxFrame(sid="DESCRIPTION_REQUEST"))
         datagram = self.connection.receive()
         self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")
     def test_02_knx_parse_connectresp(self):
         connectreq = knx.KnxFrame(sid="CONNECT_REQUEST")
-        self.connection.send(bytes(connectreq))
+        self.connection.send(connectreq)
         connectresp = self.connection.receive()
         self.assertEqual(bytes(connectresp.header.service_identifier), b"\x02\x06")
         self.assertEqual(bytes(connectresp.body.status), b"\x00")
