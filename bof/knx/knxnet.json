@@ -1,16 +1,24 @@
 {
-    "service identifiers": [
-	{"name": "SEARCH REQUEST", "id": "0201"},
-	{"name": "SEARCH RESPONSE", "id": "0202"},
-	{"name": "DESCRIPTION REQUEST", "id": "0203"},
-	{"name": "DESCRIPTION RESPONSE", "id": "0204"},
-	{"name": "CONNECT REQUEST", "id": "0205"},
-	{"name": "CONNECT RESPONSE", "id": "0206"},
-	{"name": "CONNECTIONSTATE REQUEST", "id": "0207"},
-	{"name": "CONNECTIONSTATE RESPONSE", "id": "0208"},
-	{"name": "DISCONNECT REQUEST", "id": "0209"},
-	{"name": "DISCONNECT RESPONSE", "id": "020A"}
-    ],
+    "service identifiers": {
+	"SEARCH REQUEST": {"id": "0201"},
+	"SEARCH RESPONSE": {"id": "0202"},
+	"DESCRIPTION REQUEST": {"id": "0203"},
+	"DESCRIPTION RESPONSE": {"id": "0204"},
+	"CONNECT REQUEST": {"id": "0205"},
+	"CONNECT RESPONSE": {"id": "0206"},
+	"CONNECTIONSTATE REQUEST": {"id": "0207"},
+	"CONNECTIONSTATE RESPONSE": {"id": "0208"},
+	"DISCONNECT REQUEST": {"id": "0209"},
+	"DISCONNECT RESPONSE": {"id": "020A"},
+	"CONFIGURATION REQUEST": {"id": "0310"},
+	"CONFIGURATION ACK": {"id": "0311"}
+    },
+    "cemis": {
+	"PropRead.req": {"id": "FC", "type": "MGMT_cEMI"},
+	"PropRead.con": {"id": "FB", "type": "MGMT_cEMI"},
+	"PropWrite.req": {"id": "F6", "type": "MGMT_cEMI"},
+	"PropWrite.con": {"id": "F5", "type": "MGMT_cEMI"}
+    },
     "structures": {
 	"HEADER": [
 	    {"name": "header length", "type": "field", "size": 1, "is_length": true},
@@ -52,6 +60,15 @@
 	    {"name": "port", "type": "field", "size": 2, "optional": true},
 	    {"name": "ip address 2", "type": "field", "size": 4, "optional": true},
 	    {"name": "port 2", "type": "field", "size": 2, "optional": true}
+	],
+	"MGMT_cEMI": [
+	    {"name": "message code", "type": "field", "size": 1},
+	    {"name": "object type", "type": "field", "size": 2},
+	    {"name": "object instance", "type": "field", "size": 1},
+	    {"name": "property id", "type": "field", "size": 1},
+	    {"name": "number of elements", "type": "field", "size": 0.5},
+	    {"name": "start index", "type": "field", "size": 1.5},
+	    {"name": "data", "type": "field", "size": 1, "optional": true}
 	]
     },
     "bodies": {
@@ -99,6 +116,17 @@
 	"DISCONNECT RESPONSE": [
 	    {"name": "communication channel id", "type": "field", "size": 1},
 	    {"name": "status", "type": "field", "size": 1, "default": "00"}
+	],
+	"CONFIGURATION REQUEST": [
+	    {"name": "sequence counter", "type": "field", "size": 1},
+	    {"name": "reserved", "type": "field", "size": 1},
+	    {"name": "cEMI", "type": "cemi"}
+	],
+	"CONFIGURATION ACK": [
+	    {"name": "structure length", "type": "field", "size": 1},
+	    {"name": "communication channel id", "type": "field", "size": 1},
+	    {"name": "sequence counter", "type": "field", "size": 1},
+	    {"name": "status", "type": "field", "size": 1}
 	]
     }
 }

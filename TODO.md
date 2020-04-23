@@ -1,11 +1,9 @@
 TODOs
 =====
 
-- [ ] Rename and refactor KnxStructure factories
-- [ ] Write unittest for `KnxFrame.remove()` (use `examples/frame_building.py`)
-- [ ] Implement cEMI frames (Management frames, KNX specification 03_08_03)
+- [ ] Implement cEMI management frames content (property id, etc.) and parsing (KNX 03_06_01 - 4.1.7.3)
 - [ ] Add a few default values for fields from the spec
-- [ ] Add missing structures/bodies in `knxnet.json`
+- [ ] Add missing structures/bodies/cemis in `knxnet.json`
 - [ ] Implement `repeat` keyword in spec (one or more fields repeated, as in `supp svc families`
 - [ ] `KnxNet.source` (`UDP.source` property) returns 127.0.0.1 as source IP, is it normal? 
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
@@ -13,6 +11,7 @@ TODOs
 - [ ] Gather details about exchanges from Wireshark traces
 - [ ] Write discovery methods (search, discover) in 
 - [ ] Write simple script for "write" actions on all KNX objects on range
+- [ ] Write high-level service identifier frames implementations (ex: DESCRIPTION REQUEST with content)
 
 - [X] Fill a known service with correct default values # DROP, we let the user do it, that's a framework
 - [X] Handle `optional` key from `knxnet.json`
@@ -29,3 +28,5 @@ TODOs
 - [X] Write methods to add and remove fields (properties) from a structure / frame
 - [X] DOCS: Move Overview and TL;DR from **source code documentation** to **user manual**
 - [X] The `init` parameter from `KnxNet.connect()` should be false by default
+- [X] Rename and refactor KnxStructure factories
+- [X] Write unittest for `KnxFrame.remove()` (use `examples/frame_building.py`)

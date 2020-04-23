@@ -270,22 +270,34 @@ class KnxStructure(UDPStructure):
         """Initialize the ``KnxStructure`` with a mandatory name and optional
         arguments to fill in the structure list (with fields or substructures).
 
+        KnxStructure can be pre-filled according to a type or to a cemi
+        structure as defined in the specification file.
+
         Available keyword arguments:
 
         :param name: String to refer to the structure using a property.
-        :param type: Type of structure, this part should be used prior to
-                     structure object's initialization, i.e. not here.
+        :param type: Type of structure. Cannot be used with ``cemi``.
+        :param cemi: Type of structure if this is a cemi structure. Cannot be used
+                     with ``type``.
 
         Some other keywords arguments depend on the type given (``size``,
         ``dibtype``, ``default``, etc.).
+
         """
         self.name = kwargs["name"] if "name" in kwargs else ""
         self.__structure = []
+        specs = KnxSpec()
         if "type" in kwargs:
-            if not kwargs["type"].upper() in KnxSpec().structures.keys():
+            if not kwargs["type"].upper() in specs.structures.keys():
                 raise BOFProgrammingError("Unknown structure type ({0})".format(kwargs["type"]))
             self.name = self.name if len(self.name) else kwargs["type"]
-            self.append(self.factory(structure=KnxSpec().structures[kwargs["type"].upper()]))
+            self.append(self.factory(structure=specs.structures[kwargs["type"].upper()]))
+        elif "cemi" in kwargs:
+            if not kwargs["cemi"] in specs.cemis.keys():
+                raise BOFProgrammingError("cEMI is unknown ({0})".format(kwargs["cemi"]))
+            self.name = self.name if len(self.name) else "cemi"
+            self.append(self.factory(structure=specs.structures[specs.cemis[kwargs["cemi"]]["type"]]))
+            self.message_code.value = bytes.fromhex(specs.cemis[kwargs["cemi"]]["id"])
 
     def __bytes__(self):
         raw = b''
@@ -310,20 +322,25 @@ class KnxStructure(UDPStructure):
     @classmethod
     def factory(cls, **kwargs) -> object:
         if "structure" in kwargs:
+            cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
-            return cls.create_from_structure(kwargs["structure"],
-                                                      optional)
+            return cls.create_from_structure(kwargs["structure"], cemi, optional)
         if "type" in kwargs:
             return cls(type=kwargs["type"], name=name)
+        if "cemi" in kwargs:
+            optional = kwargs["optional"] if "optional" in kwargs else False
+            return cls(cemi=kwargs["cemi"], name="cEMI")
         return None
 
     @classmethod
-    def create_from_structure(cls, structure, optional:bool=False) -> list:
+    def create_from_structure(cls, structure, cemi:str=None, optional:bool=False) -> list:
         """Creates a list of ``KnxStructure``-inherited object according to the
         list of templates specified in parameter ``structure``.
 
         :param structure: template dictionary or list of template dictionaries
                           for ``KnxStructure`` object instantiation.
+        :param cemi: when a structure is a cEMI, we need to know what type of
+                     cEMI it is to build it accordingly.
         :param optional: build optional templates (default: no/False)
         :returns: A list of ``KnxStructure`` object (one by item in ``structure``).
         :raises BOFProgrammingError: If the value of argument "type" in a
@@ -338,18 +355,20 @@ class KnxStructure(UDPStructure):
         specs = KnxSpec()
         if isinstance(structure, list):
             for item in structure:
-                structlist += cls.create_from_structure(item, optional)
+                structlist += cls.create_from_structure(item, cemi, optional)
         elif isinstance(structure, dict):
             if "optional" in structure.keys() and structure["optional"] == True and not optional:
                 return structlist
             if not "type" in structure or structure["type"] == "structure":
-                structlist.append(KnxStructure(**structure))
+                structlist.append(cls(**structure))
             elif structure["type"] == "field":
                 structlist.append(KnxField(**structure))
+            elif structure["type"] == "cemi":
+                structlist.append(cls(cemi=cemi))
             elif structure["type"] in specs.structures.keys():
                 substructure = cls(name=structure["name"])
-                substructure.append(cls.create_from_structure(specs.structures[structure["type"]],
-                                                              optional))
+                content = specs.structures[structure["type"]]
+                substructure.append(cls.create_from_structure(content, cemi, optional))
                 structlist.append(substructure)
             else:
                 raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
@@ -556,8 +575,9 @@ class KnxFrame(object):
         if "source" in kwargs:
             self.__source = kwargs["source"]
         if "sid" in kwargs:
+            cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
-            self.build_from_sid(kwargs["sid"], optional)
+            self.build_from_sid(kwargs["sid"], cemi, optional)
             log("Created new frame from service identifier {0}".format(kwargs["sid"]))
         elif "frame" in kwargs:
             self.build_from_frame(kwargs["frame"])
@@ -590,13 +610,15 @@ class KnxFrame(object):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def build_from_sid(self, sid, optional:bool=False) -> None:
+    def build_from_sid(self, sid, cemi:str=None, optional:bool=False) -> None:
         """Fill in the KnxFrame object according to a predefined frame format
         corresponding to a service identifier. The frame format (structures
         and field) can be found or added in the KNX specification JSON file.
 
         :param sid: Service identifier as a string (service name) or as a
                     byte array (normally on 2 bytes but, whatever).
+        :param cemi: Type of cEMI if the structure associated to ``sid`` has
+                     a cEMI field/structure.
         :param optional: Boolean, set to True if we want to build the optional
                          structures/fields as stated in the specs.
         :raises BOFProgrammingError: If the service identifier cannot be found
@@ -610,11 +632,10 @@ class KnxFrame(object):
         # If sid is bytes, replace the id (as bytes) by the service name
         if isinstance(sid, bytes):
             for service in self.__specs.service_identifiers:
-                if bytes.fromhex(service["id"]) == sid:
-                    sid = service["name"]
+                if bytes.fromhex(self.__specs.service_identifiers[service]["id"]) == sid:
+                    sid = service
                     break
         # Now check that the service id exists and has an associated body
-        # (Ex: DESCRIPTION REQUEST)
         if isinstance(sid, str):
             if sid not in self.__specs.bodies:
                 # Try with underscores (Ex: DESCRIPTION_REQUEST)
@@ -628,13 +649,14 @@ class KnxFrame(object):
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
         self.__body.append(KnxStructure.factory(structure=self.__specs.bodies[sid],
+                                                cemi=cemi,
                                                 optional=optional))
         # Add substructure fields names as properties to body :)
         for field in self.__body.fields:
             self.__body._add_property(field.name, field)
-        for service in self.__specs.service_identifiers:
-            if service["name"] == sid:
-                self.__header.service_identifier._update_value(service["id"])
+            if sid in self.__specs.service_identifiers.keys():
+                value = self.__specs.service_identifiers[sid]["id"]
+                self.__header.service_identifier._update_value(value)
         self.update()
 
     def build_from_frame(self, frame:bytes) -> None:
@@ -655,8 +677,9 @@ class KnxFrame(object):
         self.__header = KnxStructure(type="HEADER", name="header")
         self.__header.fill(frame[:frame[0]])
         for service in self.__specs.service_identifiers:
-            if bytes(self.__header.service_identifier) == bytes.fromhex(service["id"]):
-                structurelist = self.__specs.bodies[service["name"]]
+            attributes = self.__specs.service_identifiers[service]
+            if bytes(self.__header.service_identifier) == bytes.fromhex(attributes["id"]):
+                structurelist = self.__specs.bodies[service]
                 break
         # BODY
         cursor = frame[0] # We start at index len(header) (== 6)

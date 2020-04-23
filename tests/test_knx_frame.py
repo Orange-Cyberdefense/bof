@@ -168,7 +168,7 @@ class Test04DIBSpecificationClass(unittest.TestCase):
     """Test class for specification class building from JSON file."""
     def test_01_knx_spec_instantiate(self):
         spec = knx.KnxSpec()
-        self.assertEqual(spec.service_identifiers[0]["name"], "SEARCH REQUEST")
+        self.assertEqual(list(spec.service_identifiers.keys())[0], "SEARCH REQUEST")
     def test_01_knx_spec_clear(self):
         spec = knx.KnxSpec()
         spec.clear()
@@ -227,3 +227,14 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
         self.assertEqual(bytes(connectresp.header.service_identifier), b"\x02\x06")
         self.assertEqual(bytes(connectresp.body.status), b"\x00")
         self.assertEqual(bytes(connectresp.body.connection_response_data_block), b"\x02\x03")
+
+class Test06CEMIFrameCrafting(unittest.TestCase):
+    """Test class for KNX messages involving a cEMI frame."""
+    def test_01_knx_config_req(self):
+        """Test that cEMI frames definition in JSON is handled."""
+        frame = knx.KnxFrame(sid="CONFIGURATION REQUEST", cemi="PropRead.req")
+        self.assertEqual(bytes(frame.body.cemi.message_code), b"\xfc")
+    def test_02_knx_single_cemi(self):
+        """Test that we can build a single Structure from cEMI."""
+        propwrite = knx.KnxStructure(cemi="PropWrite.con")
+        self.assertEqual(bytes(propwrite.message_code), b"\xf5")
