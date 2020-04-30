@@ -19,7 +19,7 @@
 	"PropWrite.req": {"id": "F6", "type": "MGMT_cEMI"},
 	"PropWrite.con": {"id": "F5", "type": "MGMT_cEMI"}
     },
-    "structures": {
+    "blocktypes": {
 	"HEADER": [
 	    {"name": "header length", "type": "field", "size": 1, "is_length": true},
 	    {"name": "protocol version", "type": "field", "size": 1, "default": "10"},

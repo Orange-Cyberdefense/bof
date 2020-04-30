@@ -16,7 +16,7 @@ The ``knx`` submodule has the following content:
     direct import of the ``knx`` submodule (``from bof import knx``).
 
 :knxframe:
-    Object representations of KNX frames and frame content (structures and
+    Object representations of KNX frames and frame content (blocks and
     fields) and specification details, with methods to build, alter or read
     a frame or part of it. Available from direct import of the ``knx``
     submodule (``from bof import knx``).

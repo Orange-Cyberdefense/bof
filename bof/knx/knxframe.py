@@ -3,19 +3,19 @@ KNX frame handling
 ------------------
 
 KNXnet/IP frames handling implementation, implementing ``bof.network``'s
-``UDPStructure`` and ``UDPField`` classes.
+``UDPBlock`` and ``UDPField`` classes.
 
-A KNX frame (``KnxFrame``) is a byte array divided into a set of structures. A
+A KNX frame (``KnxFrame``) is a byte array divided into a set of blocks. A
 frame always has the following format:
 
-:Header: Single structure with basic data including the type of message.
-:Content: One or more structures, depending on the type of message.
+:Header: Single block with basic data including the type of message.
+:Content: One or more blocks, depending on the type of message.
 
-A structure (``KnxStructure``) is a byte array divided into a set of fields
-(``KnxField``). A structure has the following data:
+A block (``KnxBlock``) is a byte array divided into a set of fields
+(``KnxField``). A block has the following data:
 
-:Name: The name of the structure to be able to refer to it (using a property).
-:Content: A set of fields and/or a set of sub-structures.
+:Name: The name of the block to be able to refer to it (using a property).
+:Content: A set of fields and/or nested blocks.
 
 A field (``KnxField``) is a byte or a byte array with:
 
@@ -29,7 +29,7 @@ from ipaddress import ip_address
 from textwrap import indent
 
 from ..base import BOFProgrammingError, load_json, to_property, log
-from ..network import UDPField, UDPStructure
+from ..network import UDPField, UDPBlock
 from .. import byte
 
 ###############################################################################
@@ -130,8 +130,8 @@ class KnxField(UDPField):
     :param fixed_value: Set to ``True`` if the ``value`` should not be
                         modified automatically inside the module (``UDPField``).
     :param is_length: This boolean states if the field is the length field of
-                      the structure. If True, this value is updated when a field
-                      in the structure changes (except if this field has arg
+                      the block. If True, this value is updated when a field
+                      in the block changes (except if this field has arg
                       ``fixed_value`` set to True.
 
     Instantiate::
@@ -238,80 +238,77 @@ class KnxField(UDPField):
         self.fixed_value = False # Property changes this value, we switch back
 
 #-----------------------------------------------------------------------------#
-# KNX structures (set of fields) representation                               #
+# KNX blocks (set of fields) representation                                   #
 #-----------------------------------------------------------------------------#
 
-class KnxStructure(UDPStructure):
-    """A ``KnxStructure`` contains an ordered set of other structures and/or
+class KnxBlock(UDPBlock):
+    """A ``KnxBlock`` contains an ordered set of nested blocks and/or
     an ordered set of fields (``KnxField``) of one or more bytes.
 
-    A structure has the following properties:
+    A block has the following properties:
 
     - According to **KNX Standard v2.1 03_08_02**, the first byte of the
-      structure should contain the length of the structure.
-    - A non-terminal ``KnxStructure`` contains a set of other ``KnxStructure``.
-    - A terminal ``KnxStructure`` contains a set of ``KnxField``.
-    - A ``KnxStructure`` can also contain a mix of structures and fields.
+      block should (but does not always) contain the length of the block.
+    - A non-terminal ``KnxBlock`` contains one or more nested ``KnxBlock``.
+    - A terminal ``KnxBlock`` only contains a set of ``KnxField``.
+    - A ``KnxBlock`` can also contain a mix of blocks and fields.
 
-    :param name: Name of structure, so that it can be accessed by its name
+    :param name: Name of the block, so that it can be accessed by its name
                  using a property.
-    :param structure: List of structures, fields or both.
+    :param content: List of blocks, fields or both.
 
     Instantiate::
 
-        descr_resp = KnxStructure(name="description response")
-        descr_resp.append(KnxStructure.build_from_type("DIB_DEVICE_INFO"))
-        descr_resp.append(KnxStructure.build_from_type("DIB_SUPP_SVC_FAMILIES"))
+        descr_resp = KnxBlock(name="description response")
+        descr_resp.append(KnxBlock(type="DIB_DEVICE_INFO"))
+        descr_resp.append(KnxBlock(type="DIB_SUPP_SVC_FAMILIES"))
     """
     __name:str
-    __structure:list
+    __content:list
 
     def __init__(self, **kwargs):
-        """Initialize the ``KnxStructure`` with a mandatory name and optional
-        arguments to fill in the structure list (with fields or substructures).
+        """Initialize the ``KnxBlock`` with a mandatory name and optional
+        arguments to fill in the block content list (with fields or nested
+        blocks).
 
-        KnxStructure can be pre-filled according to a type or to a cemi
-        structure as defined in the specification file.
+        A ``KnxBlock`` can be pre-filled according to a type or to a cEMI
+        block as defined in the specification file.
 
         Available keyword arguments:
 
-        :param name: String to refer to the structure using a property.
-        :param type: Type of structure. Cannot be used with ``cemi``.
-        :param cemi: Type of structure if this is a cemi structure. Cannot be used
+        :param name: String to refer to the block using a property.
+        :param type: Type of block. Cannot be used with ``cemi``.
+        :param cemi: Type of block if this is a cemi structure. Cannot be used
                      with ``type``.
-
-        Some other keywords arguments depend on the type given (``size``,
-        ``dibtype``, ``default``, etc.).
-
         """
         self.name = kwargs["name"] if "name" in kwargs else ""
-        self.__structure = []
+        self.__content = []
         specs = KnxSpec()
         if "type" in kwargs:
-            if not kwargs["type"].upper() in specs.structures.keys():
-                raise BOFProgrammingError("Unknown structure type ({0})".format(kwargs["type"]))
+            if not kwargs["type"].upper() in specs.blocktypes.keys():
+                raise BOFProgrammingError("Unknown block type ({0})".format(kwargs["type"]))
             self.name = self.name if len(self.name) else kwargs["type"]
-            self.append(self.factory(structure=specs.structures[kwargs["type"].upper()]))
+            self.append(self.factory(template=specs.blocktypes[kwargs["type"].upper()]))
         elif "cemi" in kwargs:
             if not kwargs["cemi"] in specs.cemis.keys():
                 raise BOFProgrammingError("cEMI is unknown ({0})".format(kwargs["cemi"]))
             self.name = self.name if len(self.name) else "cemi"
-            self.append(self.factory(structure=specs.structures[specs.cemis[kwargs["cemi"]]["type"]]))
+            self.append(self.factory(template=specs.blocktypes[specs.cemis[kwargs["cemi"]]["type"]]))
             self.message_code.value = bytes.fromhex(specs.cemis[kwargs["cemi"]]["id"])
 
     def __bytes__(self):
         raw = b''
-        for item in self.__structure:
+        for item in self.__content:
             raw += bytes(item)
         return raw
 
     def __len__(self):
-        """Return the size of the structure in total number of bytes."""
+        """Return the size of the block in total number of bytes."""
         return len(bytes(self))
 
     def __str__(self):
         ret = ["{0}: {1}".format(self.__class__.__name__, self.__name)]
-        for item in self.__structure:
+        for item in self.__content:
             ret += [indent(str(item), "    ")]
         return "\n".join(ret)
         
@@ -321,10 +318,10 @@ class KnxStructure(UDPStructure):
 
     @classmethod
     def factory(cls, **kwargs) -> object:
-        if "structure" in kwargs:
+        if "template" in kwargs:
             cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
-            return cls.create_from_structure(kwargs["structure"], cemi, optional)
+            return cls.create_from_template(kwargs["template"], cemi, optional)
         if "type" in kwargs:
             return cls(type=kwargs["type"], name=name)
         if "cemi" in kwargs:
@@ -333,53 +330,53 @@ class KnxStructure(UDPStructure):
         return None
 
     @classmethod
-    def create_from_structure(cls, structure, cemi:str=None, optional:bool=False) -> list:
-        """Creates a list of ``KnxStructure``-inherited object according to the
-        list of templates specified in parameter ``structure``.
+    def create_from_template(cls, template, cemi:str=None, optional:bool=False) -> list:
+        """Creates a list of ``KnxBlock``-inherited object according to the
+        list of templates specified in parameter ``template``.
 
-        :param structure: template dictionary or list of template dictionaries
-                          for ``KnxStructure`` object instantiation.
-        :param cemi: when a structure is a cEMI, we need to know what type of
+        :param template: template dictionary or list of template dictionaries
+                         for ``KnxBlock`` object instantiation.
+        :param cemi: when a block is a cEMI, we need to know what type of
                      cEMI it is to build it accordingly.
         :param optional: build optional templates (default: no/False)
-        :returns: A list of ``KnxStructure`` object (one by item in ``structure``).
+        :returns: A list of ``KnxBlock`` objects (one by item in ``template``).
         :raises BOFProgrammingError: If the value of argument "type" in a
-                                     structure dictionary is unknown.
+                                     template dictionary is unknown.
 
         Example::
 
-            structure = KnxStructure(name="structure")
-            structure.append(KnxStructure.factory(structure=KnxSpec().structures["structure"]))
+            block = KnxBlock(name="new block")
+            block.append(KnxBlock.factory(template=KnxSpec().blocktypes["HPAI"]))
         """
-        structlist = []
+        blocklist = []
         specs = KnxSpec()
-        if isinstance(structure, list):
-            for item in structure:
-                structlist += cls.create_from_structure(item, cemi, optional)
-        elif isinstance(structure, dict):
-            if "optional" in structure.keys() and structure["optional"] == True and not optional:
-                return structlist
-            if not "type" in structure or structure["type"] == "structure":
-                structlist.append(cls(**structure))
-            elif structure["type"] == "field":
-                structlist.append(KnxField(**structure))
-            elif structure["type"] == "cemi":
-                structlist.append(cls(cemi=cemi))
-            elif structure["type"] in specs.structures.keys():
-                substructure = cls(name=structure["name"])
-                content = specs.structures[structure["type"]]
-                substructure.append(cls.create_from_structure(content, cemi, optional))
-                structlist.append(substructure)
+        if isinstance(template, list):
+            for item in template:
+                blocklist += cls.create_from_template(item, cemi, optional)
+        elif isinstance(template, dict):
+            if "optional" in template.keys() and template["optional"] == True and not optional:
+                return blocklist
+            if not "type" in template or template["type"] == "block":
+                blocklist.append(cls(**template))
+            elif template["type"] == "field":
+                blocklist.append(KnxField(**template))
+            elif template["type"] == "cemi":
+                blocklist.append(cls(cemi=cemi))
+            elif template["type"] in specs.blocktypes.keys():
+                nestedblock = cls(name=template["name"])
+                content = specs.blocktypes[template["type"]]
+                nestedblock.append(cls.create_from_template(content, cemi, optional))
+                blocklist.append(nestedblock)
             else:
-                raise BOFProgrammingError("Unknown structure type ({0})".format(structure))
-        return structlist
+                raise BOFProgrammingError("Unknown block type ({0})".format(template))
+        return blocklist
 
     def fill(self, frame:bytes) -> bytes:
         """Fills in the fields in object with the content of the frame.
 
         The frame is read byte by byte and used to fill the field in ``fields()``
         order according to each field's size. Hopefully, the frame is the same
-        size as what is expected for the format of this structure.
+        size as what is expected for the format of this block.
         
         :param frame: A raw byte array corresponding to part of a KNX frame.
         :returns: The remainder of the frame (if any) or 0
@@ -389,35 +386,34 @@ class KnxStructure(UDPStructure):
             field.value = frame[cursor:cursor+field.size]
             cursor += field.size
 
-    def append(self, structure) -> None:
-        """Appends a structure, a field of a list of structures and/fields to
-        current structure's content. Adds the name of the structure to the list
-        of current's structure properties. Ex: if ``structure.name`` is ``foo``,
+    def append(self, content) -> None:
+        """Appends a block, a field of a list of blocks and/fields to
+        current block's content. Adds the name of the block to the list
+        of current's block properties. Ex: if ``block.name`` is ``foo``,
         it could be referred to as ``self.foo``.
 
-        :param structure: ``KnxStructure``, ``KnxField`` or a list of such objects.
+        :param block: ``KnxBlock``, ``KnxField`` or a list of such objects.
 
         Example::
 
-            structure = KnxStructure(name="atoll")
-            structure.append(KnxField(name="pom"))
-            structure.append(KnxStructure(name="galli"))
+            block = KnxBlock(name="atoll")
+            block.append(KnxField(name="pom"))
+            block.append(KnxBlock(name="galli"))
         """
-        if isinstance(structure, KnxField) or isinstance(structure, KnxStructure):
-            self.__structure.append(structure)
-            # Add the name of the structure as a property to this instance
-            if len(structure.name) > 0:
-                setattr(self, to_property(structure.name), structure)
-        elif isinstance(structure, list):
-            for item in structure:
+        if isinstance(content, KnxField) or isinstance(content, KnxBlock):
+            self.__content.append(content)
+            # Add the name of the block as a property to this instance
+            if len(content.name) > 0:
+                setattr(self, to_property(content.name), content)
+        elif isinstance(content, list):
+            for item in content:
                 self.append(item)
         self.update()
 
     def update(self):
-        """Update all fields corresponding to structure lengths. Ex: if a
-        structure has been modified, the update will change the value of
-        the structure length field to match (unless this field's ``fixed_value``
-        boolean is set to True.
+        """Update all fields corresponding to lengths. Ex: if a block has been
+        modified, the update will change the value of the block length field
+        to match (unless this field's ``fixed_value`` boolean is set to True.
 
         Example::
 
@@ -425,15 +421,15 @@ class KnxStructure(UDPStructure):
             header.update()
             print(header.header_length.value)
         """
-        for item in self.__structure:
-            if isinstance(item, KnxStructure):
+        for item in self.__content:
+            if isinstance(item, KnxBlock):
                 item.update()
             elif isinstance(item, KnxField):
                 if item.is_length:
                     item._update_value(len(self))
 
     def remove(self, name:str) -> None:
-        """Remove the field ``name`` from the structure (or substructure).
+        """Remove the field ``name`` from the block (or nested block).
         If several fields have the same name, only the first one is removed.
         
         :param name: Name of the field to remove.
@@ -441,20 +437,20 @@ class KnxStructure(UDPStructure):
 
         Example::
 
-            body = knx.KnxStructure()
+            body = knx.KnxBlock()
             body.append(knx.KnxField(name="abitbol", size=30, value="monde de merde"))
             body.append(knx.KnxField(name="francky", size=30, value="cest oit"))
             body.remove("abitbol")
             print([x.name for x in body.fields])
         """
         name = name.lower()
-        for item in self.__structure:
-            if isinstance(item, KnxStructure):
+        for item in self.__content:
+            if isinstance(item, KnxBlock):
                 delattr(self, to_property(name))
                 item.remove(name)
             elif isinstance(item, KnxField):
                 if item.name == name or to_property(item.name) == name:
-                    self.__structure.remove(item)
+                    self.__content.remove(item)
                     delattr(self, to_property(name))
                     del(item)
                     break
@@ -472,14 +468,14 @@ class KnxStructure(UDPStructure):
         if isinstance(name, str):
             self.__name = name.lower()
         else:
-            raise BOFProgrammingError("Structure name should be a string.")
+            raise BOFProgrammingError("Block name should be a string.")
 
     @property
     def fields(self) -> list:
         self.update()
         fieldlist = []
-        for item in self.__structure:
-            if isinstance(item, KnxStructure):
+        for item in self.__content:
+            if isinstance(item, KnxBlock):
                 fieldlist += item.fields
             elif isinstance(item, KnxField):
                 fieldlist.append(item)
@@ -487,13 +483,13 @@ class KnxStructure(UDPStructure):
 
     @property
     def attributes(self) -> list:
-        """Gives the list of attributes added to the structure (field names)."""
+        """Gives the list of attributes added to the block (field names)."""
         self.update()
-        return [x for x in self.__dict__.keys() if not x.startswith("_KnxStructure__")]
+        return [x for x in self.__dict__.keys() if not x.startswith("_KnxBlock__")]
 
     @property
-    def structure(self) -> list:
-        return self.__structure
+    def content(self) -> list:
+        return self.__content
 
     #-------------------------------------------------------------------------#
     # Internal (should not be used by end users)                              #
@@ -516,18 +512,18 @@ class KnxFrame(object):
     """Object representation of a KNX message (frame) with methods to build
     and read KNX datagrams.
 
-    A frame contains a set of byte arrays (structures) so that:
+    A frame contains a set of byte arrays (blocks) so that:
 
     - It always starts with a header with a defined format.
-    - The frame body contains one or more structures and varies according to
+    - The frame body contains one or more blocks and varies according to
       the type of KNX message (defined in header).
 
     :param source: Source address of the frame with format tuple 
                    ``(ip:str, port:int)``.
     :param raw: Raw byte array used to build a KnxFrame object.
-    :param header: Frame header as a ``KnxStructure`` object.
-    :param body: Frame body as a ``KnxStructure`` which can also contain a set
-                 of other ``KnxStructure`` objects.
+    :param header: Frame header as a ``KnxBlock`` object.
+    :param body: Frame body as a ``KnxBlock`` which can also contain a set
+                 of nested ``KnxBlock`` objects.
 
     Instantiate::
 
@@ -537,8 +533,8 @@ class KnxFrame(object):
     **KNX Standard v2.1 03_08_02**
     """
     __source:tuple
-    __header:KnxStructure
-    __body:KnxStructure
+    __header:KnxBlock
+    __body:KnxBlock
     __specs:KnxSpec
 
     def __init__(self, **kwargs):
@@ -558,7 +554,7 @@ class KnxFrame(object):
         Keywords arguments:
 
         :param sid: Service identifier as a string or bytearray (2 bytes),
-                    sid is used to build a frame according to the structure
+                    sid is used to build a frame according to the blocks
                     template associated to this service identifier.
         :param optional: Boolean, set to True if we want to create a frame with
                          optional fields (from spec).
@@ -568,8 +564,8 @@ class KnxFrame(object):
         """
         # Empty frame (no parameter)
         self.__source = ("",0)
-        self.__header = KnxStructure(type="header")
-        self.__body = KnxStructure(name="body")
+        self.__header = KnxBlock(type="header")
+        self.__body = KnxBlock(name="body")
         self.__specs = KnxSpec()
         # Fill in the frame according to parameters
         if "source" in kwargs:
@@ -592,17 +588,17 @@ class KnxFrame(object):
         return self.raw
 
     def __len__(self):
-        """Return the size of the structure in total number of bytes."""
+        """Return the size of the block in total number of bytes."""
         self.update()
         return len(self.raw)
 
     def __str__(self):
         ret = ["{0} object: {1}".format(self.__class__.__name__, repr(self))]
         ret += ["[HEADER]"]
-        for attr in self.header.structure:
+        for attr in self.header.content:
             ret += [indent(str(attr), "    ")]
         ret += ["[BODY]"]
-        for attr in self.body.structure:
+        for attr in self.body.content:
             ret += [indent(str(attr), "    ")]
         return "\n".join(ret)
 
@@ -612,15 +608,15 @@ class KnxFrame(object):
 
     def build_from_sid(self, sid, cemi:str=None, optional:bool=False) -> None:
         """Fill in the KnxFrame object according to a predefined frame format
-        corresponding to a service identifier. The frame format (structures
+        corresponding to a service identifier. The frame format (blocks
         and field) can be found or added in the KNX specification JSON file.
 
         :param sid: Service identifier as a string (service name) or as a
                     byte array (normally on 2 bytes but, whatever).
-        :param cemi: Type of cEMI if the structure associated to ``sid`` has
+        :param cemi: Type of cEMI if the blocks associated to ``sid`` have
                      a cEMI field/structure.
         :param optional: Boolean, set to True if we want to build the optional
-                         structures/fields as stated in the specs.
+                         blocks/fields as stated in the specs.
         :raises BOFProgrammingError: If the service identifier cannot be found
                                      in given JSON file.
 
@@ -648,10 +644,9 @@ class KnxFrame(object):
                     raise BOFProgrammingError("Service {0} does not exist.".format(sid))
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        self.__body.append(KnxStructure.factory(structure=self.__specs.bodies[sid],
-                                                cemi=cemi,
-                                                optional=optional))
-        # Add substructure fields names as properties to body :)
+        self.__body.append(KnxBlock.factory(template=self.__specs.bodies[sid],
+                                            cemi=cemi, optional=optional))
+        # Add fields names as properties to body :)
         for field in self.__body.fields:
             self.__body._add_property(field.name, field)
             if sid in self.__specs.service_identifiers.keys():
@@ -663,8 +658,8 @@ class KnxFrame(object):
         """Fill in the KnxFrame object using a frame as a raw byte array. This
         method is used when receiving and parsing a file from a KNX object.
 
-        The parsing relies on the structure lengths stated in first byte of
-        each part (structure) of the frame.
+        The parsing relies on the block lengths sometimes stated in first byte
+        of each part (block) of the frame.
 
         :param frame: KNX frame as a byte array (or anything, whatever)
 
@@ -672,32 +667,33 @@ class KnxFrame(object):
 
             data, address = knx_connection.receive()
             frame = KnxFrame(frame=data, source=address)
+
         """
         # HEADER
-        self.__header = KnxStructure(type="HEADER", name="header")
+        self.__header = KnxBlock(type="HEADER", name="header")
         self.__header.fill(frame[:frame[0]])
         for service in self.__specs.service_identifiers:
             attributes = self.__specs.service_identifiers[service]
             if bytes(self.__header.service_identifier) == bytes.fromhex(attributes["id"]):
-                structurelist = self.__specs.bodies[service]
+                blocklist = self.__specs.bodies[service]
                 break
         # BODY
         cursor = frame[0] # We start at index len(header) (== 6)
-        for structure in structurelist:
+        for block in blocklist:
             if cursor >= len(frame):
                 break
             # factory returns a list but we only expect one item
-            structure_object = KnxStructure.factory(structure=structure)[0]
-            if isinstance(structure_object, KnxField):
-                structure_object.value = frame[cursor:cursor+structure_object.size]
-                cursor += structure_object.size
+            block_object = KnxBlock.factory(template=block)[0]
+            if isinstance(block_object, KnxField):
+                block_object.value = frame[cursor:cursor+block_object.size]
+                cursor += block_object.size
             else:
-                structure_object.fill(frame[cursor:cursor+frame[cursor]])
+                block_object.fill(frame[cursor:cursor+frame[cursor]])
                 cursor += frame[cursor]
-            self.__body.append(structure_object)
+            self.__body.append(block_object)
 
     def remove(self, name:str) -> None:
-        """Remove the structure ``name`` from the header or body, as long as
+        """Remove the block/field ``name`` from the header or body, as long as
         name is in the frame's attributes.
 
         If several fields have the same name, only the first one is removed.
@@ -711,21 +707,21 @@ class KnxFrame(object):
             print([x for x in frame.attributes])
         """
         name = name.lower()
-        for structure in [self.__header, self.__body]:
-            for item in structure.attributes:
+        for block in [self.__header, self.__body]:
+            for item in block.attributes:
                 if item == to_property(name):
-                    item = getattr(structure, item)
-                    if isinstance(item, KnxStructure):
+                    item = getattr(block, item)
+                    if isinstance(item, KnxBlock):
                         for field in item.fields:
                             item.remove(to_property(field.name))
-                            delattr(structure, to_property(field.name))
-                        delattr(structure, to_property(name))
+                            delattr(block, to_property(field.name))
+                        delattr(block, to_property(name))
                         del item
 
     def update(self):
-        """Update all fields corresponding to structure lengths. Ex: if a
-        structure has been modified, the update will change the value of
-        the structure length field to match (unless this field's ``fixed_value``
+        """Update all fields corresponding to block lengths. Ex: if a
+        block has been modified, the update will change the value of
+        the block length field to match (unless this field's ``fixed_value``
         boolean is set to True.
 
         For frames, the ``update()`` methods also update the ``total length``

@@ -36,7 +36,7 @@ from . import byte
 #-----------------------------------------------------------------------------#
 
 class UDPField(object):
-    """Object representation of a UDP field inside a structure.
+    """Object representation of a UDP field inside a block.
 
     Contains a set of attributes useful for UDP fields building and
     handling, they may not all be used depending on the type of field.
@@ -124,29 +124,23 @@ class UDPField(object):
             self._size = size
             self._value = byte.resize(self._value, self._size)
 
-class UDPStructure(object):
-    """Object representation of a UDP structure (set of byte fields) inside a
-    packet.
+class UDPBlock(object):
+    """Object representation of a UDP block (set of byte fields) inside a packet.
 
     Higher-level protocol implementations relying on UDP should inherit this
-    class for basic packet byte, field and structure definition.
-
-    :param structure: dictionary with format ``{index: value, ...}`` where
-                      ``index`` can be anything to refer to the field, e.g.
-                      index from an Enum and ``value`` is the content of a
-                      field on one ore more bytes.
+    class for basic packet byte, field and block definition.
     """
-    _structure:dict
+    _content:dict
 
     def __bytes__(self):
-        """:returns: the content of the ``_structure`` as a bytearray."""
-        structure = []
-        for field in list(self._structure.values()):
-            structure += [field.value[i:i+1] for i in range(field.size)] # Split by byte
-        return b''.join(structure)
+        """:returns: the ``_content`` parameter as a bytearray."""
+        content = []
+        for field in list(self._content.values()):
+            content += [field.value[i:i+1] for i in range(field.size)] # Split by byte
+        return b''.join(content)
 
     def __str__(self):
-        """:returns: the bytearray built from the ``_structure`` dictionary
+        """:returns: the bytearray built from the ``_content`` dictionary
         converted to a string.
         """
         return "{0}".format(bytes(self))
@@ -172,10 +166,10 @@ class UDPStructure(object):
         we state that its value is now fixed and will not adapt if the value
         of the field is changed.
         """
-        value = byte.resize(self._structure[field].value, size)
-        self._structure[field].fixed_size = True
-        self._structure[field].size = size
-        self._structure[field].value = value
+        value = byte.resize(self._content[field].value, size)
+        self._content[field].fixed_size = True
+        self._content[field].size = size
+        self._content[field].value = value
 
 #-----------------------------------------------------------------------------#
 # Protocol implementation                                                     #

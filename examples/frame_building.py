@@ -8,7 +8,8 @@ try:
     knxnet.connect("224.0.23.12", 3671)
     frame = knx.KnxFrame()
     frame.header.service_identifier.value = b"\x02\x03"
-    hpai = knx.KnxStructure.build_from_type("HPAI")
+    hpai = knx.KnxBlock(type="HPAI")
+    frame.body.append(hpai)
     print(frame)
     knxnet.send(bytes(frame))
     response = knxnet.receive()
