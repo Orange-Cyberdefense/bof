@@ -29,20 +29,20 @@ class Test01BasicKnxFrame(unittest.TestCase):
         self.assertEqual(bytes(frame.header.total_length), b"\x00\x06")
     def test_04_knxframe_header_from_sid(self):
         """Test that frame header has been initialized with properties."""
-        frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
+        frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
         self.assertEqual(bytes(frame.header.header_length), b"\x06")
         self.assertEqual(bytes(frame.header.protocol_version), b"\x10")
         self.assertEqual(bytes(frame.header.service_identifier), b"\x02\x03")
         self.assertEqual(bytes(frame.header.total_length), b"\x00\x0e")
     def test_05_knxframe_body_from_sid(self):
         """Test that frame body is initialized according to a valid sid."""
-        frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
+        frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
         self.assertEqual(bytes(frame.body.structure_length), b"\x08")
         self.assertEqual(bytes(frame.body.host_protocol_code), b"\x01")
         self.assertEqual(bytes(frame.body), b"\x08\x01\x00\x00\x00\x00\x00\x00")
     def test_06_knxframe_body_from_sid_update(self):
         """Test that a frame built from sid can be modified."""
-        frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
+        frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
         frame.body.ip_address.value = "192.168.1.33"
         self.assertEqual(bytes(frame.body.ip_address), b"\xc0\xa8\x01\x21")
         frame.body.port.value = 12
@@ -54,7 +54,7 @@ class Test01BasicKnxFrame(unittest.TestCase):
         """
         knxnet = knx.KnxNet()
         knxnet.connect("localhost", 13671)
-        frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
+        frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
         ip, _ = knxnet.source # Returns 127.0.0.1, looks weird
         frame.body.ip_address.value = ip
         self.assertEqual(bytes(frame.body), b"\x08\x01\x7f\x00\x00\x01\x00\x00")
@@ -140,7 +140,7 @@ class Test03AdvancedFieldCrafting(unittest.TestCase):
         self.assertEqual(bytes(new_header.gasoline), b'\x00\x00\x05')
     def test_03_knx_remove_field_by_name(self):
         """Test that a field can be removed according to its name."""
-        frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
+        frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
         self.assertIn("ip_address", frame.body.attributes)
         frame.body.remove("ip_address")
         self.assertNotIn("ip_address", frame.body.attributes)
@@ -198,14 +198,14 @@ class Test05DIBBlockFromSpec(unittest.TestCase):
         self.assertEqual(byte.to_int(block.structure_length.value), 6)
     def test_04_knx_body_description_response(self):
         """Test correct building of a DESCRIPTION RESPONSE KNX frame."""
-        frame = knx.KnxFrame(sid="DESCRIPTION_RESPONSE")
+        frame = knx.KnxFrame(type="DESCRIPTION_RESPONSE")
         self.assertEqual(bytes(frame.header.service_identifier), b'\x02\x04')
         frame.body.device_hardware.friendly_name.value = "sushi"
         frame.body.friendly_name.value = "pizza"
         self.assertEqual(bytes(frame.body.device_hardware.friendly_name).decode('utf-8'), "pizza")
     def test_05_knx_body_with_optional(self):
         """Test that we can build a frame with the optional keyword."""
-        frame = knx.KnxFrame(sid="CONNECT REQUEST", optional=True)
+        frame = knx.KnxFrame(type="CONNECT REQUEST", optional=True)
         self.assertEqual(bytes(frame.body.port_2), b'\x00\x00')
 
 class Test05ReceivedFrameParsing(unittest.TestCase):
@@ -216,11 +216,11 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
     def tearDown(self):
         self.connection.disconnect()
     def test_01_knx_parse_descrresp(self):
-        self.connection.send(knx.KnxFrame(sid="DESCRIPTION_REQUEST"))
+        self.connection.send(knx.KnxFrame(type="DESCRIPTION_REQUEST"))
         datagram = self.connection.receive()
         self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")
     def test_02_knx_parse_connectresp(self):
-        connectreq = knx.KnxFrame(sid="CONNECT_REQUEST")
+        connectreq = knx.KnxFrame(type="CONNECT_REQUEST")
         self.connection.send(connectreq)
         connectresp = self.connection.receive()
         self.assertEqual(bytes(connectresp.header.service_identifier), b"\x02\x06")
@@ -231,7 +231,7 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
     """Test class for KNX messages involving a cEMI frame."""
     def test_01_knx_config_req(self):
         """Test that cEMI frames definition in JSON is handled."""
-        frame = knx.KnxFrame(sid="CONFIGURATION REQUEST", cemi="PropRead.req")
+        frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
         self.assertEqual(bytes(frame.body.cemi.message_code), b"\xfc")
     def test_02_knx_single_cemi(self):
         """Test that we can build a singleblock from cEMI."""

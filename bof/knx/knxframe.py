@@ -527,7 +527,7 @@ class KnxFrame(object):
 
     Instantiate::
 
-        KnxFrame(sid="DESCRIPTION REQUEST")
+        KnxFrame(type="DESCRIPTION REQUEST")
         KnxFrame(frame=data, source=address)
 
     **KNX Standard v2.1 03_08_02**
@@ -553,9 +553,10 @@ class KnxFrame(object):
 
         Keywords arguments:
 
-        :param sid: Service identifier as a string or bytearray (2 bytes),
-                    sid is used to build a frame according to the blocks
-                    template associated to this service identifier.
+        :param type: Type of the frame (service identifier) as a string or 
+                    bytearray (2 bytes), type is used to build a frame
+                    according to the blocks template associated to this
+                    service identifier.
         :param optional: Boolean, set to True if we want to create a frame with
                          optional fields (from spec).
         :param frame: Raw bytearray used to build a KnxFrame object.
@@ -570,11 +571,11 @@ class KnxFrame(object):
         # Fill in the frame according to parameters
         if "source" in kwargs:
             self.__source = kwargs["source"]
-        if "sid" in kwargs:
+        if "type" in kwargs:
             cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
-            self.build_from_sid(kwargs["sid"], cemi, optional)
-            log("Created new frame from service identifier {0}".format(kwargs["sid"]))
+            self.build_from_sid(kwargs["type"], cemi, optional)
+            log("Created new frame from service identifier {0}".format(kwargs["type"]))
         elif "frame" in kwargs:
             self.build_from_frame(kwargs["frame"])
             log("Created new frame from byte array {0} (source: {1})".format(kwargs["frame"],

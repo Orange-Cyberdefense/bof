@@ -63,7 +63,7 @@ class KnxNet(UDP):
         """
         super().connect(ip, port)
         if init:
-            init_frame = KnxFrame(sid="DESCRIPTION REQUEST")
+            init_frame = KnxFrame(type="DESCRIPTION REQUEST")
             init_frame.body.ip_address._update_value(self.source[0])
             init_frame.body.port._update_value(self.source[1])
             return self.send_receive(bytes(init_frame))
