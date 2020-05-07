@@ -200,6 +200,7 @@ class Test05DIBBlockFromSpec(unittest.TestCase):
         """Test correct building of a DESCRIPTION RESPONSE KNX frame."""
         frame = knx.KnxFrame(type="DESCRIPTION_RESPONSE")
         self.assertEqual(bytes(frame.header.service_identifier), b'\x02\x04')
+        self.assertEqual(frame.sid, "DESCRIPTION RESPONSE")
         frame.body.device_hardware.friendly_name.value = "sushi"
         frame.body.friendly_name.value = "pizza"
         self.assertEqual(bytes(frame.body.device_hardware.friendly_name).decode('utf-8'), "pizza")
@@ -218,11 +219,13 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
     def test_01_knx_parse_descrresp(self):
         self.connection.send(knx.KnxFrame(type="DESCRIPTION_REQUEST"))
         datagram = self.connection.receive()
+        self.assertEqual(datagram.sid, "DESCRIPTION RESPONSE")
         self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")
     def test_02_knx_parse_connectresp(self):
         connectreq = knx.KnxFrame(type="CONNECT_REQUEST")
         self.connection.send(connectreq)
         connectresp = self.connection.receive()
+        self.assertEqual(connectresp.sid, "CONNECT RESPONSE")
         self.assertEqual(bytes(connectresp.header.service_identifier), b"\x02\x06")
         self.assertEqual(bytes(connectresp.body.status), b"\x00")
         self.assertEqual(bytes(connectresp.body.connection_response_data_block), b"\x02\x03")

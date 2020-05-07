@@ -47,5 +47,5 @@ class Test02KNXConnection(unittest.TestCase):
         # knxnet.connect("192.168.0.10", 3671)
         datagram = knxnet.connect("localhost", 13671, init=True)
         self.assertTrue(isinstance(datagram, knx.KnxFrame))
-        self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")
+        self.assertEqual(datagram.sid, "DESCRIPTION RESPONSE")
         knxnet.disconnect()

@@ -167,6 +167,10 @@ class KnxField(UDPField):
     def __str__(self):
         return "<{0}: {1} ({2}B)>".format(self.__name, self.value, self.size)
 
+    def __iter__(self):
+        for i in range(len(self.value)):
+            yield byte.from_int(self.value[i])
+
     #-------------------------------------------------------------------------#
     # Properties                                                              #
     #-------------------------------------------------------------------------#
@@ -311,6 +315,9 @@ class KnxBlock(UDPBlock):
         for item in self.__content:
             ret += [indent(str(item), "    ")]
         return "\n".join(ret)
+
+    def __iter__(self):
+        yield from self.fields
         
     #-------------------------------------------------------------------------#
     # Public                                                                  #
@@ -603,6 +610,9 @@ class KnxFrame(object):
             ret += [indent(str(attr), "    ")]
         return "\n".join(ret)
 
+    def __iter__(self):
+        yield from self.fields
+
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
@@ -651,7 +661,7 @@ class KnxFrame(object):
         for field in self.__body.fields:
             self.__body._add_property(field.name, field)
             if sid in self.__specs.service_identifiers.keys():
-                value = self.__specs.service_identifiers[sid]["id"]
+                value = bytes.fromhex(self.__specs.service_identifiers[sid]["id"])
                 self.__header.service_identifier._update_value(value)
         self.update()
 
@@ -766,3 +776,14 @@ class KnxFrame(object):
         """Builds an array with the names of all attributes in header + body."""
         self.update()
         return self.__header.attributes + self.__body.attributes
+
+    @property
+    def sid(self) -> str:
+        """Return the name associated to the frame's service identifier, or
+        empty string if it is not set.
+        """
+        for service in self.__specs.service_identifiers:
+            attributes = self.__specs.service_identifiers[service]
+            if bytes(self.__header.service_identifier) == bytes.fromhex(attributes["id"]):
+                return service
+        return str(self.__header.service_identifier.value)
