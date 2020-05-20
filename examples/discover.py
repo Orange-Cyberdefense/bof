@@ -5,8 +5,8 @@ from bof import knx, BOFNetworkError
 
 knxnet = knx.KnxNet()
 try:
-    knxnet.connect("localhost", 13671)
-    frame = knx.KnxFrame(sid="DESCRIPTION REQUEST")
+    knxnet.connect("192.168.1.10", 3671)
+    frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
     print(frame)
     knxnet.send(frame)
     response = knxnet.receive()
