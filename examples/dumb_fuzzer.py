@@ -29,7 +29,7 @@ def fuzz(generator:object, trials:int=10) -> tuple:
             mutated_frame, changelog = mutate(bytes(frame))
             yield mutated_frame, frame, changelog
 
-   def save(reason:str, trial:bytes, original:object, changelog:list,
+    def save(reason:str, trial:bytes, original:object, changelog:list,\
             response:object=None):
        # We print it but we should store it
        print("[{0}] Type: {1}".format(reason, original.sid))

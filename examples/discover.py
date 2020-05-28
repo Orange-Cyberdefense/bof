@@ -6,7 +6,7 @@ from bof import knx, BOFNetworkError
 knxnet = knx.KnxNet()
 try:
     knxnet.connect("192.168.1.10", 3671)
-    frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
+    frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
     print(frame)
     knxnet.send(frame)
     response = knxnet.receive()

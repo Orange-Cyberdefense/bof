@@ -5,6 +5,8 @@ TODOs
 - [ ] Add a few default values for fields from the spec
 - [ ] Add missing structures/bodies/cemis in `knxnet.json`
 - [ ] Implement `repeat` keyword in spec (one or more fields repeated, as in `supp svc families`
+- [ ] Add error code detection in `knxnet.json` or in a knx upper layer
+- [ ] Implement upper layer functions (functions that are abstractions of the specifications)
 - [ ] `KnxNet.source` (`UDP.source` property) returns 127.0.0.1 as source IP, is it normal? 
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
 - [ ] `_TCP` and `TCP` classes in `bof/network.py` 

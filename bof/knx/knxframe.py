@@ -586,7 +586,7 @@ class KnxFrame(object):
         elif "frame" in kwargs:
             self.build_from_frame(kwargs["frame"])
             log("Created new frame from byte array {0} (source: {1})".format(kwargs["frame"],
-                                                                             kwargs["source"]))
+                                                                             self.__source))
         # Update total frame length in header
         self.update()
 
