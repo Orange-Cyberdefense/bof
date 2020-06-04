@@ -683,18 +683,29 @@ class KnxFrame(object):
         # HEADER
         self.__header = KnxBlock(type="HEADER", name="header")
         self.__header.fill(frame[:frame[0]])
+        blocklist = None
         for service in self.__specs.service_identifiers:
             attributes = self.__specs.service_identifiers[service]
             if bytes(self.__header.service_identifier) == bytes.fromhex(attributes["id"]):
                 blocklist = self.__specs.bodies[service]
                 break
+        if not blocklist:
+            raise BOFProgrammingError("Unknown service identifier ({0})".format(self.__header.service_identifier.value))
         # BODY
         cursor = frame[0] # We start at index len(header) (== 6)
         for block in blocklist:
             if cursor >= len(frame):
                 break
+            # If block is a cemi, we need its type before creating the structure
+            cemi = frame[cursor:cursor+1] if block["type"] == "cemi" else None
+            if cemi: # We get the name instead of the code
+                for cemi_type in self.__specs.cemis:
+                    attributes = self.__specs.cemis[cemi_type]
+                    if cemi == bytes.fromhex(attributes["id"]):
+                        cemi = cemi_type
+                        break
             # factory returns a list but we only expect one item
-            block_object = KnxBlock.factory(template=block)[0]
+            block_object = KnxBlock.factory(template=block,cemi=cemi)[0]
             if isinstance(block_object, KnxField):
                 block_object.value = frame[cursor:cursor+block_object.size]
                 cursor += block_object.size

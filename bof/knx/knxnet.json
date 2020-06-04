@@ -14,10 +14,10 @@
 	"CONFIGURATION ACK": {"id": "0311"}
     },
     "cemis": {
-	"PropRead.req": {"id": "FC", "type": "MGMT_cEMI"},
-	"PropRead.con": {"id": "FB", "type": "MGMT_cEMI"},
-	"PropWrite.req": {"id": "F6", "type": "MGMT_cEMI"},
-	"PropWrite.con": {"id": "F5", "type": "MGMT_cEMI"}
+	"PropRead.req": {"id": "FC", "type": "DP_cEMI"},
+	"PropRead.con": {"id": "FB", "type": "DP_cEMI"},
+	"PropWrite.req": {"id": "F6", "type": "DP_cEMI"},
+	"PropWrite.con": {"id": "F5", "type": "DP_cEMI"}
     },
     "blocktypes": {
 	"HEADER": [
@@ -61,13 +61,13 @@
 	    {"name": "ip address 2", "type": "field", "size": 4, "optional": true},
 	    {"name": "port 2", "type": "field", "size": 2, "optional": true}
 	],
-	"MGMT_cEMI": [
+	"DP_cEMI": [
 	    {"name": "message code", "type": "field", "size": 1},
 	    {"name": "object type", "type": "field", "size": 2},
 	    {"name": "object instance", "type": "field", "size": 1},
 	    {"name": "property id", "type": "field", "size": 1},
-	    {"name": "number of elements", "type": "field", "size": 0.5},
-	    {"name": "start index", "type": "field", "size": 1.5},
+	    {"name": "number of elements", "type": "field", "size": 1},
+	    {"name": "start index", "type": "field", "size": 1},
 	    {"name": "data", "type": "field", "size": 1, "optional": true}
 	]
     },
@@ -118,6 +118,8 @@
 	    {"name": "status", "type": "field", "size": 1, "default": "00"}
 	],
 	"CONFIGURATION REQUEST": [
+	    {"name": "structure length", "type": "field", "size": 1, "default": "04"},
+	    {"name": "communication channel id", "type": "field", "size": 1, "default": "01"},
 	    {"name": "sequence counter", "type": "field", "size": 1},
 	    {"name": "reserved", "type": "field", "size": 1},
 	    {"name": "cEMI", "type": "cemi"}
