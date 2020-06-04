@@ -13,6 +13,7 @@ TODOs
 - [ ] Discovery methods (search, discover)
 - [ ] Simple script for "read" and "write" actions on all KNX objects on range
 - [ ] Service identifier frames implementations with content (ex: DESCRIPTION REQUEST, CONFIG REQUEST)
+- [ ] Find a way to do clever channel management (ex: `examples/cemi.py` has raw `communication channel id` definition)
 
 3. Specification improvement
 ----------------------------

@@ -109,7 +109,7 @@
 	    {"name": "status", "type": "field", "size": 1, "default": "00"}
 	],
 	"DISCONNECT REQUEST": [
-	    {"name": "communication channel id", "type": "field", "size": 1},
+	    {"name": "communication channel id", "type": "field", "size": 1, "default": "01"},
 	    {"name": "reserved", "type": "field", "size": 1},
 	    {"name": "control endpoint", "type": "HPAI"}
 	],
@@ -125,8 +125,8 @@
 	    {"name": "cEMI", "type": "cemi"}
 	],
 	"CONFIGURATION ACK": [
-	    {"name": "structure length", "type": "field", "size": 1},
-	    {"name": "communication channel id", "type": "field", "size": 1},
+	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
+	    {"name": "communication channel id", "type": "field", "size": 1, "default": "01"},
 	    {"name": "sequence counter", "type": "field", "size": 1},
 	    {"name": "status", "type": "field", "size": 1}
 	]
