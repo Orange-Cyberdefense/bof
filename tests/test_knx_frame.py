@@ -9,6 +9,8 @@
 import unittest
 from bof import knx, byte, BOFProgrammingError
 
+BOIBOITE = "192.168.1.10"
+
 class Test01BasicKnxFrame(unittest.TestCase):
     """Test class for basic KNX frame creation and usage."""
     def test_01_knxframe_init(self):
@@ -213,7 +215,7 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
     """Test class for received frame parsing."""
     def setUp(self):
         self.connection = knx.KnxNet()
-        self.connection.connect("localhost", 13671)
+        self.connection.connect(BOIBOITE, 3671)
     def tearDown(self):
         self.connection.disconnect()
     def test_01_knx_parse_descrresp(self):

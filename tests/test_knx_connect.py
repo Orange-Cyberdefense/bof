@@ -7,6 +7,8 @@
 
 import unittest
 
+BOIBOITE = "192.168.1.10"
+
 class Test01Import(unittest.TestCase):
     """Test class for KNX submodule import."""
     def test_01_import_knx(self):
@@ -29,7 +31,7 @@ class Test02KNXConnection(unittest.TestCase):
         Pass even when no gateway (thx UDP).
         """
         knxnet = knx.KnxNet()
-        knxnet.connect("192.168.0.10")
+        knxnet.connect(BOIBOITE)
         knxnet.disconnect()
     def test_03_knx_connect_bad_addr(self):
         """Test error handling for bad address."""
@@ -38,14 +40,14 @@ class Test02KNXConnection(unittest.TestCase):
     def test_04_knx_connect_bad_port(self):
         """Test error handling for bad port."""
         with self.assertRaises(BOFNetworkError):
-            knx.KnxNet().connect("192.168.0.10", 666666)
+            knx.KnxNet().connect(BOIBOITE, 666666)
     def test_05_knx_connect_with_init(self):
         """Test regular KNX connection.
         Sends init packet DescrReq and expects DescrResp from dest.
         """
         knxnet = knx.KnxNet()
         # knxnet.connect("192.168.0.10", 3671)
-        datagram = knxnet.connect("localhost", 13671, init=True)
+        datagram = knxnet.connect(BOIBOITE, 3671, init=True)
         self.assertTrue(isinstance(datagram, knx.KnxFrame))
         self.assertEqual(datagram.sid, "DESCRIPTION RESPONSE")
         knxnet.disconnect()
