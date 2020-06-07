@@ -5,7 +5,7 @@ TODOs
 ---------------------------
 
 - [ ] cEMI's "number of elements" and "start index" should not be on a complete byte (NoE is 4bits, index is 12)
-- [ ] `KnxNet.source` (`UDP.source` property) returns 127.0.0.1 as source IP, is it normal? 
+- [ ] "Channel" could be stored directly in the KnxNet object, check if it can be done
 
 2. Upper-level functions (abstraction of the specification)
 -----------------------------------------------------------

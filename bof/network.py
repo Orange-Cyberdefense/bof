@@ -403,3 +403,17 @@ class UDP(object):
         Relies on Python's builtin ``socket`` module.
         """
         return self._socket.getsockname()
+
+    @property
+    def source_address(self) -> str:
+        """Get source IPv4 address information using source property.
+        Requires the connection to be established.
+        """
+        return self.source[0]
+
+    @property
+    def source_port(self) -> int:
+        """Get source port information using source property.
+        Requires the connection to be established.
+        """
+        return self.source[1]
