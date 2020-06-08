@@ -22,6 +22,7 @@ Usage::
     knxnet.disconnect()
 """
 
+from .. import byte
 from ..network import UDP
 from .knxframe import KnxFrame
 
@@ -44,6 +45,7 @@ class KnxNet(UDP):
     - Relies on ``bof.network.UDP()``.
     - Only ``connect()`` and ``receive()`` are overriden from class ``UDP``.
     """
+    channel = 0
 
     #-------------------------------------------------------------------------#
     # Override                                                                #
@@ -54,20 +56,46 @@ class KnxNet(UDP):
 
         :param ip: IPv4 address as a string with format ("A.B.C.D").
         :param port: Default KNX port is 3671 but can be changed.
-        :param init: If set to ``True``, a KNX frame ``DESCRIPTION_REQUEST``
+        :param init: If set to ``True``, a KNX frame ``CONNECT_REQUEST``
                      is sent when establishing the connection. The other part
-                     should reply with a ``DESCRIPTION_RESPONSE`` returned as
+                     should reply with a ``CONNECT_RESPONSE`` returned as
                      a ``KnxFrame`` object. Default is ``False``.
-        :returns: A ``KnxFrame`` with the parsed ``DESCRIPTION_RESPONSE`` if
-                  any, else returns ``None``.
+        :returns: A ``KnxFrame`` with the parsed ``CONNECT_RESPONSE`` if
+                  any, else returns current ``KnxNet`` instance.
         """
         super().connect(ip, port)
         if init:
-            init_frame = KnxFrame(type="DESCRIPTION REQUEST")
-            init_frame.body.ip_address._update_value(self.source[0])
-            init_frame.body.port._update_value(self.source[1])
-            return self.send_receive(bytes(init_frame))
-        return None
+            init_frame = KnxFrame(type="CONNECT REQUEST")
+            init_frame.body.control_endpoint.ip_address._update_value(byte.from_ipv4(self.source[0]))
+            init_frame.body.control_endpoint.port._update_value(byte.from_int(self.source[1]))
+            init_frame.body.data_endpoint.ip_address._update_value(byte.from_ipv4(self.source[0]))
+            init_frame.body.data_endpoint.port._update_value(byte.from_int(self.source[1]))
+            response = self.send_receive(bytes(init_frame))
+            self.channel = response.body.communication_channel_id.value
+            return response
+        return self
+
+    def disconnect(self, in_error:bool=False) -> object:
+        """Disconnects from KNXnet/IP server. If a CONNECT REQUEST was sent
+        when initializing the connection, we close it.
+
+        :param in_error: Boolean to specify whether or not the connection was
+                         closed on error, as this method can be called from
+                         within the module in case of a network error.
+        :returns: A ``DISCONNECT RESPONSE`` as a ``KnxFrame`` object if a
+                  ``DISCONNECT REQUEST`` was sent, else None
+        :raises BOFNetworkError: if `in_error` is set to `True`.
+        """
+        response = None
+        if self.channel:
+            disco_frame = KnxFrame(type="DISCONNECT REQUEST")
+            disco_frame.body.communication_channel_id = self.channel
+            disco_frame.body.control_endpoint.ip_address._update_value(byte.from_ipv4(self.source[0]))
+            disco_frame.body.control_endpoint.port._update_value(byte.from_int(self.source[1]))
+            response = self.send_receive(bytes(disco_frame))
+            self.channel = 0 # Reset
+        super().disconnect(in_error)
+        return response
 
     def send_receive(self, data:bytes, address:tuple=None, timeout:float=1.0) -> object:
         """Overrides ``UDP``'s ``send_receive()`` method so that it returns a

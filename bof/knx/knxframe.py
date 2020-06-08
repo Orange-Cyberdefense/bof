@@ -142,9 +142,43 @@ class KnxField(UDPField):
 
         KnxField(name="header length", size=1, default="06")
 
+    As we don't know how to handle bit fields that are not at least one
+    byte-long, we can create fields that are not complete bytes (ex: 4bits)
+    inside a ``KnxField``. For instance, a field of 4bits and one of 12bits
+    are merged into one byte field of 2 bytes (16bits).
+        
+    ``KnxField`` definition in the JSON spec file has the following format
+    if such subfields exist::
+    
+        {"name": "field1, field2", "type": "field", "size": 2, "subsize": "4, 12"}
+    
+    The new attribute ``subsize`` shall match the field list from name.
+    Here, we indicate that the field is divided into 2 bit fields: 
+    ``field1`` is 4 bits-long, ``field2`` is 12 bits long. When referring
+    to the field from anywhere else in the code, they should be treated as
+    independent fields.
+    Subfield are referred to as normal properties named ``field1`` and ``field2``
+    independently that return values as bit lists.
+    A property to refer to the main field, that returns the value of the complete
+    byte array, is created with a name such as ``field1_field2``::
+
+        >>> response.body.cemi.field1.value
+        [0, 0, 0, 1]
+        >>> response.body.cemi.field2.value
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        >>> response.body.cemi.field1_field2.value
+        b'\\x10\\x01' # Stands for 0001 0000 0000 0001
+
+    In a ``KnxField``, we then have a ``subfields`` dictionary that contains a
+    set of ``KnxSubField`` objects, which is an inner class of ``KnxField``.
+    Values are calculated in bits instead of bytes, the translation between bit
+    fields and byte array (when they are manipulated in frames.) shall not be
+    the problem of the user.
+
     **KNX Standard v2.1 03_08_02**
     """
     class KnxSubField(object):
+        """Special KNX subfield with bit list values instead of bytes."""
         name:str
         size:int
         __value:list
@@ -196,29 +230,7 @@ class KnxField(UDPField):
             self._update_value(bytes(self._size)) # Empty bytearray
 
     def __set_subfields(self, **kwargs):
-        """As we don't know how to handle bit fields that are not at least one
-        byte-long, we create fields that are not complete bytes (ex: 4bits)
-        inside byte fields. For instance, a field of 4bits and one of 12bits
-        are merged into one byte field of 2 bytes (16bits).
-        
-        KnxField definition in the JSON spec file then takes the following
-        format::
-        
-            {"name": "field1, field2", "type": "field", "size": 2, "subsize": "4, 12"}
-
-        The new attribute ``subsize`` shall match the field list from name.
-        Here, we indicate that the field is divided into 2 bit fields: 
-        ``field1`` is 4 bits-long, ``field2`` is 12 bits long. When referring
-        to the field from anywhere else in the code, they should be treated as
-        independent fields (properties referring to ``field1`` and ``field2``
-        independently.
-
-        In a KnxField, we then have a ``subfields`` dictionary that contains a
-        set of KnxBitField objects, inherited from regular KnxField, but that
-        are calculated in bits instead of bytes. KnxField does the translation
-        between bit fields and byte array (when they are manipulated in frames.)
-
-        If field (byte) contains subfields (bit), we check that the name list
+        """If field (byte) contains subfields (bit), we check that the name list
         and the subsizes match and set the value accordingly using bit to byte
         and byte to bit conversion fuctions. We use bit list instead to make it
         easier (for slices). Item stored in subfield dictionary referred to as
