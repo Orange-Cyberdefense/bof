@@ -242,3 +242,12 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         """Test that we can build a singleblock from cEMI."""
         propwrite = knx.KnxBlock(cemi="PropWrite.con")
         self.assertEqual(bytes(propwrite.message_code), b"\xf5")
+    def test_03_knx_cemi_bitfields(self):
+        """Test that cemi blocks with bit fields (subfields) work."""
+        frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
+        self.assertEqual(frame.body.cemi.number_of_elements.value, [0,0,0,0])
+        frame.body.cemi.number_of_elements.value = 15
+        frame.body.cemi.start_index.value = 1
+        self.assertEqual(frame.body.cemi.number_of_elements.value, [1,1,1,1])
+        self.assertEqual(frame.body.cemi.start_index.value, [0,0,0,0,0,0,0,0,0,0,0,1])
+        self.assertEqual(frame.body.cemi.number_of_elements_start_index.value, b'\xF0\x01')

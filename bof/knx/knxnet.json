@@ -66,8 +66,7 @@
 	    {"name": "object type", "type": "field", "size": 2},
 	    {"name": "object instance", "type": "field", "size": 1},
 	    {"name": "property id", "type": "field", "size": 1},
-	    {"name": "number of elements", "type": "field", "size": 1},
-	    {"name": "start index", "type": "field", "size": 1},
+	    {"name": "number of elements, start index", "type": "field", "size": 2, "subsize": "4, 12"},
 	    {"name": "data", "type": "field", "size": 1, "optional": true}
 	]
     },

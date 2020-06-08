@@ -37,6 +37,7 @@ from .. import byte
 ###############################################################################
 
 KNXSPECFILE = "knxnet.json"
+KNXFIELDSEP = ","
 
 class KnxSpec(object):
     """Singleton class for KnxSpec specification content usage.
@@ -133,6 +134,9 @@ class KnxField(UDPField):
                       the block. If True, this value is updated when a field
                       in the block changes (except if this field has arg
                       ``fixed_value`` set to True.
+    :param subsizes: If the field is in fact a merge of bit fields (a field
+                     usually works only with bytes), this parameter states
+                     the size in bits of subfields.
 
     Instantiate::
 
@@ -140,16 +144,46 @@ class KnxField(UDPField):
 
     **KNX Standard v2.1 03_08_02**
     """
+    class KnxSubField(object):
+        name:str
+        size:int
+        __value:list
+        def __init__(self, name, size, value=0):
+            self.name = name
+            self.size = size
+            self.value = value
+        def __str__(self):
+            return "<{0}: {1} ({2}b)>".format(self.name, self.value, self.size)
+        @property
+        def value(self) -> list:
+            return self.__value
+        @value.setter
+        def value(self, i:int):
+            """Change value, so far we only consider big endian."""
+            self.__value = byte.int_to_bit_list(i, size=self.size)
+
     __name:str
     __is_length:bool
+    __subsizes:list
+    __subfields:list
 
     def __init__(self, **kwargs):
-        """Initialize the field according to a set of keyword arguments."""
+        """Initialize the field according to a set of keyword arguments.
+
+        :raises BOFProgrammingError: If the field has subfields but their
+                                     definition is invalid (details in
+                                     ``__set_subfields``).
+        """
         super().__init__(**kwargs)
         # Inherited from UDPField
         self._size = int(kwargs["size"]) if "size" in kwargs else self._size
         # KnxField initialization
         self.__name = kwargs["name"].lower() if "name" in kwargs else ""
+        self.__subfields = None
+        # Case field is separate into bitfields (2B split in fields of 4b & 12b)
+        if KNXFIELDSEP in self.__name:
+            self.__name = [x.strip() for x in self.__name.split(KNXFIELDSEP)] # Now it's a table
+            self.__set_subfields(**kwargs)
         self.__is_length = kwargs["is_length"] if "is_length" in kwargs else False
         if "default" in kwargs:
             self._update_value(kwargs["default"])
@@ -157,6 +191,48 @@ class KnxField(UDPField):
             self._update_value(kwargs["value"])
         else:
             self._update_value(bytes(self._size)) # Empty bytearray
+
+    def __set_subfields(self, **kwargs):
+        """As we don't know how to handle bit fields that are not at least one
+        byte-long, we create fields that are not complete bytes (ex: 4bits)
+        inside byte fields. For instance, a field of 4bits and one of 12bits
+        are merged into one byte field of 2 bytes (16bits).
+        
+        KnxField definition in the JSON spec file then takes the following
+        format::
+        
+            {"name": "field1, field2", "type": "field", "size": 2, "subsize": "4, 12"}
+
+        The new attribute ``subsize`` shall match the field list from name.
+        Here, we indicate that the field is divided into 2 bit fields: 
+        ``field1`` is 4 bits-long, ``field2`` is 12 bits long. When referring
+        to the field from anywhere else in the code, they should be treated as
+        independent fields (properties referring to ``field1`` and ``field2``
+        independently.
+
+        In a KnxField, we then have a ``subfields`` dictionary that contains a
+        set of KnxBitField objects, inherited from regular KnxField, but that
+        are calculated in bits instead of bytes. KnxField does the translation
+        between bit fields and byte array (when they are manipulated in frames.)
+
+        If field (byte) contains subfields (bit), we check that the name list
+        and the subsizes match and set the value accordingly using bit to byte
+        and byte to bit conversion fuctions. We use bit list instead to make it
+        easier (for slices). Item stored in subfield dictionary referred to as
+        a name which is called from the rest of the code and by the end user as a
+        property like any other regular field.
+
+        :param subsize: Size list (in bits), as a string.
+        :raises BOFProgrammingError: If subsize is invalid.
+        """
+        if "subsize" not in kwargs:
+            raise BOFProgrammingError("Fields with subfields shall have subsizes ({0})".format(self.__name))
+        self.__subsizes = [int(x) for x in kwargs["subsize"].split(KNXFIELDSEP)]
+        if len(self.__subsizes) != len(self.__name):
+            raise BOFProgrammingError("Subfield names do not match subsizes ({0}).".format(self.__name))
+        self.__subfields = {}
+        for i in range(len(self.__name)):
+            self.__subfields[self.__name[i]] = KnxField.KnxSubField(name=self.__name[i], size=self.__subsizes[i])
 
     def __len__(self):
         return len(self._value)
@@ -186,8 +262,18 @@ class KnxField(UDPField):
             raise BOFProgrammingError("Field name should be a string.")
 
     @property
+    def subfield(self) -> dict:
+        return self.__subfields
+
+    @property
     def value(self) -> bytes:
-        return self._value
+        if self.__subfields:
+            bit_list = []
+            for subfield in self.__subfields.values():
+                bit_list += subfield.value
+            return byte.from_bit_list(bit_list)
+        else:
+            return self._value
     @value.setter
     def value(self, content) -> None:
         """Set ``content`` to value according to 3 types of data: byte array,
@@ -241,11 +327,26 @@ class KnxField(UDPField):
         self.value = content
         self.fixed_value = False # Property changes this value, we switch back
 
+class KnxBitField(UDPField):
+    def __init__(self, **kwargs):
+        """Initialize the bit field according to a set of keyword arguments."""
+        self.__name = kwargs["name"].lower() if "name" in kwargs else ""
+        self._size = int(kwargs["size"]) if "size" in kwargs else self._size
+        # TMP
+        self._value = byte.to_bit(1, self._size)
+        # if "default" in kwargs:
+        #     self._update_value(kwargs["default"])
+        # elif "value" in kwargs:
+        #     self._update_value(kwargs["value"])
+        # else:
+        #     self._update_value(bytes(self._size)) # Empty bitfield
+
 #-----------------------------------------------------------------------------#
 # KNX blocks (set of fields) representation                                   #
 #-----------------------------------------------------------------------------#
 
 class KnxBlock(UDPBlock):
+
     """A ``KnxBlock`` contains an ordered set of nested blocks and/or
     an ordered set of fields (``KnxField``) of one or more bytes.
 
@@ -410,7 +511,11 @@ class KnxBlock(UDPBlock):
         if isinstance(content, KnxField) or isinstance(content, KnxBlock):
             self.__content.append(content)
             # Add the name of the block as a property to this instance
-            if len(content.name) > 0:
+            if isinstance(content.name, list):
+                for subname in content.name:
+                    setattr(self, to_property(subname), content.subfield[subname])
+                setattr(self, to_property(" ".join(content.name)), content)
+            elif len(content.name) > 0:
                 setattr(self, to_property(content.name), content)
         elif isinstance(content, list):
             for item in content:
@@ -502,14 +607,18 @@ class KnxBlock(UDPBlock):
     # Internal (should not be used by end users)                              #
     #-------------------------------------------------------------------------#
 
-    def _add_property(self, name:str, pointer:object) -> None:
+    def _add_property(self, name, pointer:object) -> None:
         """Add a property to the object using ``setattr``, should not be used
         outside module.
 
-        :param name: Property name
+        :param name: Property name (string or list if field has subfields)
         :param pointer: The object the property refers to.
         """
-        setattr(self, to_property(name), pointer)
+        if isinstance(name, list):
+            for subname in name:
+                setattr(self, to_property(subname), pointer.subfield[subname])
+        elif len(name) > 0:
+            setattr(self, to_property(name), pointer)
 
 #-----------------------------------------------------------------------------#
 # KNX frames / datagram representation                                        #

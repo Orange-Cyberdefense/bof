@@ -88,5 +88,20 @@ class Test03ByteResize(unittest.TestCase):
         self.assertEqual(x, b'\x00\x00\x00\xd2')
         self.assertEqual(bof.byte.to_int(x), 210)
 
+class Test04ByteAndBits(unittest.TestCase):
+    """Test class for bit manipulation inside bits."""
+    @classmethod
+    def setUpClass(self):
+        bof.set_byteorder('big')
+    def test_01_byte_to_bit_and_back(self):
+        field = b"\x10\x00"
+        self.assertEqual(bof.byte.from_bit_list(bof.byte.to_bit_list(field)), b'\x10\x00')
+    def test_02_slices(self):
+        field = bof.byte.to_bit_list(b"\x10\x00")
+        size = 4
+        value=15
+        field[:size] = bof.byte.int_to_bit_list(value)[-size:]
+        self.assertEqual(bof.byte.from_bit_list(field), b"\xF0\x00")
+
 if __name__ == '__main__':
     unittest.main()

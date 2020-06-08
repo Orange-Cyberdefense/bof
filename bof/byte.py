@@ -155,3 +155,51 @@ def to_ipv4(array:bytes) -> str:
     :returns: The IP address as a string with format ``"A.B.C.D"``
     """
     return str(IPv4Address(array))
+
+def int_to_bit_list(n:int, size:int=8, byteorder:str=None) -> list:
+    """Representation of n as a list of bits (0 or 1)."""
+    global _BYTEORDER
+    byteorder = byteorder if byteorder else _BYTEORDER
+    if byteorder not in ["big", "little"]:
+        raise BOFProgrammingError("Byte order is either 'big' or 'little'")
+    t = []
+    for i in range(size):
+        b = n & 1
+        t.append(b)
+        n >>= 1
+    if byteorder == 'big':
+        t.reverse()
+    return t
+
+def bit_list_to_int(t:list, byteorder:str=None) -> int:
+    """Integer represented by the bit list t. t is a list of 0 or 1 values."""
+    global _BYTEORDER
+    byteorder = byteorder if byteorder else _BYTEORDER
+    if byteorder not in ["big", "little"]:
+        raise BOFProgrammingError("Byte order is either 'big' or 'little'")
+    n = 0
+    if byteorder != 'big':
+        t = reversed(t)
+    for b in t:
+        n <<= 1
+        n += b
+    return n
+
+def to_bit_list(value:bytes, byteorder:str=None) -> list:
+    """List of bits represented by the bytes-like object value."""
+    global _BYTEORDER
+    byteorder = byteorder if byteorder else _BYTEORDER
+    if byteorder not in ["big", "little"]:
+        raise BOFProgrammingError("Byte order is either 'big' or 'little'")
+    n = int.from_bytes(value, byteorder=byteorder)
+    return int_to_bit_list(n, size = 8 * len(value))
+
+def from_bit_list(bits:list, byteorder:str=None) -> bytes:
+    """Array of bytes representing the list of bits t."""
+    global _BYTEORDER
+    byteorder = byteorder if byteorder else _BYTEORDER
+    if byteorder not in ["big", "little"]:
+        raise BOFProgrammingError("Byte order is either 'big' or 'little'")
+    assert len(bits) % 8 == 0
+    n = bit_list_to_int(bits, byteorder=byteorder)
+    return n.to_bytes(len(bits) // 8, byteorder=byteorder)
