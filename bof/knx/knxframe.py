@@ -158,9 +158,12 @@ class KnxField(UDPField):
         def value(self) -> list:
             return self.__value
         @value.setter
-        def value(self, i:int):
+        def value(self, i):
             """Change value, so far we only consider big endian."""
-            self.__value = byte.int_to_bit_list(i, size=self.size)
+            if isinstance(i, list):
+                self.__value = i
+            else:
+                self.__value = byte.int_to_bit_list(i, size=self.size)
 
     __name:str
     __is_length:bool
@@ -235,10 +238,10 @@ class KnxField(UDPField):
             self.__subfields[self.__name[i]] = KnxField.KnxSubField(name=self.__name[i], size=self.__subsizes[i])
 
     def __len__(self):
-        return len(self._value)
+        return len(self.value)
 
     def __bytes__(self):
-        return bytes(self._value)
+        return bytes(self.value)
 
     def __str__(self):
         return "<{0}: {1} ({2}B)>".format(self.__name, self.value, self.size)
@@ -303,7 +306,14 @@ class KnxField(UDPField):
         else:
             raise BOFProgrammingError("Field value should be bytes, str or int.")
         self.fixed_value = True
-
+        # If value is changed but contains subfields, we have to change
+        # the subfield values too
+        if self.__subfields:
+            bit_list = byte.to_bit_list(self._value, size=sum(self.__subsizes))
+            cursor = 0
+            for subfield in self.__subfields.values():
+                subfield.value = bit_list[cursor:cursor+subfield.size]
+                cursor += subfield.size
     @property
     def is_length(self) -> bool:
         return self.__is_length
@@ -326,20 +336,6 @@ class KnxField(UDPField):
             return
         self.value = content
         self.fixed_value = False # Property changes this value, we switch back
-
-class KnxBitField(UDPField):
-    def __init__(self, **kwargs):
-        """Initialize the bit field according to a set of keyword arguments."""
-        self.__name = kwargs["name"].lower() if "name" in kwargs else ""
-        self._size = int(kwargs["size"]) if "size" in kwargs else self._size
-        # TMP
-        self._value = byte.to_bit(1, self._size)
-        # if "default" in kwargs:
-        #     self._update_value(kwargs["default"])
-        # elif "value" in kwargs:
-        #     self._update_value(kwargs["value"])
-        # else:
-        #     self._update_value(bytes(self._size)) # Empty bitfield
 
 #-----------------------------------------------------------------------------#
 # KNX blocks (set of fields) representation                                   #

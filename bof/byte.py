@@ -185,14 +185,15 @@ def bit_list_to_int(t:list, byteorder:str=None) -> int:
         n += b
     return n
 
-def to_bit_list(value:bytes, byteorder:str=None) -> list:
+def to_bit_list(value:bytes, size=None, byteorder:str=None) -> list:
     """List of bits represented by the bytes-like object value."""
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
     if byteorder not in ["big", "little"]:
         raise BOFProgrammingError("Byte order is either 'big' or 'little'")
     n = int.from_bytes(value, byteorder=byteorder)
-    return int_to_bit_list(n, size = 8 * len(value))
+    size = size if size else 8 * len(value)
+    return int_to_bit_list(n, size=8*len(value))
 
 def from_bit_list(bits:list, byteorder:str=None) -> bytes:
     """Array of bytes representing the list of bits t."""
