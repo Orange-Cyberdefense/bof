@@ -129,5 +129,39 @@
 	    {"name": "sequence counter", "type": "field", "size": 1},
 	    {"name": "status", "type": "field", "size": 1}
 	]
+    },
+    "properties types": {
+	"IP PARAMETER OBJECTS": {"id": 11}
+    },
+    "properties": {
+	"IP PARAMETER OBJECTS": {
+	    "PID_PROJECT_INSTALLATION_ID": {"id": 51},
+	    "PID_KNX_INDIVIDUAL_ADDRESS": {"id": 52},
+	    "PID_ADDITIONAL_INDIVIDUAL_ADDRESSES": {"id": 53},
+	    "PID_CURRENT_IP_ASSIGNMENT_METHOD": {"id": 54},
+	    "PID_IP_ASSIGNMENT_METHOD": {"id": 55},
+	    "PID_IP_CAPABILITIES": {"id": 56},
+	    "PID_CURRENT_IP_ADDRESS": {"id": 57},
+	    "PID_CURRENT_SUBNET_MASK": {"id": 58},
+	    "PID_CURRENT_DEFAULT_GATEWAY": {"id": 59},
+	    "PID_IP_ADDRESS": {"id": 60},
+	    "PID_SUBNET_MASK": {"id": 61},
+	    "PID_DEFAULT_GATEWAY": {"id": 62},
+	    "PID_DHCP_BOOTP_SERVER": {"id": 63},
+	    "PID_MAC_ADDRESS": {"id": 64},
+	    "PID_SYSTEM_SETUP_MULTICAST_ADDRESS": {"id": 65},
+	    "PID_ROUTING_MULTICAST_ADDRESS": {"id": 66},
+	    "PID_TTL": {"id": 67},
+	    "PID_KNXNETIP_DEVICE_CAPABILITIES": {"id": 68},
+	    "PID_KNXNETIP_DEVICE_STATE": {"id": 69},
+	    "PID_KNXNETIP_ROUTING_CAPABILITIES": {"id": 70},
+	    "PID_PRIORITY_FIFO_ENABLED": {"id": 71},
+	    "PID_QUEUE_OVERFLOW_TO_IP": {"id": 72},
+	    "PID_QUEUE_OVERFLOW_TO_KNX": {"id": 73},
+	    "PID_MSG_TRANSMIT_TO_IP": {"id": 74},
+	    "PID_MSG_TRANSMIT_TO_KNX": {"id": 75},
+	    "PID_FRIENDLY_NAME": {"id": 76},
+	    "PID_ROUTING_BUSY_WAIT_TIME": {"id": 78}
+	}
     }
 }

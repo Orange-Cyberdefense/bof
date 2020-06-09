@@ -5,6 +5,7 @@ TODOs
 ---------------------------
 
 - [ ] cEMI frame fuzzer demo
+- [ ] Optional field "data" is not filled in when receiving configuration request from the boiboite (should be 2 empty bytes)
 - [ ] Review the doctring-generated documentation to update it (or make sure it is up-to-date)
 
 2. Upper-level functions (abstraction of the specification)

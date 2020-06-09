@@ -31,7 +31,7 @@ try:
             print(response)
             # We tell the boiboite we received it
             ack = knx.KnxFrame(type="CONFIGURATION ACK")
-            ack.body.communication_channel_id = channel
+            ack.body.communication_channel_id.value = channel
             # ack.body.communication_channel_id.value = 1 # Set as default so far
             knxnet.send(ack)
             # print(ack)
