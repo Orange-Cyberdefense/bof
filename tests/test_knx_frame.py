@@ -227,10 +227,14 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
         connectreq = knx.KnxFrame(type="CONNECT_REQUEST")
         self.connection.send(connectreq)
         connectresp = self.connection.receive()
+        channel = connectresp.body.communication_channel_id.value
         self.assertEqual(connectresp.sid, "CONNECT RESPONSE")
         self.assertEqual(bytes(connectresp.header.service_identifier), b"\x02\x06")
         self.assertEqual(bytes(connectresp.body.status), b"\x00")
         self.assertEqual(bytes(connectresp.body.connection_response_data_block), b"\x02\x03")
+        discoreq = knx.KnxFrame(type="DISCONNECT_REQUEST")
+        discoreq.body.communication_channel_id.value = channel
+        self.connection.send(discoreq)
 
 class Test06CEMIFrameCrafting(unittest.TestCase):
     """Test class for KNX messages involving a cEMI frame."""
@@ -242,3 +246,55 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         """Test that we can build a singleblock from cEMI."""
         propwrite = knx.KnxBlock(cemi="PropWrite.con")
         self.assertEqual(bytes(propwrite.message_code), b"\xf5")
+    def test_03_knx_cemi_bitfields(self):
+        """Test that cemi blocks with bit fields (subfields) work."""
+        frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
+        self.assertEqual(frame.body.cemi.number_of_elements.value, [0,0,0,0])
+        frame.body.cemi.number_of_elements.value = 15
+        frame.body.cemi.start_index.value = 1
+        self.assertEqual(frame.body.cemi.number_of_elements.value, [1,1,1,1])
+        self.assertEqual(frame.body.cemi.start_index.value, [0,0,0,0,0,0,0,0,0,0,0,1])
+        self.assertEqual(frame.body.cemi.number_of_elements_start_index.value, b'\xF0\x01')
+    def test_04_knx_cemi_bitfields_parsing(self):
+        """Test that a received cEMI frame with bit fields is parsed."""
+        knxnet = knx.KnxNet()
+        knxnet.connect("192.168.1.10", 3671)
+        # ConnectReq
+        connectreq = knx.KnxFrame(type="CONNECT REQUEST")
+        connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
+        connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
+        connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
+        connectreq.body.data_endpoint.port.value = byte.from_int(knxnet.source[1])
+        #ConnectResp
+        connectresp = knxnet.send_receive(connectreq)
+        channel = connectresp.body.communication_channel_id.value
+        #ConfigReq
+        request = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
+        request.body.communication_channel_id.value = channel
+        request.body.cemi.number_of_elements.value = 1
+        request.body.cemi.object_type.value = 11
+        request.body.cemi.property_id.value = 53
+        # Ack + ConfigReq response
+        response = knxnet.send_receive(request) # ACK
+        while (1):
+            response = knxnet.receive() # PropRead.con
+            if response.sid == "CONFIGURATION REQUEST":
+                # TEST SUBFIELDS
+                self.assertEqual(byte.bit_list_to_int(response.body.cemi.number_of_elements.value), 0)
+                self.assertEqual(byte.bit_list_to_int(response.body.cemi.start_index.value), 0)
+                response.body.cemi.number_of_elements_start_index.value = b'\x10\x01'
+                self.assertEqual(byte.bit_list_to_int(response.body.cemi.number_of_elements.value), 1)
+                self.assertEqual(byte.bit_list_to_int(response.body.cemi.start_index.value), 1)
+                # We tell the boiboite we received it
+                ack = knx.KnxFrame(type="CONFIGURATION ACK")
+                ack.body.communication_channel_id.value = channel
+                knxnet.send(ack)
+                break
+        # DisconnectReq
+        discoreq = knx.KnxFrame(type="DISCONNECT REQUEST")
+        discoreq.body.communication_channel_id.value = channel
+        discoreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
+        discoreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
+        # DisconnectResp
+        knxnet.send(discoreq)
+        knxnet.disconnect()

@@ -31,6 +31,7 @@ class Test01UDPConnection(unittest.TestCase):
         with self.assertRaises(bof.BOFNetworkError):
             udp.connect("localhost", 666666)
 
+@unittest.skip("UDP echo server disabled")
 class Test02UDPExchange(unittest.TestCase):
     """Test class for UDP datagram exchange.
     Prerequisites: UDP class instantiated, connect and disconnect OK.

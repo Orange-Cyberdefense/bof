@@ -4,16 +4,19 @@ TODOs
 1. Bugs and things to check
 ---------------------------
 
-- [ ] cEMI's "number of elements" and "start index" should not be on a complete byte (NoE is 4bits, index is 12)
-- [ ] "Channel" could be stored directly in the KnxNet object, check if it can be done
+- [ ] cEMI frame fuzzer demo
+- [ ] Optional field "data" is not filled in when receiving configuration request from the boiboite (should be 2 empty bytes)
+- [ ] Review the doctring-generated documentation to update it (or make sure it is up-to-date)
 
 2. Upper-level functions (abstraction of the specification)
 -----------------------------------------------------------
 
 - [ ] Discovery methods (search, discover)
+- [ ] Implement `KnxDevice` class and submodule (`knxdevice.py`)
 - [ ] Simple script for "read" and "write" actions on all KNX objects on range
 - [ ] Service identifier frames implementations with content (ex: DESCRIPTION REQUEST, CONFIG REQUEST)
-- [ ] Find a way to do clever channel management (ex: `examples/cemi.py` has raw `communication channel id` definition)
+- [ ] Find a way to do more clever channel management (ex: `examples/cemi.py` has raw `communication channel id` definition)
+- [ ] Add error code detection in `knxnet.json` or in a knx upper layer
 
 3. Specification improvement
 ----------------------------
@@ -21,12 +24,12 @@ TODOs
 - [ ] Add a few default values for fields from the spec
 - [ ] Add missing structures/bodies/cemis in `knxnet.json`
 - [ ] Implement `repeat` keyword in spec (one or more fields repeated, as in `supp svc families`
-- [ ] Add error code detection in `knxnet.json` or in a knx upper layer
 
 4. Missing unit tests
 ---------------------
 
 - [ ] Frames with cEMI blocks (inspired from `cemi.py`)
+- [ ] Subfields in fields (bit list management), mostly located in cEMI blocks
 - [ ] `bof.byte` IPv4/bytes conversion unit tests (`tests/test_byte.py`)
 
 5. Future
@@ -55,3 +58,5 @@ TODOs
 - [X] Fill a known service with correct default values # DROP, we let the user do it, that's a framework
 - [X] Handle `optional` key from `knxnet.json`
 - [X] Implement cEMI management frames content (property id, etc.) and parsing (KNX 03_06_01 - 4.1.7.3)
+- [X] cEMI's "number of elements" and "start index" should not be on a complete byte (NoE is 4bits, index is 12)
+- [X] "Channel" could be stored directly in the KnxNet object, check if it can be done
