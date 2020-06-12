@@ -11,7 +11,7 @@ setuptools.setup(
     description="Industrial network protocols communication and packet crafting framework",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://gitlab.com/Lex2xS/bof",
+    url="https://github.com/Orange-Cyberdefense/bof",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
