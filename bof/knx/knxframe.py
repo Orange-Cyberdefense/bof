@@ -504,6 +504,9 @@ class KnxBlock(UDPBlock):
         for field in self.fields:
             field.value = frame[cursor:cursor+field.size]
             cursor += field.size
+        if frame[cursor:len(frame)] and self.fields[-1].size == 0: # Varying size
+            self.fields[-1].size = len(frame) - cursor
+            self.fields[-1].value = frame[cursor:cursor+field.size]
 
     def append(self, content) -> None:
         """Appends a block, a field of a list of blocks and/fields to

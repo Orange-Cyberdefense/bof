@@ -4,8 +4,6 @@ TODOs
 1. Bugs and things to check
 ---------------------------
 
-- [ ] Optional field "data" is not filled in when receiving configuration request from the boiboite (should be 2 empty bytes)
-- [ ] Fix socket error after too many requests ("too many open files"), test with `examples/cemi_fuzzer.py`
 - [ ] "Channel" could be stored directly in the KnxNet object, check if it can be done
 - [ ] Review the doctring-generated documentation to update it (or make sure it is up-to-date)
 
@@ -62,3 +60,5 @@ TODOs
 - [X] cEMI's "number of elements" and "start index" should not be on a complete byte (NoE is 4bits, index is 12)
 - [X] cEMI frame fuzzer demo
 - [X] Fix JSON spec loading bug after too many requests
+- [X] Optional field "data" is not filled in when receiving configuration request from the boiboite (should be 2 empty bytes)
+- [X] Fix socket error after too many requests ("too many open files"), test with `examples/cemi_fuzzer.py`

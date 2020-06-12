@@ -37,6 +37,7 @@ def disconnect(knxnet:knx.KnxNet, channel:int) -> None:
     discoreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
     discoreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
     knxnet.send(discoreq)
+    knxnet.disconnect()
 
 def save(event, request, data, response=None):
     """Save request and data mutated that triggered the behavior.
