@@ -65,6 +65,7 @@ class KnxSpec(object):
     new file following this format.
     """
     __instance = None
+    __is_init = False
  
     def __new__(cls):
         if cls.__instance is None:
@@ -73,14 +74,16 @@ class KnxSpec(object):
 
     def __init__(self, filepath:str=None):
         """If filepath is not specified, we load the default file."""
-        if filepath:
-            self.load(filepath)
-        else:
-            self.load(path.join(path.dirname(path.realpath(__file__)), "knxnet.json"))
+        if not self.__is_init:
+            if filepath:
+                self.load(filepath)
+            else:
+                self.load(path.join(path.dirname(path.realpath(__file__)), "knxnet.json"))
+            self.__is_init = True
 
     def load(self, filepath):
         """Loads the content of a JSON file and adds its categories as attributes
-        to this class.
+x        to this class.
 
         If a file was loaded previously, the content will be added to previously
         added content, unless the ``clear()`` method is called first.
@@ -915,3 +918,12 @@ class KnxFrame(object):
             if bytes(self.__header.service_identifier) == bytes.fromhex(attributes["id"]):
                 return service
         return str(self.__header.service_identifier.value)
+
+    @property
+    def cemi(self) -> str:
+        """Return the type of cemi, if any."""
+        if "cemi" in self.__body.attributes:
+            for cemi in self.__specs.cemis:
+                if bytes(self.__body.cemi.message_code) == bytes.fromhex(self.__specs.cemis[cemi]["id"]):
+                    return cemi
+        return ""

@@ -42,6 +42,7 @@ def save(event, request, data, response=None):
     """Save request and data mutated that triggered the behavior.
     Should be saved instead of printed :)
     """
+    print("\n")
     print("--- {0} with data {1}".format(event, data))
     print("--- Request: {0}".format(bytes(request)))
     if response:
@@ -66,7 +67,6 @@ def random_properties(propread_req:knx.KnxFrame) -> (knx.KnxFrame, str):
         field = choice(fields_with_exclusion)
         save = field.value
         field.value = bytes(map(getrandbits,(8,)*field.size))
-        print(str(field))
         yield propread_req, str(field)
         field.value = save
 
@@ -78,12 +78,16 @@ def fuzz(generator, initial_frame):
             propread_req.body.communication_channel_id.value = channel
             try:
                 knxnet.send(propread_req)
+                print(".", end='', flush=True)
                 ack = knxnet.receive()
-                propread_con = knxnet.receive()
-                if propread_con.sid == "CONFIGURATION REQUEST":
-                    ack = knx.KnxFrame(type="CONFIGURATION ACK")
-                    ack.body.communication_channel_id.value = channel
-                    knxnet.send(ack)
+                if ack.body.status.value == b"\x00": # Code 00 is OK
+                    propread_con = knxnet.receive()
+                    if propread_con.sid == "CONFIGURATION REQUEST":
+                        ack = knx.KnxFrame(type="CONFIGURATION ACK")
+                        ack.body.communication_channel_id.value = channel
+                        knxnet.send(ack)
+                else:
+                    save("Error in acknowledgement", propread_req, data, ack)
             except BOFNetworkError:
                 save("Timeout", propread_req, data)
             finally:
