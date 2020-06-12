@@ -225,6 +225,8 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
         self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")
     def test_02_knx_parse_connectresp(self):
         connectreq = knx.KnxFrame(type="CONNECT_REQUEST")
+        connectreq.body.connection_request_information.connection_type_code.value = \
+        knx.KnxSpec().connection_types["Device Management Connection"]
         self.connection.send(connectreq)
         connectresp = self.connection.receive()
         channel = connectresp.body.communication_channel_id.value
@@ -261,6 +263,8 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         knxnet.connect("192.168.1.10", 3671)
         # ConnectReq
         connectreq = knx.KnxFrame(type="CONNECT REQUEST")
+        connectreq.body.connection_request_information.connection_type_code.value = \
+        knx.KnxSpec().connection_types["Device Management Connection"]
         connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
         connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
         connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])

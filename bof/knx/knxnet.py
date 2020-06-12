@@ -45,7 +45,8 @@ class KnxNet(UDP):
     - Relies on ``bof.network.UDP()``.
     - Only ``connect()`` and ``receive()`` are overriden from class ``UDP``.
     """
-    channel = 0
+    channel:int
+    __init:bool
 
     #-------------------------------------------------------------------------#
     # Override                                                                #
@@ -63,8 +64,11 @@ class KnxNet(UDP):
         :returns: A ``KnxFrame`` with the parsed ``CONNECT_RESPONSE`` if
                   any, else returns current ``KnxNet`` instance.
         """
+        channel = 0
+        self.__init = False # Set if we use a connect request
         super().connect(ip, port)
         if init:
+            self.__init = True
             init_frame = KnxFrame(type="CONNECT REQUEST")
             init_frame.body.control_endpoint.ip_address._update_value(byte.from_ipv4(self.source[0]))
             init_frame.body.control_endpoint.port._update_value(byte.from_int(self.source[1]))
@@ -87,7 +91,7 @@ class KnxNet(UDP):
         :raises BOFNetworkError: if `in_error` is set to `True`.
         """
         response = None
-        if self.channel:
+        if self.__init:
             disco_frame = KnxFrame(type="DISCONNECT REQUEST")
             disco_frame.body.communication_channel_id = self.channel
             disco_frame.body.control_endpoint.ip_address._update_value(byte.from_ipv4(self.source[0]))

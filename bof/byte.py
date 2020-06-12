@@ -106,7 +106,7 @@ def from_int(value:int, size:int=0, byteorder:str=None) -> bytes:
         raise BOFProgrammingError("Int to bytes expects an int")
     value = value.to_bytes((value.bit_length() + 7) // 8, byteorder)
     if len(value) == 0:
-        size = 1
+        size = 1 if not size else size
     return resize(value, len(value) if not size else size, byteorder)
 
 def to_int(array:bytes, byteorder:str=None) -> int:

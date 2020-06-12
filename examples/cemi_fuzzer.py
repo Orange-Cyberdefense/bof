@@ -15,6 +15,8 @@ def connect(ip:str, port:int) -> (knx.KnxNet, int):
     channel = 0
     knxnet.connect(ip, port)
     connectreq = knx.KnxFrame(type="CONNECT REQUEST")
+    connectreq.body.connection_request_information.connection_type_code.value = \
+    knx.KnxSpec().connection_types["Device Management Connection"]
     connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
     connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
     connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
@@ -54,10 +56,10 @@ def all_properties(propread_req:knx.KnxFrame) -> (knx.KnxFrame, tuple):
     written to the specification JSON file."""
     specs = knx.KnxSpec()
     propread_req.body.cemi.object_instance.value = 1
-    for prop_type in specs.properties_types:
-        propread_req.body.cemi.object_type.value = specs.properties_types[prop_type]["id"]
+    for prop_type in specs.object_types:
+        propread_req.body.cemi.object_type.value = specs.object_types[prop_type]
         for prop in specs.properties[prop_type]:
-            propread_req.body.cemi.property_id.value = specs.properties[prop_type][prop]["id"]
+            propread_req.body.cemi.property_id.value = specs.properties[prop_type][prop]
             yield propread_req, (prop_type, prop)
 
 def random_properties(propread_req:knx.KnxFrame) -> (knx.KnxFrame, str):
@@ -74,9 +76,11 @@ def random_properties(propread_req:knx.KnxFrame) -> (knx.KnxFrame, str):
 def fuzz(generator, initial_frame):
     """Fuzz using a generator to mutate initial frame."""
     try:
+        knxnet, channel = connect("192.168.1.10", 3671)
+        initial_frame.body.communication_channel_id.value = channel
+        sequence_counter = 0
         for propread_req, data in generator(initial_frame):
-            knxnet, channel = connect("192.168.1.10", 3671)
-            propread_req.body.communication_channel_id.value = channel
+            propread_req.body.sequence_counter.value = sequence_counter
             try:
                 knxnet.send(propread_req)
                 print(".", end='', flush=True)
@@ -86,15 +90,16 @@ def fuzz(generator, initial_frame):
                     if propread_con.sid == "CONFIGURATION REQUEST":
                         ack = knx.KnxFrame(type="CONFIGURATION ACK")
                         ack.body.communication_channel_id.value = channel
+                        ack.body.sequence_counter.value = sequence_counter
                         knxnet.send(ack)
                 else:
                     save("Error in acknowledgement", propread_req, data, ack)
             except BOFNetworkError:
                 save("Timeout", propread_req, data)
-            finally:
-                disconnect(knxnet, channel)
+            sequence_counter += 1
     except KeyboardInterrupt:
         print("Cancelled.")
+    finally:
         disconnect(knxnet, channel)
 
 propread = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
