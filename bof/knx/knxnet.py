@@ -87,7 +87,7 @@ class KnxNet(UDP):
                          closed on error, as this method can be called from
                          within the module in case of a network error.
         :returns: A ``DISCONNECT RESPONSE`` as a ``KnxFrame`` object if a
-                  ``DISCONNECT REQUEST`` was sent, else None
+                  ``CONNECT REQUEST`` was sent, else None
         :raises BOFNetworkError: if `in_error` is set to `True`.
         """
         response = None
@@ -106,7 +106,7 @@ class KnxNet(UDP):
         parsed ``KnxFrame`` object when receiving a datagram instead of a raw
         byte array.
 
-        :param data: Raw byte array to send.
+        :param data: Raw byte array or string to send.
         :param address: Remote network address with format ``(ip, port)``.
         :param timeout: Time out value in seconds, as a float (default 1.0s).
         :returns: A KnxFrame object filled with the content of the received
@@ -120,6 +120,12 @@ class KnxNet(UDP):
     def send(self, data, address:tuple=None) -> int:
         """Relies on ``UDP`` to send data. ``UDP.send()`` expects bytes so we
         convert it first if we received data as a ``KnxFrame`` object.
+        
+        :param data: Raw byte array or string to send.
+        :param address: Address to send ``data`` to, with format
+                       tuple ``(ipv4_address, port)``.  If address is not
+                       specified, uses the address given to ``connect``.
+        :returns: The number of bytes sent, as an integer.
         """
         if isinstance(data, KnxFrame):
             data = bytes(data)

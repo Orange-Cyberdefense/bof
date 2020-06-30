@@ -9,7 +9,7 @@ A KNX frame (``KnxFrame``) is a byte array divided into a set of blocks. A
 frame always has the following format:
 
 :Header: Single block with basic data including the type of message.
-:Content: One or more blocks, depending on the type of message.
+:Body: One or more blocks, depending on the type of message.
 
 A block (``KnxBlock``) is a byte array divided into a set of fields
 (``KnxField``). A block has the following data:
@@ -83,8 +83,8 @@ class KnxSpec(object):
 
     def load(self, filepath):
         """Loads the content of a JSON file and adds its categories as attributes
-x        to this class.
-
+        x to this class.
+        
         If a file was loaded previously, the content will be added to previously
         added content, unless the ``clear()`` method is called first.
 
@@ -437,6 +437,19 @@ class KnxBlock(UDPBlock):
 
     @classmethod
     def factory(cls, **kwargs) -> object:
+        """
+        
+        Factory method to create a list of ``KnxBlock`` corresponding to the args.
+        Available keywords arguments: 
+        
+        :param template: Cannot be used with ``type``. 
+        :param type: Type of block. Cannot be used with ``cemi``.
+        :param cemi: Type of block if this is a cemi structure. Cannot be used
+                     with ``type``.
+        :returns: A list of ``KnxBlock`` objects. 
+        
+        """
+        
         if "template" in kwargs:
             cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
@@ -509,7 +522,7 @@ class KnxBlock(UDPBlock):
             self.fields[-1].value = frame[cursor:cursor+field.size]
 
     def append(self, content) -> None:
-        """Appends a block, a field of a list of blocks and/fields to
+        """Appends a block, a field or a list of blocks and/fields to
         current block's content. Adds the name of the block to the list
         of current's block properties. Ex: if ``block.name`` is ``foo``,
         it could be referred to as ``self.foo``.

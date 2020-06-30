@@ -259,8 +259,8 @@ class UDP(object):
     def send(self, data:bytes, address:tuple=None) -> int:
         """Send ``data`` to ``address`` over UDP.
 
-        :param data: Raw byte array to send. 
-        :param address: Address to send ``data`` to, with format with format
+        :param data: Raw byte array or string to send. 
+        :param address: Address to send ``data`` to, with format
                         tuple ``(ipv4_address, port)``.  If address is not 
                         specified, uses the address given to ``connect``.
         :returns: The number of bytes sent, as an integer.
@@ -305,8 +305,8 @@ class UDP(object):
         ``timeout``. Clever implementation of TCP over UDP, because this is
         exactly what some BMS network protocols do (yay, KNX!).
         
-        :param data: Raw byte array to send.
-        :param address: Remote network address with format ``(ip, port)``.
+        :param data: Raw byte array or string to send.
+        :param address: Remote network address with format tuple ``(ip, port)``.
         :param timeout: Time out value in seconds,  as a float (default is 1.0s).
         :returns: a tuple ``(data:bytes, address:tuple)`` where address is the
                   remote address and has format ``(ip, port)``.

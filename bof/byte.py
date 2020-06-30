@@ -55,6 +55,9 @@ def resize(array:bytes, size:int, byteorder:str=None) -> bytes:
 
     :param array: Byte array to resize.
     :param size: The expected size of the byte array after padding/truncation.
+    :param byteorder: If set, the resizing will rely on the specified
+                      byteorder. Otherwise, global ``byteorder`` will be used
+                      (set with ``set_byteorder()``).
     :returns: The resized byte array.
 
     Example::
@@ -82,7 +85,7 @@ def resize(array:bytes, size:int, byteorder:str=None) -> bytes:
 def from_int(value:int, size:int=0, byteorder:str=None) -> bytes:
     """Converts an integer to a bytearray.
 
-    :param value: The integer value to convent to a byte or a byte array.
+    :param value: The integer value to convert to a byte or a byte array.
     :param size: If set, the bytearray will be of the specified size.
     :param byteorder: If set, the conversion will rely on the specified
                       byteorder. Otherwise, global ``byteorder`` will be used
@@ -157,7 +160,16 @@ def to_ipv4(array:bytes) -> str:
     return str(IPv4Address(array))
 
 def int_to_bit_list(n:int, size:int=8, byteorder:str=None) -> list:
-    """Representation of n as a list of bits (0 or 1)."""
+    """Representation of n as a list of bits (0 or 1).
+    
+    
+    :param n: Integer to convert to a list of bits (0 or 1).
+    :param size: If set, the list will be of the specified size.
+    :param byteorder: If not set, global ``byteorder`` will be used (set with
+                      ``set_byteorder()``).
+    :returns: The value of the integer ``n`` as a list of bits (0 or 1).
+    :raises BOFProgrammingError: If ``byteorder`` is invalid.
+    """
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
     if byteorder not in ["big", "little"]:
@@ -172,7 +184,15 @@ def int_to_bit_list(n:int, size:int=8, byteorder:str=None) -> list:
     return t
 
 def bit_list_to_int(t:list, byteorder:str=None) -> int:
-    """Integer represented by the bit list t. t is a list of 0 or 1 values."""
+    """Integer represented by the bit list t. t is a list of 0 or 1 values.
+
+    :param t: List of bit to convert to an integer.
+    :param byteorder: If not set, global ``byteorder`` will be used (set with
+                      ``set_byteorder()``).
+    :returns: The integer represented by the list of bits ``t``.
+    :raises BOFProgrammingError: If ``byteorder`` is invalid.
+
+    """
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
     if byteorder not in ["big", "little"]:
@@ -186,7 +206,16 @@ def bit_list_to_int(t:list, byteorder:str=None) -> int:
     return n
 
 def to_bit_list(value:bytes, size=None, byteorder:str=None) -> list:
-    """List of bits represented by the bytes-like object value."""
+    """List of bits represented by the bytes-like object value.
+
+    :param value: Bytes to convert to a list of bits.
+    :param size: If set, the list will be of the specified size.
+    :param byteorder: If not set, global ``byteorder`` will be used (set with
+                      ``set_byteorder()``).
+    :returns: The bytes ``value`` represented as a list of bits.
+    :raises BOFProgrammingError: If ``byteorder`` is invalid.
+
+    """
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
     if byteorder not in ["big", "little"]:
@@ -196,7 +225,14 @@ def to_bit_list(value:bytes, size=None, byteorder:str=None) -> list:
     return int_to_bit_list(n, size=8*len(value))
 
 def from_bit_list(bits:list, byteorder:str=None) -> bytes:
-    """Array of bytes representing the list of bits t."""
+    """Array of bytes representing the list of bits t.
+
+    :param bits: List of bits to convert to bytes.
+    :param byteorder: If not set, global ``byteorder`` will be used (set with
+                      ``set_byteorder()``).
+    :returns: The list of bits represented as a bytes-like object.
+    :raises BOFProgrammingError: If ``byteorder`` is invalid.
+    """
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
     if byteorder not in ["big", "little"]:
