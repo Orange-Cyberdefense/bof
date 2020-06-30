@@ -1,4 +1,4 @@
-from sys import path
+from sys import path, argv
 path.append('../')
 
 from bof import knx, BOFNetworkError, byte
@@ -47,9 +47,13 @@ def read_property(knxnet, sequence_counter, object_type, property_id):
     except BOFNetworkError:
         pass #Timeout
 
+if len(argv) < 2:
+    print("Usage: python {0} IP_ADDRESS".format(argv[0]))
+    quit()
+
 knxspecs = knx.KnxSpec()
 knxnet = knx.KnxNet()
-knxnet.connect("192.168.1.10", 3671)
+knxnet.connect(argv[1], 3671)
 
 # Gather device information
 connect_request(knxnet, "Device Management Connection")

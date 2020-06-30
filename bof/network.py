@@ -22,6 +22,7 @@ Network connection and example example with raw UDP::
 """
 
 import asyncio
+from ipaddress import ip_address
 from concurrent import futures
 from socket import AF_INET, gaierror
 from .base import BOFNetworkError, BOFProgrammingError, log
@@ -222,6 +223,7 @@ class UDP(object):
     def __init__(self):        
         self._queue = asyncio.Queue()
         self._source = None
+        self._transport = None
 
     #-------------------------------------------------------------------------#
     # Public                                                                  #
@@ -243,12 +245,13 @@ class UDP(object):
         ip = "127.0.0.1" if ip == "localhost" else ip
         self._loop = asyncio.get_event_loop()
         try:
+            ip_address(ip) # Check if IP is valid
             connect = self._loop.create_datagram_endpoint(lambda: _UDP(self),
                                                            remote_addr=((ip, port)),
                                                            family=AF_INET,
                                                            allow_broadcast=True)
             transport, protocol = self._loop.run_until_complete(connect)
-        except (gaierror, OverflowError) as e:
+        except (gaierror, OverflowError, ValueError) as e:
             self._handle_exception(e, "Connection failed")
             return None
         self._address = (ip, port)

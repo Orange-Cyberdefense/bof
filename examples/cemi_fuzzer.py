@@ -1,4 +1,4 @@
-from sys import path
+from sys import path, argv
 path.append('../')
 
 from datetime import datetime
@@ -15,33 +15,34 @@ def connect(ip:str, port:int) -> (knx.KnxNet, int):
     """
     knxnet = knx.KnxNet()
     channel = 0
-    knxnet.connect(ip, port)
-    connectreq = knx.KnxFrame(type="CONNECT REQUEST")
-    connectreq.body.connection_request_information.connection_type_code.value = \
-    knx.KnxSpec().connection_types["Device Management Connection"]
-    connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
-    connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
-    connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
-    connectreq.body.data_endpoint.port.value = byte.from_int(knxnet.source[1])
     try:
+        knxnet.connect(ip, port)
+        connectreq = knx.KnxFrame(type="CONNECT REQUEST")
+        connectreq.body.connection_request_information.connection_type_code.value = \
+        knx.KnxSpec().connection_types["Device Management Connection"]
+        connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
+        connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
+        connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
+        connectreq.body.data_endpoint.port.value = byte.from_int(knxnet.source[1])
         response = knxnet.send_receive(connectreq)
         if response.sid == "CONNECT RESPONSE" and response.body.status.value == b'\x00':
             channel = response.body.communication_channel_id.value
-    except BOFNetworkError:
-        print("Connection failed.")
-        exit(-1)
+    except BOFNetworkError as bne:
+        print(bne)
+        return None, 0
     return knxnet, channel
 
 def disconnect(knxnet:knx.KnxNet, channel:int) -> None:
     """Disconnect from the KNXnet/IP server on given channel.
     [ sends: DISCONNECT REQUEST | expects: DISCONNECT RESPONSE ]
     """
-    discoreq = knx.KnxFrame(type="DISCONNECT REQUEST")
-    discoreq.body.communication_channel_id.value = channel
-    discoreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
-    discoreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
-    knxnet.send(discoreq)
-    knxnet.disconnect()
+    if knxnet:
+        discoreq = knx.KnxFrame(type="DISCONNECT REQUEST")
+        discoreq.body.communication_channel_id.value = channel
+        discoreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
+        discoreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
+        knxnet.send(discoreq)
+        knxnet.disconnect()
 
 def save(event, request, data, response=None):
     """Save request and data mutated that triggered the behavior.
@@ -78,7 +79,7 @@ def random_properties(propread_req:knx.KnxFrame) -> (knx.KnxFrame, str):
         yield propread_req, str(field)
         field.value = save
 
-def fuzz(generator, initial_frame):
+def fuzz(ip, generator, initial_frame):
     """Fuzz using a generator to mutate initial frame."""
     try:
         triggers = 0
@@ -86,7 +87,9 @@ def fuzz(generator, initial_frame):
         with open("fuzzing_results.txt", "a") as fd:
             fd.write(datetime.now().strftime("%y-%m-%d-%H:%M:%S")+"\n")
         while 1: # Each trigger resets the loop.
-            knxnet, channel = connect("192.168.1.10", 3671)
+            knxnet, channel = connect(ip, 3671)
+            if not knxnet:
+                break
             initial_frame.body.communication_channel_id.value = channel
             sequence_counter = 0
             for propread_req, data in generator(initial_frame):
@@ -119,10 +122,14 @@ def fuzz(generator, initial_frame):
     finally:
         disconnect(knxnet, channel)
         with open("fuzzing_results.txt", "a") as fd:
-            fd.write("*** ENDED WITH {0} TRIGGERS (Total: {1}) ***\n".format(triggers, sequence_counter))
+            fd.write("*** ENDED WITH {0} TRIGGERS (Total: {1}) ***\n".format(triggers, total))
             fd.write(datetime.now().strftime("%y-%m-%d-%H:%M:%S")+"\n")
+
+if len(argv) < 2:
+    print("Usage: python {0} IP_ADDRESS".format(argv[0]))
+    quit()
 
 propread = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
 propread.body.cemi.number_of_elements.value = 1
 # fuzz(all_properties, propread)
-fuzz(random_properties, propread)
+fuzz(argv[1], random_properties, propread)

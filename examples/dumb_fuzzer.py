@@ -1,4 +1,4 @@
-from sys import path
+from sys import path, argv
 path.append('../')
 
 from random import randint
@@ -40,19 +40,22 @@ def fuzz(generator:object, trials:int=10) -> tuple:
            print("---- Response: {0}".format(response))
 
 # RUN
-knxnet = knx.KnxNet()
-knxnet.connect("192.168.1.10", 3671)
-for trial, original, changelog in fuzz(all_frames, 100):
-    print("+ Sending: {0} ({1})".format(trial,", ".join(changelog)))
-    try:
-        response = knxnet.send_receive(trial)
-    except BOFNetworkError:
-        # No response received, send_receive() timed out
-        # We send a valid frame to check if the device is still alive
-        heartbeat = knxnet.send_receive(knx.KnxFrame(type="DESCRIPTION REQUEST"))
-        if not heartbeat:
-            save("Target crashed", trial, original, changelog)
-            break
-    else:
-        save("Response received", trial, original, changelog, response)
-knxnet.disconnect()
+if len(argv) < 2:
+    print("Usage: python {0} IP_ADDRESS".format(argv[0]))
+else:
+    knxnet = knx.KnxNet()
+    knxnet.connect(argv[1], 3671)
+    for trial, original, changelog in fuzz(all_frames, 100):
+        print("+ Sending: {0} ({1})".format(trial,", ".join(changelog)))
+        try:
+            response = knxnet.send_receive(trial)
+        except BOFNetworkError:
+            # No response received, send_receive() timed out
+            # We send a valid frame to check if the device is still alive
+            heartbeat = knxnet.send_receive(knx.KnxFrame(type="DESCRIPTION REQUEST"))
+            if not heartbeat:
+                save("Target crashed", trial, original, changelog)
+                break
+        else:
+            save("Response received", trial, original, changelog, response)
+    knxnet.disconnect()
