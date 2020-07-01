@@ -22,7 +22,7 @@ Network connection and example example with raw UDP::
 """
 
 import asyncio
-from ipaddress import ip_address
+from ipaddress import ip_address, IPv4Address
 from concurrent import futures
 from socket import AF_INET, gaierror
 from .base import BOFNetworkError, BOFProgrammingError, log
@@ -243,6 +243,8 @@ class UDP(object):
             udp = bof.UDP().connect("127.0.0.1", 13671)
         """
         ip = "127.0.0.1" if ip == "localhost" else ip
+        if isinstance(ip, IPv4Address):
+            ip = str(ip)
         self._loop = asyncio.get_event_loop()
         try:
             ip_address(ip) # Check if IP is valid
@@ -281,7 +283,10 @@ class UDP(object):
         if not self._transport:
             log("Cannot send data to {0}:{1}".format(address[0], address[1]))
             return 0
-        self._transport.sendto(bdata, address)
+        try:
+            self._transport.sendto(bdata, address)
+        except TypeError as te:
+            raise BOFNetworkError(str(te)) from None
         log("Send to {0}:{1} : {2}".format(address[0], address[1], data))
         return len(bdata)
 
