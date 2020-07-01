@@ -24,6 +24,9 @@ There are three ways to use BOF:
 **Please note that targeting BMS systems can have a severe impact on buildings and
 people and that BOF must be used carefully.**
 
+[![GitHub license](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://github.com/Orange-Cyberdefense/bof/blob/master/LICENSE)
+[![GitHub release](https://img.shields.io/github/release/Orange-Cyberdefense/bof.svg)](https://gitHub.com/Orange-Cyberdefense/bof/releases/)
+
 Getting started
 ---------------
 
@@ -36,7 +39,7 @@ installer yet so you need to refer to the `bof` subdirectory which contains the
 library (inside the repository) in your project or to copy the folder to your
 project's folder. Then, inside your code (or interactively):
 
-```
+```python
 import bof
 ```
 
@@ -45,13 +48,9 @@ Now you can start using BOF!
 > The following code samples interact using the building management system
   protocol KNXnet/IP (the framework supports only this one for now).
 
-### Discover devices on a network
-
-> Not implemented yet
-
 ### Send and receive packets
 
-```
+```python
 from bof import knx, BOFNetworkError
 
 knxnet = knx.KnxNet()
@@ -70,7 +69,7 @@ finally:
 
 ### Craft your own packets!
 
-```
+```python
 from bof import knx
 
 frame = knx.KnxFrame()
@@ -82,6 +81,8 @@ print(frame)
 
 Complete documentation
 ----------------------
+
+[![made-with-sphinx-doc](https://img.shields.io/badge/Made%20with-Sphinx-1f425f.svg)](https://www.sphinx-doc.org/)
 
 The HTML user manual and source code documentation can be built from the
 repository:

@@ -4,12 +4,13 @@ path.append('../')
 from bof import knx, BOFNetworkError, byte
 
 def connect_request(knxnet, connection_type):
+    ip, port = knxnet.source
     connectreq = knx.KnxFrame(type="CONNECT REQUEST")
     connectreq.body.connection_request_information.connection_type_code.value = knxspecs.connection_types[connection_type]
-    connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
-    connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
-    connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
-    connectreq.body.data_endpoint.port.value = byte.from_int(knxnet.source[1])
+    connectreq.body.control_endpoint.ip_address.value = ip
+    connectreq.body.control_endpoint.port.value = port
+    connectreq.body.data_endpoint.ip_address.value = ip
+    connectreq.body.data_endpoint.port.value = port
     if connection_type == "Tunneling Connection":
         connectreq.body.connection_request_information.append(knx.KnxField(name="link layer", size=1, value=b"\x02"))
         connectreq.body.connection_request_information.append(knx.KnxField(name="reserved", size=1, value=b"\x00"))
