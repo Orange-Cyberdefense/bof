@@ -49,6 +49,16 @@ Now you can start using BOF!
 > The following code samples interact using the building management system
   protocol KNXnet/IP (the framework supports only this one for now).
 
+### Discover devices on a network
+
+```python
+from bof import knx
+
+devices = knx.discover("192.168.1.0/24")
+for device in devices:
+    print(device)
+```
+
 ### Send and receive packets
 
 ```python
@@ -84,6 +94,8 @@ Complete documentation
 ----------------------
 
 [![made-with-sphinx-doc](https://img.shields.io/badge/Made%20with-Sphinx-1f425f.svg)](https://www.sphinx-doc.org/)
+
+Link to the documentation: https://bof.readthedocs.io
 
 The HTML user manual and source code documentation can be built from the
 repository:
