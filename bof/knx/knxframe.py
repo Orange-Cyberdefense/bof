@@ -83,7 +83,7 @@ class KnxSpec(object):
 
     def load(self, filepath):
         """Loads the content of a JSON file and adds its categories as attributes
-        x to this class.
+        to this class.
         
         If a file was loaded previously, the content will be added to previously
         added content, unless the ``clear()`` method is called first.
@@ -437,9 +437,7 @@ class KnxBlock(UDPBlock):
 
     @classmethod
     def factory(cls, **kwargs) -> object:
-        """
-        
-        Factory method to create a list of ``KnxBlock`` corresponding to the args.
+        """Factory method to create a list of ``KnxBlock`` according to kwargs.
         Available keywords arguments: 
         
         :param template: Cannot be used with ``type``. 

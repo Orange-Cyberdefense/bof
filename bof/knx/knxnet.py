@@ -87,7 +87,7 @@ class KnxNet(UDP):
                          closed on error, as this method can be called from
                          within the module in case of a network error.
         :returns: A ``DISCONNECT RESPONSE`` as a ``KnxFrame`` object if a
-                  ``CONNECT REQUEST`` was sent, else None
+                  ``DISCONNECT REQUEST`` was sent, else None
         :raises BOFNetworkError: if `in_error` is set to `True`.
         """
         response = None

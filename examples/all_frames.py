@@ -1,4 +1,4 @@
-from sys import path
+from sys import path, argv
 path.append('../')
 
 from bof import BOFNetworkError, knx
@@ -14,13 +14,17 @@ def all_frames() -> knx.KnxFrame:
             yield knx.KnxFrame(type=sid)
 
 # RUN
-knxnet = knx.KnxNet()
-knxnet.connect("192.168.1.10", 3671)
-for frame in all_frames():
-    try:
-        print("[SEND] {0}".format(frame))
-        response = knxnet.send_receive(frame)
-        print("[RECV] {0}".format(response))
-    except BOFNetworkError:
-        print("[NO RESPONSE]")
-knxnet.disconnect()
+if len(argv) < 2:
+    print("Usage: python {0} IP_ADDRESS".format(argv[0]))
+else:
+    knxnet = knx.KnxNet()
+    knxnet.connect(argv[1], 3671)
+    for frame in all_frames():
+        try:
+            print("[SEND] {0}".format(frame))
+            response = knxnet.send_receive(frame)
+            print("[RECV] {0}".format(response))
+        except BOFNetworkError:
+            print("[NO RESPONSE]")
+        finally
+    knxnet.disconnect()

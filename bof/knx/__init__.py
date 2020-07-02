@@ -24,3 +24,4 @@ The ``knx`` submodule has the following content:
 
 from .knxnet import *
 from .knxframe import *
+from .knxdevice import *
