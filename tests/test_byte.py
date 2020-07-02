@@ -113,44 +113,42 @@ class Test05BitListIntConversion(unittest.TestCase):
     def setUpClass(self):
         bof.set_byteorder('big')
     def test_01_int_to_bits_and_back(self):
-        """Test conversion from int to bit list, and from bit list to int"""
+        """Test conversion from int to bit list, and from bit list to int."""
         value = 19
         size = 8
         result = bof.bit_list_to_int(bof.int_to_bit_list(value, size))
         self.assertEqual(19, result)
     def test_02_int_to_bits_and_back_slices(self):
-        """Test conversion from int to bits list, and back, with size reduction"""
+        """Test conversion from int to bits list, and back, with size reduction."""
         value = 255
         result = bof.bit_list_to_int(bof.int_to_bit_list(value, 7))
         self.assertEqual(127, result)
     def test_03_int_to_bits_and_back_little_endian(self):
-        """Test conversion from int to bit list, and from bit list to int in little endian"""
+        """Test conversion from int to bit list, and from bit list to int in little endian."""
         value = 19
         size = 8
-        result = bof.bit_list_to_int(bof.int_to_bit_list(value, size, byteorder='little'), byteorder='little')
+
+        list_result = bof.int_to_bit_list(value, size, byteorder='little') 
+        result = bof.bit_list_to_int(list_result, byteorder='little')
         self.assertEqual(19, result)
     def test_04_int_to_bits_and_back_wrong_endianess(self):
-        
+        """Test conversion from int to bit list and back, with the wrong byteorder."""
         value = 19
         size = 8
-        result = bof.bit_list_to_int(bof.int_to_bit_list(value, size, byteorder='big'), byteorder='little')
+        list_result = bof.int_to_bit_list(value, size, byteorder='big')
+        result = bof.bit_list_to_int(list_result, byteorder='little')
         self.assertNotEqual(19, result)
     def test_05_int_to_bits_invalid_endianess(self):
+        """Test conversion from int to bit list with an invalid byteorder."""
         value = 19
         with self.assertRaises(bof.BOFProgrammingError):
             bof.int_to_bit_list(2, byteorder='frite')
     def test_06_bits_to_int_invalid_endianess(self):
+        """Test conversion from bit list to int with an invalid byteorder"""
         value = 19
         with self.assertRaises(bof.BOFProgrammingError):
             bof.bit_list_to_int(bof.int_to_bit_list(2), byteorder='frite')
-    def test_07_invalid_input_to_list(self):
-        value = 19
-        with self.assertRaises(bof.BOFProgrammingError):
-            bof.int_to_bit_list("frites")
-    def test_08_invalid_input_to_int(self):
-        value = 19
-        with self.assertRaises(bof.BOFProgrammingError):
-            bof.bit_list_to_int("frites")
+
 
 class Test06BytesIpv4Conversion(unittest.TestCase):
     """Test class for bytes conversion to IPV4"""
@@ -158,11 +156,39 @@ class Test06BytesIpv4Conversion(unittest.TestCase):
     def setUpClass(self):
         bof.set_byteorder('big')
     def test_01_ipv4_to_bytes_and_back(self):
+        """Test conversion from ipv4 to bYtes, and from bytes to ipv4."""
         ip = "127.0.0.1"
         self.assertEqual(bof.to_ipv4(bof.from_ipv4(ip)), "127.0.0.1")
-
-
-
+    
+class Test07BytesMacConversion(unittest.TestCase):
+    """Test class for bytes conversion to mac address."""
+    @classmethod
+    def setUpClass(self):
+        bof.set_byteorder('big')
+    def test_01_mac_to_bytes(self):
+        """Test conversion mac address to bytes."""
+        mac = "AB:5C:DF:AA:A2:FC"
+        result = bof.from_mac(mac)
+        self.assertEqual(b'\xAB\x5C\xDF\xAA\xA2\xFC', result.upper())
+    def test_02_bytes_to_mac(self):
+        """Test conversion bytes to mac address."""
+        byte = b'\xAB\x5C\xDF\xAA\xA2\xFC'
+        result = bof.to_mac(byte)
+        self.assertEqual("AB:5C:DF:AA:A2:FC".upper(),result.upper())
+    def test_03_bytes_to_mac_and_back(self):
+        """Test conversion mac address to bytes and back."""
+        mac = "AB:5C:DF:AA:A2:FC"
+        result = bof.to_mac(bof.from_mac("AB:5C:DF:AA:A2:FC"))
+        self.assertEqual(mac.upper(), result.upper())
+    def test_04_mac_to_bytes_less_6_bytes(self):
+        """Test conversion mac address to bytes with less than 6 bytes."""
+        mac = "AB:5C"
+        result = bof.from_mac(mac)
+        self.assertEqual(b'\xAB\x5C', result)
+    def test_05_bytes_to_mac_less_6_bytes(self):
+        """Test conversion bytes to mac address with less than 6 bytes."""
+        result = bof.to_mac(b'\xAB\x5C')
+        self.assertEqual("AB:5C".upper(),result.upper())
 
 
 if __name__ == '__main__':
