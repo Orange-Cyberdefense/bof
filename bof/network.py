@@ -259,6 +259,7 @@ class UDP(object):
         self._address = (ip, port)
         self._socket = self._transport.get_extra_info('socket')
         log("Connected to {0}:{1}".format(ip, port))
+
         return self
 
     def send(self, data:bytes, address:tuple=None) -> int:

@@ -37,7 +37,8 @@ git clone https://github.com/Orange-Cyberdefense/bof.git
 BOF is a Python 3.6+ library that should be imported in scripts.  It has no
 installer yet so you need to refer to the `bof` subdirectory which contains the
 library (inside the repository) in your project or to copy the folder to your
-project's folder. Then, inside your code (or interactively):
+project's folder. Then, inside your code (or interactively), you can import the
+library:
 
 ```python
 import bof

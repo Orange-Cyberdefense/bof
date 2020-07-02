@@ -270,8 +270,8 @@ message codes, block types and frame structures. The KNX Standard has not been
 fully implemented yet so there may be missing content, please refer to
 `bof/knx/knxnet.json` to know what is currently supported. Obviously, the
 specification file content can be changed or a frame can be built without
-referring to the specification, we discuss it further in the advanced
-usage section.
+referring to the specification, we discuss it further in the "Advanced
+usage" section (not available yet).
 
 .. code-block:: python
 
@@ -337,8 +337,8 @@ From scratch
 """"""""""""
 
 A frame can be created without referring to a predefined format, by manually
-adding blocks and fields to the frame. The section "Advanced usage" contains
-details on how to do so.
+adding blocks and fields to the frame. The section "Advanced usage" (not
+available yet) contains details on how to do so.
 
 .. code-block::
 
@@ -464,7 +464,8 @@ defined in the KNX standard and reported to the JSON specification
 file. Therefore, we can either set the ID manually, or refer to the
 specification file. The content of the specification file can be accessed by
 instantiating the singleton class ``KnxSpec``. From this object, the sections in
-the JSON file can be accessed as properties (details in Advanced Usage).
+the JSON file can be accessed as properties (details in "Advanced Usage" (not
+available yet)).
 
 .. code-block::
 

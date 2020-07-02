@@ -159,6 +159,25 @@ def to_ipv4(array:bytes) -> str:
     """
     return str(IPv4Address(array))
 
+def to_mac(array:bytes) -> str:
+    """Converts a MAC address as a byte array to a MAC address as a string
+    with format AA:BB:CC:DD:EE:FF.
+
+    :param array: Byte array to convert to a MAC address (usually 6 bytes)
+    :returns: The MAC address as a string.
+    """
+    return ':'.join(("%02x" % b) for b in array)
+
+def from_mac(mac:str):
+    """Converts a MAC address as a string with format AA:BB:CC:DD:EE:FF
+    to a byte array (6 bytes).
+
+    :param mac: String with MAC address
+    :returns: A byte array of the corresponding MAC address.
+    """
+    array = bytes.fromhex(mac.replace(":", ""))
+    return array
+
 def int_to_bit_list(n:int, size:int=8, byteorder:str=None) -> list:
     """Representation of n as a list of bits (0 or 1).
     
