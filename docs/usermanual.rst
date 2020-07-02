@@ -50,6 +50,25 @@ Now you can start using BOF!
 The following code samples interact using the building management system
 protocol KNXnet/IP (the framework supports only this one for now).
 
+Discover devices on a network
++++++++++++++++++++++++++++++
+
+The function `search()` from `bof.knx` lists the IP addresses of KNX devices
+responding on an IP network.
+
+>>> from bof import knx
+>>> knx.search("192.168.1.0/24")
+['192.168.1.10']
+
+The function `discover()` gathers information about a KNX device at a defined IP
+address (or on multiple KNX devices on an address range) and stores it to a
+``KnxDevice`` object.
+
+>>> from bof import knx
+>>> device = knx.discover("192.168.1.10")
+>>> print(device)
+KnxDevice: Name=boiboite, MAC=00:00:54:ff:ff:ff, IP=192.168.1.10:3671 KNX=15/15/255
+
 Send and receive packets
 ++++++++++++++++++++++++
 
