@@ -14,6 +14,8 @@ We assume that a frame has the following structure:
 
 from textwrap import indent
 
+from .base import BOFProgrammingError, to_property
+
 class BOFBitField(object):
     pass
 
@@ -68,6 +70,45 @@ class BOFFrame(object):
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
+
+    def append(self, name, block) -> None:
+        """Appends a block to the list of blocks. Creates an attribute with
+        the same name in the class.
+
+        :param name: Name of the block to append.
+        :param block: Block, must inherit from ``BOFBlock``.
+        :raises BOFProgrammingError: If block is not a subclass of
+                                     ``BOFBlock``.
+        """
+        if not isinstance(block, BOFBlock):
+            raise BOFProgrammingError("Frame can only contain BOF blocks.")
+        self._blocks[name] = block
+        setattr(self, to_property(name), self._blocks[name])
+
+    def remove(self, name:str) -> None:
+        """Remove a block or feld according to its name from the frame.
+
+        If several fields share the same name, only the first one is removed.
+
+        :param name: Name of the field to remove.
+        :raises BOFprogrammingError: if there is no field with such name.
+
+        Example::
+
+            frame.remove("control_endpoint")
+            print([x for x in frame.attributes])
+        """
+        name = name.lower()
+        for block in self._blocks.values():
+            for item in block.attributes:
+                if item == to_property(name):
+                    item = getattr(block, item)
+                    if isinstance(item, BOFBlock):
+                        for field in item.fields:
+                            item.remove(to_property(field.name))
+                            delattr(block, to_property(field.name))
+                        delattr(block, to_property(name))
+                        del item
 
     def update(self) -> None:
         """Automatically update all fields corresponding to block lengths

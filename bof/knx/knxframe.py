@@ -38,8 +38,9 @@ from .. import byte
 ###############################################################################
 
 KNXSPECFILE = "knxnet.json"
-KNXFIELDSEP = ","
+KNXFIELDSEP = "," # TODO
 
+# TODO
 class KnxSpec(object):
     """Singleton class for KnxSpec specification content usage.
 
@@ -123,6 +124,7 @@ class KnxSpec(object):
 # KNX fields (byte or byte array) representation                              #
 #-----------------------------------------------------------------------------#
 
+# TODO
 class KnxField(UDPField):
     """A ``KnxField`` is a set of raw bytes with a name, a size and a content
     (``value``).
@@ -357,7 +359,8 @@ class KnxField(UDPField):
 # KNX blocks (set of fields) representation                                   #
 #-----------------------------------------------------------------------------#
 
-class KnxBlock(UDPBlock):
+# TODO
+class KnxBlock(UDPBlock, BOFBlock):
 
     """A ``KnxBlock`` contains an ordered set of nested blocks and/or
     an ordered set of fields (``KnxField``) of one or more bytes.
@@ -704,14 +707,11 @@ class KnxFrame(BOFFrame):
                        Only used is param `frame` is set.
         """
         super().__init__()
-        # Empty frame (no parameter)
-        self.__source = ("",0)
+        # We do not use BOFFrame.append() because we use properties (not attrs)
         self._blocks["header"] = KnxBlock(type="header")
         self._blocks["body"] = KnxBlock(name="body")
-        self.__specs = KnxSpec()
-        # Fill in the frame according to parameters
-        if "source" in kwargs:
-            self.__source = kwargs["source"]
+        self.__specs = KnxSpec() # TODO
+        self.__source = kwargs["source"] if "source" in kwargs else ("",0)
         if "type" in kwargs:
             cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
@@ -728,6 +728,7 @@ class KnxFrame(BOFFrame):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
+    # TODO
     def build_from_sid(self, sid, cemi:str=None, optional:bool=False) -> None:
         """Fill in the KnxFrame object according to a predefined frame format
         corresponding to a service identifier. The frame format (blocks
@@ -776,6 +777,7 @@ class KnxFrame(BOFFrame):
                 self._blocks["header"].service_identifier._update_value(value)
         self.update()
 
+    # TODO
     def build_from_frame(self, frame:bytes) -> None:
         """Fill in the KnxFrame object using a frame as a raw byte array. This
         method is used when receiving and parsing a file from a KNX object.
@@ -825,32 +827,6 @@ class KnxFrame(BOFFrame):
                 cursor += frame[cursor]
             self._blocks["body"].append(block_object)
 
-    def remove(self, name:str) -> None:
-        """Remove the block/field ``name`` from the header or body, as long as
-        name is in the frame's attributes.
-
-        If several fields have the same name, only the first one is removed.
-        
-        :param name: Name of the field to remove.
-        :raises BOFProgrammingError: if there is no corresponding field.
-
-        Example::
-
-            frame.remove("control_endpoint")
-            print([x for x in frame.attributes])
-        """
-        name = name.lower()
-        for block in [self._blocks["header"], self._blocks["body"]]:
-            for item in block.attributes:
-                if item == to_property(name):
-                    item = getattr(block, item)
-                    if isinstance(item, KnxBlock):
-                        for field in item.fields:
-                            item.remove(to_property(field.name))
-                            delattr(block, to_property(field.name))
-                        delattr(block, to_property(name))
-                        del item
-
     def update(self):
         """Update all fields corresponding to block lengths.
 
@@ -859,7 +835,8 @@ class KnxFrame(BOFFrame):
         """
         super().update()
         if "total_length" in self._blocks["header"].attributes:
-            self._blocks["header"].total_length._update_value(byte.from_int(len(self._blocks["header"]) + len(self._blocks["body"])))
+            total = sum([len(block) for block in self._blocks.values()])
+            self._blocks["header"].total_length._update_value(byte.from_int(total))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #

@@ -140,14 +140,19 @@ class Test03AdvancedFieldCrafting(unittest.TestCase):
         new_header.append(knx.KnxField(name="fuel", size=2, value=666))
         new_header.update()
         self.assertEqual(bytes(new_header.gasoline), b'\x00\x00\x05')
-    def test_03_knx_remove_field_by_name(self):
+    def test_03_knx_append_field(self):
+        """Test the append method of a frame."""
+        frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
+        frame.append("toto", knx.KnxBlock(type="SERVICE_FAMILY"))
+        self.assertIn("version", frame.attributes)
+    def test_04_knx_remove_field_by_name(self):
         """Test that a field can be removed according to its name."""
         frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
         self.assertIn("ip_address", frame.body.attributes)
         frame.body.remove("ip_address")
         self.assertNotIn("ip_address", frame.body.attributes)
         self.assertEqual(bytes(frame.body), b'\x04\x01\x00\x00')
-    def test_04_knx_multiple_fields_same_name(self):
+    def test_05_knx_multiple_fields_same_name(self):
         """Test the behavior in case multiple fields have the same name."""
         body = knx.KnxBlock()
         body.append(knx.KnxField(name="gasoline", size=1, value=1))
@@ -156,7 +161,7 @@ class Test03AdvancedFieldCrafting(unittest.TestCase):
         self.assertEqual(bytes(body), b'\x01\x00\x15')
         body.remove("gasoline")
         self.assertEqual(bytes(body), b'\x00\x15')
-    def test_05_knx_blockception(self):
+    def test_06_knx_blockception(self):
         """Test that we can do blockception"""
         block = knx.KnxBlock(name="atoll")
         block.append(knx.KnxField(name="pom-"))
