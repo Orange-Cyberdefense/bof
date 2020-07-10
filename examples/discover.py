@@ -14,7 +14,7 @@ else:
         # print(frame)
         knxnet.send(frame)
         response = knxnet.receive()
-        # print(response)
+        print(response)
         device = knx.KnxDevice(response, ip_address=ip, port=port)
         print(device)
     except BOFNetworkError as bne:

@@ -215,7 +215,7 @@ class KnxDevice():
             x = int("".join([str(x) for x in bitlist[:4]]), 2)
             y = int("".join([str(x) for x in bitlist[4:]]), 2)
             z = byte.to_int(value[1:])
-            value = "{0}/{1}/{2}".format(x, y, z)
+            value = "{0}.{1}.{2}".format(x, y, z)
         self.__knx_address = value
     @property
     def port(self) -> str:

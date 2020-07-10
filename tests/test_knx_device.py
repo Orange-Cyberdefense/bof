@@ -68,4 +68,4 @@ class Test03KnxDeviceDescription(unittest.TestCase):
     def test_01_knx_device_from_descrresp(self):
         device = knx.KnxDevice(self.connection.send_receive(knx.KnxFrame(type="DESCRIPTION_REQUEST")), 
                                ip_address=BOIBOITE)
-        self.assertEqual(device.knx_address, "15/15/255")
+        self.assertEqual(device.knx_address, "15.15.255")
