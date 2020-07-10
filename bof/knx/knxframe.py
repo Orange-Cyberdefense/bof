@@ -29,7 +29,8 @@ from ipaddress import ip_address
 from textwrap import indent
 
 from ..base import BOFProgrammingError, load_json, to_property, log
-from ..network import UDPField, UDPBlock
+from ..frame import BOFFrame, BOFBlock, BOFField, BOFBitField
+from ..network import UDPField, UDPBlock # TODO
 from .. import byte
 
 ###############################################################################
@@ -649,7 +650,7 @@ class KnxBlock(UDPBlock):
 # KNX frames / datagram representation                                        #
 #-----------------------------------------------------------------------------#
 
-class KnxFrame(object):
+class KnxFrame(BOFFrame):
     """Object representation of a KNX message (frame) with methods to build
     and read KNX datagrams.
 
@@ -674,8 +675,6 @@ class KnxFrame(object):
     **KNX Standard v2.1 03_08_02**
     """
     __source:tuple
-    __header:KnxBlock
-    __body:KnxBlock
     __specs:KnxSpec
 
     def __init__(self, **kwargs):
@@ -704,10 +703,11 @@ class KnxFrame(object):
         :param source: Source address of a frame, as a tuple (ip;str, port:int)
                        Only used is param `frame` is set.
         """
+        super().__init__()
         # Empty frame (no parameter)
         self.__source = ("",0)
-        self.__header = KnxBlock(type="header")
-        self.__body = KnxBlock(name="body")
+        self._blocks["header"] = KnxBlock(type="header")
+        self._blocks["body"] = KnxBlock(name="body")
         self.__specs = KnxSpec()
         # Fill in the frame according to parameters
         if "source" in kwargs:
@@ -723,29 +723,6 @@ class KnxFrame(object):
                                                                              self.__source))
         # Update total frame length in header
         self.update()
-
-    def __bytes__(self):
-        """Overload so that bytes(frame) returns the raw KnxFrame bytearray."""
-        self.update()
-        return self.raw
-
-    def __len__(self):
-        """Return the size of the block in total number of bytes."""
-        self.update()
-        return len(self.raw)
-
-    def __str__(self):
-        ret = ["{0} object: {1}".format(self.__class__.__name__, repr(self))]
-        ret += ["[HEADER]"]
-        for attr in self.header.content:
-            ret += [indent(str(attr), "    ")]
-        ret += ["[BODY]"]
-        for attr in self.body.content:
-            ret += [indent(str(attr), "    ")]
-        return "\n".join(ret)
-
-    def __iter__(self):
-        yield from self.fields
 
     #-------------------------------------------------------------------------#
     # Public                                                                  #
@@ -789,14 +766,14 @@ class KnxFrame(object):
                     raise BOFProgrammingError("Service {0} does not exist.".format(sid))
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        self.__body.append(KnxBlock.factory(template=self.__specs.bodies[sid],
+        self._blocks["body"].append(KnxBlock.factory(template=self.__specs.bodies[sid],
                                             cemi=cemi, optional=optional))
         # Add fields names as properties to body :)
-        for field in self.__body.fields:
-            self.__body._add_property(field.name, field)
+        for field in self._blocks["body"].fields:
+            self._blocks["body"]._add_property(field.name, field)
             if sid in self.__specs.service_identifiers.keys():
                 value = bytes.fromhex(self.__specs.service_identifiers[sid]["id"])
-                self.__header.service_identifier._update_value(value)
+                self._blocks["header"].service_identifier._update_value(value)
         self.update()
 
     def build_from_frame(self, frame:bytes) -> None:
@@ -815,16 +792,16 @@ class KnxFrame(object):
 
         """
         # HEADER
-        self.__header = KnxBlock(type="HEADER", name="header")
-        self.__header.fill(frame[:frame[0]])
+        self._blocks["header"] = KnxBlock(type="HEADER", name="header")
+        self._blocks["header"].fill(frame[:frame[0]])
         blocklist = None
         for service in self.__specs.service_identifiers:
             attributes = self.__specs.service_identifiers[service]
-            if bytes(self.__header.service_identifier) == bytes.fromhex(attributes["id"]):
+            if bytes(self._blocks["header"].service_identifier) == bytes.fromhex(attributes["id"]):
                 blocklist = self.__specs.bodies[service]
                 break
         if not blocklist:
-            raise BOFProgrammingError("Unknown service identifier ({0})".format(self.__header.service_identifier.value))
+            raise BOFProgrammingError("Unknown service identifier ({0})".format(self._blocks["header"].service_identifier.value))
         # BODY
         cursor = frame[0] # We start at index len(header) (== 6)
         for block in blocklist:
@@ -846,7 +823,7 @@ class KnxFrame(object):
             else:
                 block_object.fill(frame[cursor:cursor+frame[cursor]])
                 cursor += frame[cursor]
-            self.__body.append(block_object)
+            self._blocks["body"].append(block_object)
 
     def remove(self, name:str) -> None:
         """Remove the block/field ``name`` from the header or body, as long as
@@ -863,7 +840,7 @@ class KnxFrame(object):
             print([x for x in frame.attributes])
         """
         name = name.lower()
-        for block in [self.__header, self.__body]:
+        for block in [self._blocks["header"], self._blocks["body"]]:
             for item in block.attributes:
                 if item == to_property(name):
                     item = getattr(block, item)
@@ -875,18 +852,14 @@ class KnxFrame(object):
                         del item
 
     def update(self):
-        """Update all fields corresponding to block lengths. Ex: if a
-        block has been modified, the update will change the value of
-        the block length field to match (unless this field's ``fixed_value``
-        boolean is set to True.
+        """Update all fields corresponding to block lengths.
 
-        For frames, the ``update()`` methods also update the ``total length``
+        For KNX frames, the ``update()`` methods also update the ``total length``
         field in header, which requires an additional operation.
         """
-        self.__body.update()
-        self.__header.update()
-        if "total_length" in self.__header.attributes:
-            self.__header.total_length._update_value(byte.from_int(len(self.__header) + len(self.__body)))
+        super().update()
+        if "total_length" in self._blocks["header"].attributes:
+            self._blocks["header"].total_length._update_value(byte.from_int(len(self._blocks["header"]) + len(self._blocks["body"])))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -894,33 +867,12 @@ class KnxFrame(object):
 
     @property
     def header(self):
-        """Builds the raw byte set and returns it."""
         self.update()
-        return self.__header
-
+        return self._blocks["header"]
     @property
     def body(self):
-        """Builds the raw byte set and returns it."""
         self.update()
-        return self.__body
-
-    @property
-    def raw(self):
-        """Builds the raw byte set and returns it."""
-        self.update()
-        return bytes(self.__header) + bytes(self.__body)
-
-    @property
-    def fields(self) -> list:
-        """Build an array with all the fields in header + body."""
-        self.update()
-        return self.__header.fields + self.__body.fields
-
-    @property
-    def attributes(self) -> list:
-        """Builds an array with the names of all attributes in header + body."""
-        self.update()
-        return self.__header.attributes + self.__body.attributes
+        return self._blocks["body"]
 
     @property
     def sid(self) -> str:
@@ -929,15 +881,15 @@ class KnxFrame(object):
         """
         for service in self.__specs.service_identifiers:
             attributes = self.__specs.service_identifiers[service]
-            if bytes(self.__header.service_identifier) == bytes.fromhex(attributes["id"]):
+            if bytes(self._blocks["header"].service_identifier) == bytes.fromhex(attributes["id"]):
                 return service
-        return str(self.__header.service_identifier.value)
+        return str(self._blocks["header"].service_identifier.value)
 
     @property
     def cemi(self) -> str:
         """Return the type of cemi, if any."""
-        if "cemi" in self.__body.attributes:
+        if "cemi" in self._blocks["body"].attributes:
             for cemi in self.__specs.cemis:
-                if bytes(self.__body.cemi.message_code) == bytes.fromhex(self.__specs.cemis[cemi]["id"]):
+                if bytes(self._blocks["body"].cemi.message_code) == bytes.fromhex(self.__specs.cemis[cemi]["id"]):
                     return cemi
         return ""
