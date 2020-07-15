@@ -2,8 +2,9 @@
 KNX frame handling
 ------------------
 
-KNXnet/IP frames handling implementation, implementing ``bof.network``'s
-``UDPBlock`` and ``UDPField`` classes.
+KNXnet/IP frames handling implementation, implementing ``bof.frame``'s
+``BOFSpec``, ``BOFFrame``, ``BOFBlock``, ``BOFField`` and ``BOFBitField``
+classes.
 
 A KNX frame (``KnxFrame``) is a byte array divided into a set of blocks. A
 frame always has the following format:
@@ -31,12 +32,12 @@ from textwrap import indent
 from ..base import BOFProgrammingError, to_property, log
 from ..frame import BOFFrame, BOFBlock, BOFField, BOFBitField
 from ..spec import BOFSpec
-from ..network import UDPField, UDPBlock # TODO
+from ..network import UDPField # TODO
 from .. import byte
 
-#-----------------------------------------------------------------------------#
+###############################################################################
 # KNX SPECIFICATION CONTENT                                                   #
-#-----------------------------------------------------------------------------#
+###############################################################################
 
 KNXSPECFILE = "knxnet.json"
 
@@ -65,7 +66,7 @@ class KnxSpec(BOFSpec):
 KNXFIELDSEP = ","
 
 # TODO
-class KnxField(UDPField):
+class KnxField(UDPField, BOFField):
     """A ``KnxField`` is a set of raw bytes with a name, a size and a content
     (``value``).
 
@@ -299,13 +300,10 @@ class KnxField(UDPField):
 # KNX blocks (set of fields) representation                                   #
 #-----------------------------------------------------------------------------#
 
-# TODO
-class KnxBlock(UDPBlock, BOFBlock):
+class KnxBlock(BOFBlock):
+    """Object representation of a KNX block. Inherits ``BOFBlock``.
 
-    """A ``KnxBlock`` contains an ordered set of nested blocks and/or
-    an ordered set of fields (``KnxField``) of one or more bytes.
-
-    A block has the following properties:
+    A KNX block has the following properties:
 
     - According to **KNX Standard v2.1 03_08_02**, the first byte of the
       block should (but does not always) contain the length of the block.
@@ -313,19 +311,14 @@ class KnxBlock(UDPBlock, BOFBlock):
     - A terminal ``KnxBlock`` only contains a set of ``KnxField``.
     - A ``KnxBlock`` can also contain a mix of blocks and fields.
 
-    :param name: Name of the block, so that it can be accessed by its name
-                 using a property.
-    :param content: List of blocks, fields or both.
-
-    Instantiate::
+    Usage example::
 
         descr_resp = KnxBlock(name="description response")
         descr_resp.append(KnxBlock(type="DIB_DEVICE_INFO"))
         descr_resp.append(KnxBlock(type="DIB_SUPP_SVC_FAMILIES"))
     """
-    __name:str
-    __content:list
 
+    # TODO
     def __init__(self, **kwargs):
         """Initialize the ``KnxBlock`` with a mandatory name and optional
         arguments to fill in the block content list (with fields or nested
@@ -341,8 +334,7 @@ class KnxBlock(UDPBlock, BOFBlock):
         :param cemi: Type of block if this is a cemi structure. Cannot be used
                      with ``type``.
         """
-        self.name = kwargs["name"] if "name" in kwargs else ""
-        self.__content = []
+        super().__init__(**kwargs)
         specs = KnxSpec()
         if "type" in kwargs:
             if not kwargs["type"].upper() in specs.blocktypes.keys():
@@ -356,29 +348,11 @@ class KnxBlock(UDPBlock, BOFBlock):
             self.append(self.factory(template=specs.blocktypes[specs.cemis[kwargs["cemi"]]["type"]]))
             self.message_code.value = bytes.fromhex(specs.cemis[kwargs["cemi"]]["id"])
 
-    def __bytes__(self):
-        raw = b''
-        for item in self.__content:
-            raw += bytes(item)
-        return raw
-
-    def __len__(self):
-        """Return the size of the block in total number of bytes."""
-        return len(bytes(self))
-
-    def __str__(self):
-        ret = ["{0}: {1}".format(self.__class__.__name__, self.__name)]
-        for item in self.__content:
-            ret += [indent(str(item), "    ")]
-        return "\n".join(ret)
-
-    def __iter__(self):
-        yield from self.fields
-        
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
+    # TODO
     @classmethod
     def factory(cls, **kwargs) -> object:
         """Factory method to create a list of ``KnxBlock`` according to kwargs.
@@ -403,6 +377,7 @@ class KnxBlock(UDPBlock, BOFBlock):
             return cls(cemi=kwargs["cemi"], name="cEMI")
         return None
 
+    # TODO
     @classmethod
     def create_from_template(cls, template, cemi:str=None, optional:bool=False) -> list:
         """Creates a list of ``KnxBlock``-inherited object according to the
@@ -445,6 +420,7 @@ class KnxBlock(UDPBlock, BOFBlock):
                 raise BOFProgrammingError("Unknown block type ({0})".format(template))
         return blocklist
 
+    # TODO
     def fill(self, frame:bytes) -> bytes:
         """Fills in the fields in object with the content of the frame.
 
@@ -462,132 +438,6 @@ class KnxBlock(UDPBlock, BOFBlock):
         if frame[cursor:len(frame)] and self.fields[-1].size == 0: # Varying size
             self.fields[-1].size = len(frame) - cursor
             self.fields[-1].value = frame[cursor:cursor+field.size]
-
-    def append(self, content) -> None:
-        """Appends a block, a field or a list of blocks and/fields to
-        current block's content. Adds the name of the block to the list
-        of current's block properties. Ex: if ``block.name`` is ``foo``,
-        it could be referred to as ``self.foo``.
-
-        :param block: ``KnxBlock``, ``KnxField`` or a list of such objects.
-
-        Example::
-
-            block = KnxBlock(name="atoll")
-            block.append(KnxField(name="pom"))
-            block.append(KnxBlock(name="galli"))
-        """
-        if isinstance(content, KnxField) or isinstance(content, KnxBlock):
-            self.__content.append(content)
-            # Add the name of the block as a property to this instance
-            if isinstance(content.name, list):
-                for subname in content.name:
-                    setattr(self, to_property(subname), content.subfield[subname])
-                setattr(self, to_property(" ".join(content.name)), content)
-            elif len(content.name) > 0:
-                setattr(self, to_property(content.name), content)
-        elif isinstance(content, list):
-            for item in content:
-                self.append(item)
-        self.update()
-
-    def update(self):
-        """Update all fields corresponding to lengths. Ex: if a block has been
-        modified, the update will change the value of the block length field
-        to match (unless this field's ``fixed_value`` boolean is set to True.
-
-        Example::
-
-            header.service_identifier.value = b"\x01\x02\x03"
-            header.update()
-            print(header.header_length.value)
-        """
-        for item in self.__content:
-            if isinstance(item, KnxBlock):
-                item.update()
-            elif isinstance(item, KnxField):
-                if item.is_length:
-                    item._update_value(len(self))
-
-    def remove(self, name:str) -> None:
-        """Remove the field ``name`` from the block (or nested block).
-        If several fields have the same name, only the first one is removed.
-        
-        :param name: Name of the field to remove.
-        :raises BOFProgrammingError: if there is no corresponding field.
-
-        Example::
-
-            body = knx.KnxBlock()
-            body.append(knx.KnxField(name="abitbol", size=30, value="monde de merde"))
-            body.append(knx.KnxField(name="francky", size=30, value="cest oit"))
-            body.remove("abitbol")
-            print([x.name for x in body.fields])
-        """
-        name = name.lower()
-        for item in self.__content:
-            if isinstance(item, KnxBlock):
-                delattr(self, to_property(name))
-                item.remove(name)
-            elif isinstance(item, KnxField):
-                if item.name == name or to_property(item.name) == name:
-                    self.__content.remove(item)
-                    delattr(self, to_property(name))
-                    del(item)
-                    break
-
-    #-------------------------------------------------------------------------#
-    # Properties                                                              #
-    #-------------------------------------------------------------------------#
-
-    @property
-    def name(self) -> str:
-        return self.__name
-
-    @name.setter
-    def name(self, name:str):
-        if isinstance(name, str):
-            self.__name = name.lower()
-        else:
-            raise BOFProgrammingError("Block name should be a string.")
-
-    @property
-    def fields(self) -> list:
-        self.update()
-        fieldlist = []
-        for item in self.__content:
-            if isinstance(item, KnxBlock):
-                fieldlist += item.fields
-            elif isinstance(item, KnxField):
-                fieldlist.append(item)
-        return fieldlist
-
-    @property
-    def attributes(self) -> list:
-        """Gives the list of attributes added to the block (field names)."""
-        self.update()
-        return [x for x in self.__dict__.keys() if not x.startswith("_KnxBlock__")]
-
-    @property
-    def content(self) -> list:
-        return self.__content
-
-    #-------------------------------------------------------------------------#
-    # Internal (should not be used by end users)                              #
-    #-------------------------------------------------------------------------#
-
-    def _add_property(self, name, pointer:object) -> None:
-        """Add a property to the object using ``setattr``, should not be used
-        outside module.
-
-        :param name: Property name (string or list if field has subfields)
-        :param pointer: The object the property refers to.
-        """
-        if isinstance(name, list):
-            for subname in name:
-                setattr(self, to_property(subname), pointer.subfield[subname])
-        elif len(name) > 0:
-            setattr(self, to_property(name), pointer)
 
 #-----------------------------------------------------------------------------#
 # KNX frames / datagram representation                                        #
@@ -620,6 +470,7 @@ class KnxFrame(BOFFrame):
     __source:tuple
     __specs:KnxSpec
 
+    # TODO
     def __init__(self, **kwargs):
         """Initialize a KnxFrame object from various origins using values from
         keyword argument (kwargs).
@@ -650,7 +501,7 @@ class KnxFrame(BOFFrame):
         # We do not use BOFFrame.append() because we use properties (not attrs)
         self._blocks["header"] = KnxBlock(type="header")
         self._blocks["body"] = KnxBlock(name="body")
-        self.__specs = KnxSpec() # TODO
+        self.__specs = KnxSpec()
         self.__source = kwargs["source"] if "source" in kwargs else ("",0)
         if "type" in kwargs:
             cemi = kwargs["cemi"] if "cemi" in kwargs else None

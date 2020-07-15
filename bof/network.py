@@ -125,53 +125,6 @@ class UDPField(object):
             self._size = size
             self._value = byte.resize(self._value, self._size)
 
-class UDPBlock(object):
-    """Object representation of a UDP block (set of byte fields) inside a packet.
-
-    Higher-level protocol implementations relying on UDP should inherit this
-    class for basic packet byte, field and block definition.
-    """
-    _content:dict
-
-    def __bytes__(self):
-        """:returns: the ``_content`` parameter as a bytearray."""
-        content = []
-        for field in list(self._content.values()):
-            content += [field.value[i:i+1] for i in range(field.size)] # Split by byte
-        return b''.join(content)
-
-    def __str__(self):
-        """:returns: the bytearray built from the ``_content`` dictionary
-        converted to a string.
-        """
-        return "{0}".format(bytes(self))
-
-    #-------------------------------------------------------------------------#
-    # Protected                                                               #
-    #-------------------------------------------------------------------------#
-
-    def _field(self, value, size:int=1, fixed_size:bool=False, fixed_value:bool=False) -> bytes:
-        """Creates a UDP Field object from a set of attributes.
-
-        :param value: The value of the field as bytes or as an int.
-        :param size: The size (in bytes) of the field as an integer. If the
-                     size does not match with the size of the ``value``, it
-                     may change automatically (unless ``fixed_size`` is True.
-        :param fixed_size: Bool to state if the size can be changed manually.
-        :param fixed_value: Bool to state if the value can be changed manually.
-        :raises BOFProgrammingError: If the UDP field cannot be created."""
-        return UDPField(value, size, fixed_size, fixed_value)
-
-    def _resize(self, field, size:int) -> None:
-        """Change size of a field and resize its value. If size is set,
-        we state that its value is now fixed and will not adapt if the value
-        of the field is changed.
-        """
-        value = byte.resize(self._content[field].value, size)
-        self._content[field].fixed_size = True
-        self._content[field].size = size
-        self._content[field].value = value
-
 #-----------------------------------------------------------------------------#
 # Protocol implementation                                                     #
 #-----------------------------------------------------------------------------#
