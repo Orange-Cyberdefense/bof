@@ -14,7 +14,8 @@ We assume that a frame has the following structure:
 
 from textwrap import indent
 
-from .base import BOFProgrammingError, to_property
+from .base import BOFProgrammingError, to_property, log
+from . import byte
 
 ###############################################################################
 # Bit field representation within a field                                     #
@@ -28,7 +29,142 @@ class BOFBitField(object):
 ###############################################################################
 
 class BOFField(object):
-    pass
+    """Object representation of a field within a block inside a frame. A field
+    is a set of raw bytes with (at least) a name, a size and a value.
+
+    :param name: Name of the field. Is used to refer to the field and to create
+                 an attribute in parent block.
+    :param size: Length of the field (in number of bytes)
+    :param value: Value stored in a field (in bytes)
+    :param is_length: Boolean stating if the field is a length. If ``True`` and
+                      ``fixed_value`` is False, the value is updated when a
+                      field in the parent block is changed and the block length
+                      changes.
+    :param fixed_size: If ``size`` is modified by the end-user, this parameter
+                       is set to ``True`` to prevent methods from automatically
+                       updating it (manual mode).
+    :param fixed_value: If ``value`` is modified by the end-user, this parameter
+                        is set to ``True`` to prevent methods from automatically
+                        updating it (manual mode).
+    :param bitfields: Some field are not on one byte, and the best solution we
+                      found is to store bit fields within byte fields... This
+                      parameter should contain a list of ``BOFBitField`` objects
+                      or None.
+    :param bitsizes: List storing the sizes (in bit) of bit fields within the
+                     field.
+    """
+    _name:str
+    _size:int
+    _value:bytes
+    _is_length:bool
+    _fixed_size:bool
+    _fixed_value:bool
+    _bitfields:list
+    _bitsizes:list
+
+    def __init__(self, **kwargs):
+        self.name = kwargs["name"] if "name" in kwargs else ""
+        self._value = kwargs["value"] if "value" in kwargs else b''
+        self._size = int(kwargs["size"]) if "size" in kwargs else max(1, byte.get_size(self._value))
+        self._is_length = kwargs["is_length"] if "is_length" in kwargs else False
+        self._fixed_size = kwargs["fixed_size"] if "fixed_size" in kwargs else False
+        self._fixed_value = kwargs["fixed_value"] if "fixed_value" in kwargs else False
+        # From now on, _update_value must be used to modify values within the code
+        self._bitfields = None
+        self._bitsizes = None
+
+    def __str__(self):
+        return "<{0}: {1} ({2}B)>".format(self._name, self.value, self.size)
+
+    def __len__(self):
+        return len(self.value)
+
+    def __bytes__(self):
+        return bytes(self.value)
+
+    def __iter__(self):
+        for i in range(len(self.value)):
+            yield byte.from_int(self.value[i])
+
+    #-------------------------------------------------------------------------#
+    # Internal (should not be used by end users)                              #
+    #-------------------------------------------------------------------------#
+
+    def _update_value(self, content) -> None:
+        """Use this method to update a value within the code, so that nothing
+        is changed if ``fixed_value`` is set to True.
+
+        :param content: The content to set as a value..
+        """
+        if self._fixed_value:
+            log("Tried to modified field {0} but value is fixed.".format(self._name))
+            return
+        self.value = content
+        self._fixed_value = False # The property changes this value, we switch back
+
+    #--------------------------------------------------------------------------#
+    # Properties                                                               #
+    #--------------------------------------------------------------------------#
+
+    @property
+    def name(self) -> str:
+        return self._name
+    @name.setter
+    def name(self, name:str) -> None:
+        if isinstance(name, str):
+            self._name = name.lower()
+        else:
+            raise BOFProgrammingError("Field name should be a string.")
+
+    @property
+    def size(self) -> int:
+        return self._size
+    @size.setter
+    def size(self, size:int):
+        self._size = size
+        self._value = byte.resize(self._value, self._size)
+
+    @property
+    def value(self) -> bytes:
+        if self._bitfields:
+            bit_list = []
+            for bitfield in self._bitfields.values():
+                bit_list += bitfield.value
+            return byte.from_bit_list(bit_list)
+        else:
+            return self._value
+    @value.setter
+    def value(self, content) -> None:
+        if isinstance(content, bytes):
+            self._value = byte.resize(content, self.size)
+        elif isinstance(content, int):
+            self._value = byte.from_int(content, size=self.size)
+        elif isinstance(content, str) and content.isdigit():
+            self._value = bytes.fromhex(content)
+            self._value = byte.resize(self._value, self.size)
+        elif isinstance(content, str):
+            self._value = content.encode('utf-8')
+        else:
+            raise BOFProgrammingError("Field value should be bytes, str or int.")
+        # Bitfield management
+        if self._bitfields:
+            bit_list = byte.to_bit_list(self._value, size=sum(self._bitsizes))
+            cursor = 0
+            for bitfield in self._bitfields.values():
+                bitfield.value = bit_list[cursor:cursor+bitfield.size]
+                cursor += bitfield.size
+        self._fixed_value = True
+
+    @property
+    def is_length(self) -> bool:
+        return self._is_length
+    @is_length.setter
+    def is_length(self, value:bool) -> None:
+        self._is_length = value
+
+    @property
+    def bitfield(self) -> dict:
+        return self._bitfields
 
 ###############################################################################
 # Block representation within a frame                                         #
@@ -90,8 +226,8 @@ class BOFBlock(object):
             self._content.append(content)
             # Add the name of the block as a property to this instance
             if isinstance(content.name, list):
-                for subname in content.name:
-                    setattr(self, to_property(subname), content.subfield[subname])
+                for bitfield_name in content.name:
+                    setattr(self, to_property(bitfield_name), content.bitfield[bitfield_name])
                 setattr(self, to_property(" ".join(content.name)), content)
             elif len(content.name) > 0:
                 setattr(self, to_property(content.name), content)
@@ -153,12 +289,12 @@ class BOFBlock(object):
         """Add a property to the object using ``setattr``, should not be used
         outside module.
 
-        :param name: Property name (string or list if field has subfields)
+        :param name: Property name (string or list if field has bit fields)
         :param pointer: The object the property refers to.
         """
         if isinstance(name, list):
-            for subname in name:
-                setattr(self, to_property(subname), pointer.subfield[subname])
+            for bitfield_name in name:
+                setattr(self, to_property(bitfield_name), pointer.bitfield[bitfield_name])
         elif len(name) > 0:
             setattr(self, to_property(name), pointer)
 

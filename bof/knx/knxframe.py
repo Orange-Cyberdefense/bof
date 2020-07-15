@@ -32,7 +32,6 @@ from textwrap import indent
 from ..base import BOFProgrammingError, to_property, log
 from ..frame import BOFFrame, BOFBlock, BOFField, BOFBitField
 from ..spec import BOFSpec
-from ..network import UDPField # TODO
 from .. import byte
 
 ###############################################################################
@@ -66,7 +65,7 @@ class KnxSpec(BOFSpec):
 KNXFIELDSEP = ","
 
 # TODO
-class KnxField(UDPField, BOFField):
+class KnxField(BOFField):
     """A ``KnxField`` is a set of raw bytes with a name, a size and a content
     (``value``).
 
@@ -146,10 +145,6 @@ class KnxField(UDPField, BOFField):
             else:
                 self.__value = byte.int_to_bit_list(i, size=self.size)
 
-    __name:str
-    __is_length:bool
-    __subsizes:list
-    __subfields:list
 
     def __init__(self, **kwargs):
         """Initialize the field according to a set of keyword arguments.
@@ -159,16 +154,10 @@ class KnxField(UDPField, BOFField):
                                      ``__set_subfields``).
         """
         super().__init__(**kwargs)
-        # Inherited from UDPField
-        self._size = int(kwargs["size"]) if "size" in kwargs else self._size
-        # KnxField initialization
-        self.__name = kwargs["name"].lower() if "name" in kwargs else ""
-        self.__subfields = None
         # Case field is separate into bitfields (2B split in fields of 4b & 12b)
-        if KNXFIELDSEP in self.__name:
-            self.__name = [x.strip() for x in self.__name.split(KNXFIELDSEP)] # Now it's a table
+        if KNXFIELDSEP in self._name:
+            self._name = [x.strip() for x in self._name.split(KNXFIELDSEP)] # Now it's a table
             self.__set_subfields(**kwargs)
-        self.__is_length = kwargs["is_length"] if "is_length" in kwargs else False
         if "default" in kwargs:
             self._update_value(kwargs["default"])
         elif "value" in kwargs:
@@ -188,113 +177,31 @@ class KnxField(UDPField, BOFField):
         :raises BOFProgrammingError: If subsize is invalid.
         """
         if "subsize" not in kwargs:
-            raise BOFProgrammingError("Fields with subfields shall have subsizes ({0})".format(self.__name))
-        self.__subsizes = [int(x) for x in kwargs["subsize"].split(KNXFIELDSEP)]
-        if len(self.__subsizes) != len(self.__name):
-            raise BOFProgrammingError("Subfield names do not match subsizes ({0}).".format(self.__name))
-        self.__subfields = {}
-        for i in range(len(self.__name)):
-            self.__subfields[self.__name[i]] = KnxField.KnxSubField(name=self.__name[i], size=self.__subsizes[i])
-
-    def __len__(self):
-        return len(self.value)
-
-    def __bytes__(self):
-        return bytes(self.value)
-
-    def __str__(self):
-        return "<{0}: {1} ({2}B)>".format(self.__name, self.value, self.size)
-
-    def __iter__(self):
-        for i in range(len(self.value)):
-            yield byte.from_int(self.value[i])
+            raise BOFProgrammingError("Fields with subfields shall have subsizes ({0})".format(self._name))
+        self._bitsizes = [int(x) for x in kwargs["subsize"].split(KNXFIELDSEP)]
+        if len(self._bitsizes) != len(self._name):
+            raise BOFProgrammingError("Subfield names do not match subsizes ({0}).".format(self._name))
+        self._bitfields = {}
+        for i in range(len(self._name)):
+            self._bitfields[self._name[i]] = KnxField.KnxSubField(name=self._name[i], size=self._bitsizes[i])
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
     #-------------------------------------------------------------------------#
 
     @property
-    def name(self) -> str:
-        return self.__name
-    @name.setter
-    def name(self, name:str) -> None:
-        if isinstance(name, str):
-            self.__name = name.lower()
-        else:
-            raise BOFProgrammingError("Field name should be a string.")
-
-    @property
-    def subfield(self) -> dict:
-        return self.__subfields
-
-    @property
     def value(self) -> bytes:
-        if self.__subfields:
-            bit_list = []
-            for subfield in self.__subfields.values():
-                bit_list += subfield.value
-            return byte.from_bit_list(bit_list)
-        else:
-            return self._value
+        return super().value
     @value.setter
     def value(self, content) -> None:
-        """Set ``content`` to value according to 3 types of data: byte array,
-        integer or string representation of an IPv4 address.
-        
-        Sets ``fixed_value`` to True to avoid rechanging the value automatically
-        using length updated.
-
-        Example::
-
-            field.value = "192.168.1.1"
-        """
-        if isinstance(content, bytes):
-            self._value = byte.resize(content, self.size)
-        elif isinstance(content, str) and content.isdigit():
-            self._value = bytes.fromhex(content)
-            self._value = byte.resize(self._value, self.size)
-        elif isinstance(content, str):
-            # Check if IPv4:
+        # Check if IPv4:
+        if isinstance(content, str):
             try:
                 ip_address(content)
-                self._value = byte.from_ipv4(content)
+                content = byte.from_ipv4(content)
             except ValueError:
-                self._value = content.encode('utf-8')
-        elif isinstance(content, int):
-            self._value = byte.from_int(content, size=self.size)
-        else:
-            raise BOFProgrammingError("Field value should be bytes, str or int.")
-        self.fixed_value = True
-        # If value is changed but contains subfields, we have to change
-        # the subfield values too
-        if self.__subfields:
-            bit_list = byte.to_bit_list(self._value, size=sum(self.__subsizes))
-            cursor = 0
-            for subfield in self.__subfields.values():
-                subfield.value = bit_list[cursor:cursor+subfield.size]
-                cursor += subfield.size
-    @property
-    def is_length(self) -> bool:
-        return self.__is_length
-    @is_length.setter
-    def is_length(self, value:bool) -> None:
-        self.__is_length = value
-
-    #-------------------------------------------------------------------------#
-    # Internal (should not be used by end users)                              #
-    #-------------------------------------------------------------------------#
-
-    def _update_value(self, content) -> None:
-        """Change the value according to automated updated from within the code
-        si that nothing is changed in ``fixed_value`` is set to True.
-
-        :param content: A byte array, an integer, or an IPv4 string.
-        """
-        if self.fixed_value:
-            log("Tried to modified field {0} but value is fixed.".format(self.__name))
-            return
-        self.value = content
-        self.fixed_value = False # Property changes this value, we switch back
+                pass
+        super(KnxField, self.__class__).value.fset(self, content)
 
 #-----------------------------------------------------------------------------#
 # KNX blocks (set of fields) representation                                   #
