@@ -15,8 +15,7 @@ We assume that a frame has the following structure:
 from textwrap import indent
 
 from .base import BOFProgrammingError, to_property, log
-from .spec import SEPARATOR
-from . import byte
+from . import byte, spec
 
 ###############################################################################
 # Bit field representation within a field                                     #
@@ -149,12 +148,12 @@ class BOFField(object):
         """
         self._bitfields = None
         self._bitsizes = None
-        if not SEPARATOR in self._name:
+        if not spec.SEPARATOR in self._name:
             return
         if "bitsizes" not in kwargs:
             raise BOFProgrammingError("Fields with bit fields shall have bitsizes ({0}).".format(self._name))
-        self._name = [x.strip() for x in self._name.split(SEPARATOR)] # Now it's a table
-        self._bitsizes = [int(x) for x in kwargs["bitsizes"].split(SEPARATOR)]
+        self._name = [x.strip() for x in self._name.split(spec.SEPARATOR)] # Now it's a table
+        self._bitsizes = [int(x) for x in kwargs["bitsizes"].split(spec.SEPARATOR)]
         if len(self._bitsizes) != len(self._name):
             raise BOFProgrammingError("Bitfield names do not match bitsizes ({0}).".format(self._name))
         self._bitfields = {}

@@ -28,15 +28,19 @@ import json
 
 from .base import BOFLibraryError, to_property
 
+###############################################################################
+# JSON specification file constants                                           #
+###############################################################################
+
 #-----------------------------------------------------------------------------#
-# JSON file constants                                                         #
+# Global structure                                                            #
 #-----------------------------------------------------------------------------#
 
 SEPARATOR = ","
 
-#-----------------------------------------------------------------------------#
+###############################################################################
 # JSON file management functions                                              #
-#-----------------------------------------------------------------------------#
+###############################################################################
 
 def load_json(filename:str) -> dict:
     """Loads a JSON file and returns the associated dictionary.
@@ -47,11 +51,11 @@ def load_json(filename:str) -> dict:
         with open(filename, 'r') as jsonfile:
             return json.load(jsonfile)
     except Exception as e:
-        raise BOFLibraryError("JSON File {0} cannot be used.".format(filename)) #from None
+        raise BOFLibraryError("JSON File {0} cannot be used.".format(filename)) from None
 
-#-----------------------------------------------------------------------------#
+###############################################################################
 # BOF Specification object                                                    #
-#-----------------------------------------------------------------------------#
+###############################################################################
 
 class BOFSpec(object):
     """Singleton containing the data related to a protocol's specification,

@@ -19,7 +19,7 @@
 	"PropWrite.req": {"id": "F6", "type": "DP_cEMI"},
 	"PropWrite.con": {"id": "F5", "type": "DP_cEMI"}
     },
-    "blocktypes": {
+    "blocks": {
 	"HEADER": [
 	    {"name": "header length", "type": "field", "size": 1, "is_length": true},
 	    {"name": "protocol version", "type": "field", "size": 1, "default": "10"},

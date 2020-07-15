@@ -62,9 +62,6 @@ class KnxSpec(BOFSpec):
 # KNX fields (byte or byte array) representation                              #
 #-----------------------------------------------------------------------------#
 
-KNXFIELDSEP = ","
-
-# TODO
 class KnxField(BOFField):
     """A ``KnxField`` is a set of raw bytes with a name, a size and a content
     (``value``). Inherits ``BOFField``.
@@ -135,15 +132,15 @@ class KnxBlock(BOFBlock):
         super().__init__(**kwargs)
         specs = KnxSpec()
         if "type" in kwargs:
-            if not kwargs["type"].upper() in specs.blocktypes.keys():
+            if not kwargs["type"].upper() in specs.blocks.keys():
                 raise BOFProgrammingError("Unknown block type ({0})".format(kwargs["type"]))
             self.name = self.name if len(self.name) else kwargs["type"]
-            self.append(self.factory(template=specs.blocktypes[kwargs["type"].upper()]))
+            self.append(self.factory(template=specs.blocks[kwargs["type"].upper()]))
         elif "cemi" in kwargs:
             if not kwargs["cemi"] in specs.cemis.keys():
                 raise BOFProgrammingError("cEMI is unknown ({0})".format(kwargs["cemi"]))
             self.name = self.name if len(self.name) else "cemi"
-            self.append(self.factory(template=specs.blocktypes[specs.cemis[kwargs["cemi"]]["type"]]))
+            self.append(self.factory(template=specs.blocks[specs.cemis[kwargs["cemi"]]["type"]]))
             self.message_code.value = bytes.fromhex(specs.cemis[kwargs["cemi"]]["id"])
 
     #-------------------------------------------------------------------------#
@@ -193,7 +190,7 @@ class KnxBlock(BOFBlock):
         Example::
 
             block = KnxBlock(name="new block")
-            block.append(KnxBlock.factory(template=KnxSpec().blocktypes["HPAI"]))
+            block.append(KnxBlock.factory(template=KnxSpec().blocks["HPAI"]))
         """
         blocklist = []
         specs = KnxSpec()
@@ -209,9 +206,9 @@ class KnxBlock(BOFBlock):
                 blocklist.append(KnxField(**template))
             elif template["type"] == "cemi":
                 blocklist.append(cls(cemi=cemi))
-            elif template["type"] in specs.blocktypes.keys():
+            elif template["type"] in specs.blocks.keys():
                 nestedblock = cls(name=template["name"])
-                content = specs.blocktypes[template["type"]]
+                content = specs.blocks[template["type"]]
                 nestedblock.append(cls.create_from_template(content, cemi, optional))
                 blocklist.append(nestedblock)
             else:
@@ -251,8 +248,6 @@ class KnxFrame(BOFFrame):
     - The frame body contains one or more blocks and varies according to
       the type of KNX message (defined in header).
 
-    :param source: Source address of the frame with format tuple 
-                   ``(ip:str, port:int)``.
     :param raw: Raw byte array used to build a KnxFrame object.
     :param header: Frame header as a ``KnxBlock`` object.
     :param body: Frame body as a ``KnxBlock`` which can also contain a set
@@ -265,9 +260,6 @@ class KnxFrame(BOFFrame):
 
     **KNX Standard v2.1 03_08_02**
     """
-    __source:tuple
-    __specs:KnxSpec
-
     # TODO
     def __init__(self, **kwargs):
         """Initialize a KnxFrame object from various origins using values from
@@ -292,15 +284,12 @@ class KnxFrame(BOFFrame):
         :param optional: Boolean, set to True if we want to create a frame with
                          optional fields (from spec).
         :param frame: Raw bytearray used to build a KnxFrame object.
-        :param source: Source address of a frame, as a tuple (ip;str, port:int)
-                       Only used is param `frame` is set.
         """
         super().__init__()
         # We do not use BOFFrame.append() because we use properties (not attrs)
+        specs = KnxSpec()
         self._blocks["header"] = KnxBlock(type="header")
         self._blocks["body"] = KnxBlock(name="body")
-        self.__specs = KnxSpec()
-        self.__source = kwargs["source"] if "source" in kwargs else ("",0)
         if "type" in kwargs:
             cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
@@ -308,8 +297,7 @@ class KnxFrame(BOFFrame):
             log("Created new frame from service identifier {0}".format(kwargs["type"]))
         elif "frame" in kwargs:
             self.build_from_frame(kwargs["frame"])
-            log("Created new frame from byte array {0} (source: {1})".format(kwargs["frame"],
-                                                                             self.__source))
+            log("Created new frame from byte array {0}.".format(kwargs["frame"]))
         # Update total frame length in header
         self.update()
 
@@ -338,17 +326,18 @@ class KnxFrame(BOFFrame):
             frame.build_from_sid("DESCRIPTION REQUEST")
         """
         # If sid is bytes, replace the id (as bytes) by the service name
+        specs = KnxSpec()
         if isinstance(sid, bytes):
-            for service in self.__specs.service_identifiers:
-                if bytes.fromhex(self.__specs.service_identifiers[service]["id"]) == sid:
+            for service in specs.service_identifiers:
+                if bytes.fromhex(specs.service_identifiers[service]["id"]) == sid:
                     sid = service
                     break
         # Now check that the service id exists and has an associated body
         if isinstance(sid, str):
-            if sid not in self.__specs.bodies:
+            if sid not in specs.bodies:
                 # Try with underscores (Ex: DESCRIPTION_REQUEST)
-                if sid in [to_property(x) for x in self.__specs.bodies]:
-                    for body in self.__specs.bodies:
+                if sid in [to_property(x) for x in specs.bodies]:
+                    for body in specs.bodies:
                         if sid == to_property(body):
                             sid = body
                             break
@@ -356,13 +345,13 @@ class KnxFrame(BOFFrame):
                     raise BOFProgrammingError("Service {0} does not exist.".format(sid))
         else:
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        self._blocks["body"].append(KnxBlock.factory(template=self.__specs.bodies[sid],
+        self._blocks["body"].append(KnxBlock.factory(template=specs.bodies[sid],
                                             cemi=cemi, optional=optional))
         # Add fields names as properties to body :)
         for field in self._blocks["body"].fields:
             self._blocks["body"]._add_property(field.name, field)
-            if sid in self.__specs.service_identifiers.keys():
-                value = bytes.fromhex(self.__specs.service_identifiers[sid]["id"])
+            if sid in specs.service_identifiers.keys():
+                value = bytes.fromhex(specs.service_identifiers[sid]["id"])
                 self._blocks["header"].service_identifier._update_value(value)
         self.update()
 
@@ -382,14 +371,15 @@ class KnxFrame(BOFFrame):
             frame = KnxFrame(frame=data, source=address)
 
         """
+        specs = KnxSpec()
         # HEADER
         self._blocks["header"] = KnxBlock(type="HEADER", name="header")
         self._blocks["header"].fill(frame[:frame[0]])
         blocklist = None
-        for service in self.__specs.service_identifiers:
-            attributes = self.__specs.service_identifiers[service]
+        for service in specs.service_identifiers:
+            attributes = specs.service_identifiers[service]
             if bytes(self._blocks["header"].service_identifier) == bytes.fromhex(attributes["id"]):
-                blocklist = self.__specs.bodies[service]
+                blocklist = specs.bodies[service]
                 break
         if not blocklist:
             raise BOFProgrammingError("Unknown service identifier ({0})".format(self._blocks["header"].service_identifier.value))
@@ -401,8 +391,8 @@ class KnxFrame(BOFFrame):
             # If block is a cemi, we need its type before creating the structure
             cemi = frame[cursor:cursor+1] if block["type"] == "cemi" else None
             if cemi: # We get the name instead of the code
-                for cemi_type in self.__specs.cemis:
-                    attributes = self.__specs.cemis[cemi_type]
+                for cemi_type in specs.cemis:
+                    attributes = specs.cemis[cemi_type]
                     if cemi == bytes.fromhex(attributes["id"]):
                         cemi = cemi_type
                         break
@@ -445,8 +435,9 @@ class KnxFrame(BOFFrame):
         """Return the name associated to the frame's service identifier, or
         empty string if it is not set.
         """
-        for service in self.__specs.service_identifiers:
-            attributes = self.__specs.service_identifiers[service]
+        specs = KnxSpec()
+        for service in specs.service_identifiers:
+            attributes = specs.service_identifiers[service]
             if bytes(self._blocks["header"].service_identifier) == bytes.fromhex(attributes["id"]):
                 return service
         return str(self._blocks["header"].service_identifier.value)
@@ -454,8 +445,9 @@ class KnxFrame(BOFFrame):
     @property
     def cemi(self) -> str:
         """Return the type of cemi, if any."""
+        specs = KnxSpec()
         if "cemi" in self._blocks["body"].attributes:
-            for cemi in self.__specs.cemis:
-                if bytes(self._blocks["body"].cemi.message_code) == bytes.fromhex(self.__specs.cemis[cemi]["id"]):
+            for cemi in specs.cemis:
+                if bytes(self._blocks["body"].cemi.message_code) == bytes.fromhex(specs.cemis[cemi]["id"]):
                     return cemi
         return ""
