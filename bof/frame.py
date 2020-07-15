@@ -15,6 +15,7 @@ We assume that a frame has the following structure:
 from textwrap import indent
 
 from .base import BOFProgrammingError, to_property, log
+from .spec import SEPARATOR
 from . import byte
 
 ###############################################################################
@@ -22,7 +23,69 @@ from . import byte
 ###############################################################################
 
 class BOFBitField(object):
-    pass
+    """As we don't know how to handle bit fields that are not at least one
+    byte-long, we create fields that are not complete bytes (ex: 4bits)
+    inside a ``BOFField``, represented as ``BOFBitField`` objects.
+
+    For instance, a field of 4bits and one of 12bits are merged into one byte
+    field of 2 bytes (16bits).
+
+    The use of bit fields involves changes to the definition of fields in a
+    JSON specification file. The name field is divided into a list, and the
+    keyword ``bitsizes`` is introduced.::
+    
+        {"name": "field1, field2", "type": "field", "size": 2, "bitsizes": "4, 12"}
+
+    The attribute ``bitsizes`` shall match the field list from ``name``.
+    Here, we indicate that the field is divided into 2 bit fields: 
+    ``field1`` is 4 bits-long, ``field2`` is 12 bits long. When referring
+    to the field from anywhere else in the code, they should be treated as
+    independent fields.
+
+    The use of BOFBitFields instead of BOFField should not be seen by the
+    end-user: Bit fields are referred to as normal properties named ``field1``
+    and ``field2``, independent, that return values as bit lists.
+
+    In a ``BOFField``, we then have a ``bitfields`` list that contains a
+    set of ``BOFBitField`` objects. The ``BOFField`` object has name
+    ``["field1", "field2"]`` (name is a list, that's how we know it has bit
+    fields). A property to refer to the main field, that returns the value of the
+    complete byte array, is created with a name such as ``field1_field2``.
+
+    Finally, values are calculated in bits instead of bytes, the translation
+    between bit fields and byte array (when they are manipulated in frames)
+    shall not be the problem of the enduser::
+
+        >>> response.body.cemi.field1.value
+        [0, 0, 0, 1]
+        >>> response.body.cemi.field2.value
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        >>> response.body.cemi.field1_field2.value
+        b'\\x10\\x01' # Stands for 0001 0000 0000 0001
+    """
+    name:str
+    size:int
+    __value:list # Bit list
+
+    def __init__(self, name:str, size:int, value=0):
+        self.name = name
+        self.size = size
+        self.value = value
+
+    def __str__(self):
+        return "<{0}: {1} ({2}b)>".format(self.name, self.value, self.size)
+
+    @property
+    def value(self) -> list:
+        return self.__value
+    @value.setter
+    def value(self, i):
+        """Change value, so far we only consider big endian."""
+        if isinstance(i, list):
+            self.__value = i
+        else:
+            self.__value = byte.int_to_bit_list(i, size=self.size)
+
 
 ###############################################################################
 # Field representation within a block                                         #
@@ -69,9 +132,34 @@ class BOFField(object):
         self._is_length = kwargs["is_length"] if "is_length" in kwargs else False
         self._fixed_size = kwargs["fixed_size"] if "fixed_size" in kwargs else False
         self._fixed_value = kwargs["fixed_value"] if "fixed_value" in kwargs else False
+        self._set_bitfields(**kwargs)
         # From now on, _update_value must be used to modify values within the code
+        if "value" in kwargs:
+            self._update_value(kwargs["value"])
+        elif "default" in kwargs:
+            self._update_value(kwargs["default"])
+        else:
+            self._update_value(bytes(self._size))
+
+    def _set_bitfields(self, **kwargs):
+        """If the field contains bitfields (name has format ``name1, ``name2``
+        and JSON definition of field contains ``bitsizes``, we set the 
+        attributes for bit field management accordingly (list of bit fields and
+        size of each bit field.
+        """
         self._bitfields = None
         self._bitsizes = None
+        if not SEPARATOR in self._name:
+            return
+        if "bitsizes" not in kwargs:
+            raise BOFProgrammingError("Fields with bit fields shall have bitsizes ({0}).".format(self._name))
+        self._name = [x.strip() for x in self._name.split(SEPARATOR)] # Now it's a table
+        self._bitsizes = [int(x) for x in kwargs["bitsizes"].split(SEPARATOR)]
+        if len(self._bitsizes) != len(self._name):
+            raise BOFProgrammingError("Bitfield names do not match bitsizes ({0}).".format(self._name))
+        self._bitfields = {}
+        for i in range(len(self._name)):
+            self._bitfields[self._name[i]] = BOFBitField(name=self._name[i], size=self._bitsizes[i])
 
     def __str__(self):
         return "<{0}: {1} ({2}B)>".format(self._name, self.value, self.size)

@@ -67,123 +67,14 @@ KNXFIELDSEP = ","
 # TODO
 class KnxField(BOFField):
     """A ``KnxField`` is a set of raw bytes with a name, a size and a content
-    (``value``).
-
-    :param name: Name of the field, to be referred to using a property.
-    :param size: Size of the field (number of bytes), from ``UDPField``.
-    :param value: Value contained in the field (in bytes), from ``UDPFIield``.
-    :param fixed_size: Set to ``True`` if the ``size`` should not be modified
-                       automatically when changing the value (``UDPField``).
-    :param fixed_value: Set to ``True`` if the ``value`` should not be
-                        modified automatically inside the module (``UDPField``).
-    :param is_length: This boolean states if the field is the length field of
-                      the block. If True, this value is updated when a field
-                      in the block changes (except if this field has arg
-                      ``fixed_value`` set to True.
-    :param subsizes: If the field is in fact a merge of bit fields (a field
-                     usually works only with bytes), this parameter states
-                     the size in bits of subfields.
+    (``value``). Inherits ``BOFField``.
 
     Instantiate::
 
         KnxField(name="header length", size=1, default="06")
 
-    As we don't know how to handle bit fields that are not at least one
-    byte-long, we can create fields that are not complete bytes (ex: 4bits)
-    inside a ``KnxField``. For instance, a field of 4bits and one of 12bits
-    are merged into one byte field of 2 bytes (16bits).
-        
-    ``KnxField`` definition in the JSON spec file has the following format
-    if such subfields exist::
-    
-        {"name": "field1, field2", "type": "field", "size": 2, "subsize": "4, 12"}
-    
-    The new attribute ``subsize`` shall match the field list from name.
-    Here, we indicate that the field is divided into 2 bit fields: 
-    ``field1`` is 4 bits-long, ``field2`` is 12 bits long. When referring
-    to the field from anywhere else in the code, they should be treated as
-    independent fields.
-    Subfield are referred to as normal properties named ``field1`` and ``field2``
-    independently that return values as bit lists.
-    A property to refer to the main field, that returns the value of the complete
-    byte array, is created with a name such as ``field1_field2``::
-
-        >>> response.body.cemi.field1.value
-        [0, 0, 0, 1]
-        >>> response.body.cemi.field2.value
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-        >>> response.body.cemi.field1_field2.value
-        b'\\x10\\x01' # Stands for 0001 0000 0000 0001
-
-    In a ``KnxField``, we then have a ``subfields`` dictionary that contains a
-    set of ``KnxSubField`` objects, which is an inner class of ``KnxField``.
-    Values are calculated in bits instead of bytes, the translation between bit
-    fields and byte array (when they are manipulated in frames.) shall not be
-    the problem of the user.
-
     **KNX Standard v2.1 03_08_02**
     """
-    class KnxSubField(object):
-        """Special KNX subfield with bit list values instead of bytes."""
-        name:str
-        size:int
-        __value:list
-        def __init__(self, name, size, value=0):
-            self.name = name
-            self.size = size
-            self.value = value
-        def __str__(self):
-            return "<{0}: {1} ({2}b)>".format(self.name, self.value, self.size)
-        @property
-        def value(self) -> list:
-            return self.__value
-        @value.setter
-        def value(self, i):
-            """Change value, so far we only consider big endian."""
-            if isinstance(i, list):
-                self.__value = i
-            else:
-                self.__value = byte.int_to_bit_list(i, size=self.size)
-
-
-    def __init__(self, **kwargs):
-        """Initialize the field according to a set of keyword arguments.
-
-        :raises BOFProgrammingError: If the field has subfields but their
-                                     definition is invalid (details in
-                                     ``__set_subfields``).
-        """
-        super().__init__(**kwargs)
-        # Case field is separate into bitfields (2B split in fields of 4b & 12b)
-        if KNXFIELDSEP in self._name:
-            self._name = [x.strip() for x in self._name.split(KNXFIELDSEP)] # Now it's a table
-            self.__set_subfields(**kwargs)
-        if "default" in kwargs:
-            self._update_value(kwargs["default"])
-        elif "value" in kwargs:
-            self._update_value(kwargs["value"])
-        else:
-            self._update_value(bytes(self._size)) # Empty bytearray
-
-    def __set_subfields(self, **kwargs):
-        """If field (byte) contains subfields (bit), we check that the name list
-        and the subsizes match and set the value accordingly using bit to byte
-        and byte to bit conversion fuctions. We use bit list instead to make it
-        easier (for slices). Item stored in subfield dictionary referred to as
-        a name which is called from the rest of the code and by the end user as a
-        property like any other regular field.
-
-        :param subsize: Size list (in bits), as a string.
-        :raises BOFProgrammingError: If subsize is invalid.
-        """
-        if "subsize" not in kwargs:
-            raise BOFProgrammingError("Fields with subfields shall have subsizes ({0})".format(self._name))
-        self._bitsizes = [int(x) for x in kwargs["subsize"].split(KNXFIELDSEP)]
-        if len(self._bitsizes) != len(self._name):
-            raise BOFProgrammingError("Subfield names do not match subsizes ({0}).".format(self._name))
-        self._bitfields = {}
-        for i in range(len(self._name)):
-            self._bitfields[self._name[i]] = KnxField.KnxSubField(name=self._name[i], size=self._bitsizes[i])
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -194,8 +85,8 @@ class KnxField(BOFField):
         return super().value
     @value.setter
     def value(self, content) -> None:
-        # Check if IPv4:
         if isinstance(content, str):
+            # Check if content is an IPv4 address (A.B.C.D):
             try:
                 ip_address(content)
                 content = byte.from_ipv4(content)
