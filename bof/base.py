@@ -6,7 +6,6 @@
 """
 
 import logging
-import json
 from datetime import datetime
 from re import sub
 
@@ -101,21 +100,6 @@ def log(message:str, level:str="INFO") -> bool:
             raise BOFProgrammingError("Invalid logging level")
         logging.log(level, message)
     return _LOGGING_ENABLED
-
-###############################################################################
-# BOF JSON FILE HANDLING                                                      #
-###############################################################################
-
-def load_json(filename:str) -> dict:
-    """Loads a JSON file and returns the associated dictionary.
-
-    :raises BOFLibraryError: if the file cannot be opened.
-    """
-    try:
-        with open(filename, 'r') as jsonfile:
-            return json.load(jsonfile)
-    except Exception as e:
-        raise BOFLibraryError("JSON File {0} cannot be used.".format(filename)) from None
 
 ###############################################################################
 # STRING MANIPULATION                                                         #

@@ -38,3 +38,4 @@ from .base import *
 from .network import *
 from .frame import *
 from .byte import * 
+from .spec import *
