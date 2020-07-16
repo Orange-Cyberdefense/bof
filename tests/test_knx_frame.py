@@ -75,8 +75,12 @@ class Test01KnxSpecTesting(unittest.TestCase):
         self.assertEqual(name, "DESCRIPTION REQUEST")
     def test_03_get_template_from_body(self):
         """Test that we can retrieve the frame template associated to a body name."""
-        template = knx.KnxSpec().get_template_from_body("description request")        
+        template = knx.KnxSpec().get_body_template("description request")        
         self.assertEqual(isinstance(template, list), True)
+    def test_04_get_cemi_name(self):
+        """Test that we can retrieve the name of a cEMI from its message code."""
+        cemi = knx.KnxSpec().get_cemi_name(b"\xfc")
+        self.assertEqual(cemi, "PropRead.req")
 
 class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
     """Test class for advanced header fields handling and altering."""

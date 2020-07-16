@@ -76,9 +76,15 @@ class KnxSpec(BOFSpec):
                     return service
         return None
 
-    def get_template_from_body(self, name:str) -> list:
+    def get_body_template(self, name:str) -> list:
         """Returns a template associated to a body, as a list, or None."""
         return self.__get_dict_value(self.bodies, name)
+
+    def get_cemi_name(self, cid:bytes) -> str:
+        """Returns the name of the cemi withid ``cid``."""
+        if isinstance(cid, bytes):
+            return self.__get_dict_key(self.cemis, "id", cid)
+        return None
 
     #-------------------------------------------------------------------------#
     # Internals                                                               #
@@ -336,8 +342,6 @@ class KnxFrame(BOFFrame):
         :param bytes: Raw bytearray used to build a KnxFrame object.
         """
         super().__init__()
-        # We do not use BOFFrame.append() because we use properties (not attrs)
-        specs = KnxSpec()
         self._blocks["header"] = KnxBlock(type="header")
         self._blocks["body"] = KnxBlock(name="body")
         if "type" in kwargs:
@@ -355,7 +359,6 @@ class KnxFrame(BOFFrame):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    # TODO
     def build_from_sid(self, sid, cemi:str=None, optional:bool=False) -> None:
         """Fill in the KnxFrame object according to a predefined frame format
         corresponding to a service identifier. The frame format (blocks
@@ -377,19 +380,20 @@ class KnxFrame(BOFFrame):
         """
         if not isinstance(sid, bytes) and not isinstance(sid, str):
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        # Now check that the service id exists and has an associated body
         spec = KnxSpec()
+        # Get data associated service identifier
         sid = spec.get_service_name(sid)
         if not sid or sid not in spec.bodies:
             raise BOFProgrammingError("Service {0} does not exist.".format(sid))
-        self._blocks["body"].append(KnxBlock.factory(template=spec.bodies[sid],
-                                            cemi=cemi, optional=optional))
+        template = spec.get_body_template(sid)
+        # Create KnxBlock according to template
+        self._blocks["body"].append(KnxBlock.factory(
+            template=template, cemi=cemi, optional=optional))
         # Add fields names as properties to body :)
         for field in self._blocks["body"].fields:
             self._blocks["body"]._add_property(field.name, field)
-            if sid in spec.service_identifiers.keys():
-                value = bytes.fromhex(spec.service_identifiers[sid]["id"])
-                self._blocks["header"].service_identifier._update_value(value)
+        # Update header
+        self._blocks["header"].service_identifier._update_value(spec.get_service_id(sid))
         self.update()
 
     # TODO
@@ -408,31 +412,21 @@ class KnxFrame(BOFFrame):
             frame = KnxFrame(frame=data, source=address)
 
         """
-        specs = KnxSpec()
-        # HEADER
-        self._blocks["header"] = KnxBlock(type="HEADER", name="header")
-        self._blocks["header"].fill(frame[:frame[0]])
-        blocklist = None
-        for service in specs.service_identifiers:
-            attributes = specs.service_identifiers[service]
-            if bytes(self._blocks["header"].service_identifier) == bytes.fromhex(attributes["id"]):
-                blocklist = specs.bodies[service]
-                break
-        if not blocklist:
-            raise BOFProgrammingError("Unknown service identifier ({0})".format(self._blocks["header"].service_identifier.value))
+        spec = KnxSpec()
+        # Fill in the header and retrieve information about the frame.
+        header_length = frame[0]
+        self._blocks["header"].fill(frame[:header_length]) # TODO
+        sid = spec.get_service_name(self._blocks["header"].service_identifier.value)
+        template = spec.get_body_template(sid)
+        if not template:
+            raise BOFProgrammingError("Unknown service identifier ({0})".format(sid))
         # BODY
         cursor = frame[0] # We start at index len(header) (== 6)
-        for block in blocklist:
+        for block in template:
             if cursor >= len(frame):
                 break
             # If block is a cemi, we need its type before creating the structure
-            cemi = frame[cursor:cursor+1] if block["type"] == "cemi" else None
-            if cemi: # We get the name instead of the code
-                for cemi_type in specs.cemis:
-                    attributes = specs.cemis[cemi_type]
-                    if cemi == bytes.fromhex(attributes["id"]):
-                        cemi = cemi_type
-                        break
+            cemi = spec.get_cemi_name(frame[cursor:cursor+1]) if block["type"] == "cemi" else None
             # factory returns a list but we only expect one item
             block_object = KnxBlock.factory(template=block,cemi=cemi)[0]
             if isinstance(block_object, KnxField):
@@ -472,19 +466,10 @@ class KnxFrame(BOFFrame):
         """Return the name associated to the frame's service identifier, or
         empty string if it is not set.
         """
-        specs = KnxSpec()
-        for service in specs.service_identifiers:
-            attributes = specs.service_identifiers[service]
-            if bytes(self._blocks["header"].service_identifier) == bytes.fromhex(attributes["id"]):
-                return service
-        return str(self._blocks["header"].service_identifier.value)
+        sid = KnxSpec().get_service_name(self._blocks["header"].service_identifier.value)
+        return sid if sid else str(self._blocks["header"].service_identifier.value)
 
     @property
     def cemi(self) -> str:
         """Return the type of cemi, if any."""
-        specs = KnxSpec()
-        if "cemi" in self._blocks["body"].attributes:
-            for cemi in specs.cemis:
-                if bytes(self._blocks["body"].cemi.message_code) == bytes.fromhex(specs.cemis[cemi]["id"]):
-                    return cemi
-        return ""
+        KnxSpec().get_cemi_name(self._blocks["body"].cemi.message_code)
