@@ -256,6 +256,8 @@ class KnxBlock(BOFBlock):
         elif isinstance(template, dict):
             if "optional" in template.keys() and template["optional"] == True and not optional:
                 return blocklist
+            if "depends" in template.keys(): 
+                return blocklist # TODO
             if not "type" in template or template["type"] == "block":
                 blocklist.append(cls(**template))
             elif template["type"] == "field":
@@ -413,29 +415,41 @@ class KnxFrame(BOFFrame):
 
         """
         spec = KnxSpec()
+        header = frame[:frame[0]]
+        body = frame[frame[0]:]
         # Fill in the header and retrieve information about the frame.
-        header_length = frame[0]
-        self._blocks["header"].fill(frame[:header_length]) # TODO
+        self._blocks["header"].fill(header) # TODO
         sid = spec.get_service_name(self._blocks["header"].service_identifier.value)
         template = spec.get_body_template(sid)
         if not template:
             raise BOFProgrammingError("Unknown service identifier ({0})".format(sid))
         # BODY
-        cursor = frame[0] # We start at index len(header) (== 6)
+        cursor = 0 # We start at index len(header) (== 6)
         for block in template:
-            if cursor >= len(frame):
+            if cursor >= len(block):
                 break
-            # If block is a cemi, we need its type before creating the structure
-            cemi = spec.get_cemi_name(frame[cursor:cursor+1]) if block["type"] == "cemi" else None
-            # factory returns a list but we only expect one item
-            block_object = KnxBlock.factory(template=block,cemi=cemi)[0]
-            if isinstance(block_object, KnxField):
-                block_object.value = frame[cursor:cursor+block_object.size]
-                cursor += block_object.size
+            if block["type"] == "field":
+                entry = KnxField(**block)
+                entry.value = body[cursor:cursor+entry.size]
             else:
-                block_object.fill(frame[cursor:cursor+frame[cursor]])
-                cursor += frame[cursor]
-            self._blocks["body"].append(block_object)
+                entry = KnxBlock(**block, bytes=body[cursor:])
+            self._blocks["body"].append(entry)
+            cursor += len(block)
+
+        # for block in template:
+        #     if cursor >= len(body):
+        #         break
+            # # If block is a cemi, we need its type before creating the structure
+            # cemi = spec.get_cemi_name(body[cursor:cursor+1]) if block["type"] == "cemi" else None
+            # # factory returns a list but we only expect one item
+            # # block_object = KnxBlock.factory(template=block,cemi=cemi)[0]
+            # if isinstance(block_object, KnxField):
+            #     block_object.value = body[cursor:cursor+block_object.size]
+            #     cursor += block_object.size
+            # else:
+            #     block_object.fill(body[cursor:cursor+frame[cursor]])
+            #     cursor += body[cursor]
+            # self._blocks["body"].append(block_object)
 
     def update(self):
         """Update all fields corresponding to block lengths.

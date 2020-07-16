@@ -56,10 +56,11 @@
 	"CRI_CRD": [
 	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
 	    {"name": "connection type code", "type": "field", "size": 1},
-	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
-	    {"name": "port", "type": "field", "size": 2, "optional": true},
-	    {"name": "ip address 2", "type": "field", "size": 4, "optional": true},
-	    {"name": "port 2", "type": "field", "size": 2, "optional": true}
+	    {"name": "ip address", "type": "field", "size": 4, "depends": "connection type code=03"},
+	    {"name": "port", "type": "field", "size": 2, "depends": "connection type code=03"},
+	    {"name": "ip address 2", "type": "field", "size": 4, "depends": "connection type code=03"},
+	    {"name": "port 2", "type": "field", "size": 2, "depends": "connection type code=03"},
+	    {"name": "knx_address", "type": "field", "size": 2, "depends": "connection type code=04"}
 	],
 	"DP_cEMI": [
 	    {"name": "message code", "type": "field", "size": 1},
