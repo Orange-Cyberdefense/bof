@@ -107,4 +107,4 @@ def log(message:str, level:str="INFO") -> bool:
 
 def to_property(value:str) -> str:
     """Replace all non alphanumeric characters in a string with ``_``"""
-    return sub('[^0-9a-zA-Z]+', '_', value)
+    return sub('[^0-9a-zA-Z]+', '_', value.lower())

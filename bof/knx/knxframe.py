@@ -54,6 +54,56 @@ class KnxSpec(BOFSpec):
             filepath = path.join(path.dirname(path.realpath(__file__)), KNXSPECFILE)
         super().__init__(filepath)
 
+    #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#
+
+    def get_service_id(self, name:str) -> bytes:
+        """Returns the content of parameter ``id`` for a given service
+        identifier name in KNX spec JSON file.
+        """
+        value = self.__get_dict_value(self.service_identifiers, name)
+        return bytes.fromhex(value["id"]) if value else None
+
+    def get_service_name(self, sid:bytes) -> str:
+        """Returns the name of the service identifier with id ``sid``."""
+        if isinstance(sid, bytes):
+            return self.__get_dict_key(self.service_identifiers, "id", sid)
+        if isinstance(sid, str):
+            sid = to_property(sid)
+            for service in self.service_identifiers:
+                if sid == to_property(service):
+                    return service
+        return None
+
+    def get_template_from_body(self, name:str) -> list:
+        """Returns a template associated to a body, as a list, or None."""
+        return self.__get_dict_value(self.bodies, name)
+
+    #-------------------------------------------------------------------------#
+    # Internals                                                               #
+    #-------------------------------------------------------------------------#
+
+    def __get_dict_value(self, dictionary:dict, key:str) -> object:
+        """Return the value associated to a key from a given dictionary. Key
+        is insensitive, the value can have different types. Must be called
+        inside class only.
+        """
+        key = to_property(key)
+        for entry in dictionary:
+            if to_property(entry) == key:
+                return dictionary[entry]
+        return None
+
+    def __get_dict_key(self, dictionary:dict, inner_key:str, value:object) -> str:
+        """Return the key associated to a value from a given dictionary inside a
+        dictionary. Must be called inside class only.
+        """
+        for entry in dictionary:
+            if bytes.fromhex(dictionary[entry][inner_key]) == value:
+                return entry
+        return None
+
 ###############################################################################
 # KNX FRAME CONTENT                                                           #
 ###############################################################################
@@ -283,7 +333,7 @@ class KnxFrame(BOFFrame):
                     service identifier.
         :param optional: Boolean, set to True if we want to create a frame with
                          optional fields (from spec).
-        :param frame: Raw bytearray used to build a KnxFrame object.
+        :param bytes: Raw bytearray used to build a KnxFrame object.
         """
         super().__init__()
         # We do not use BOFFrame.append() because we use properties (not attrs)
@@ -295,9 +345,9 @@ class KnxFrame(BOFFrame):
             optional = kwargs["optional"] if "optional" in kwargs else False
             self.build_from_sid(kwargs["type"], cemi, optional)
             log("Created new frame from service identifier {0}".format(kwargs["type"]))
-        elif "frame" in kwargs:
-            self.build_from_frame(kwargs["frame"])
-            log("Created new frame from byte array {0}.".format(kwargs["frame"]))
+        elif "bytes" in kwargs:
+            self.build_from_frame(kwargs["bytes"])
+            log("Created new frame from byte array {0}.".format(kwargs["bytes"]))
         # Update total frame length in header
         self.update()
 
@@ -325,33 +375,20 @@ class KnxFrame(BOFFrame):
             frame = KnxFrame()
             frame.build_from_sid("DESCRIPTION REQUEST")
         """
-        # If sid is bytes, replace the id (as bytes) by the service name
-        specs = KnxSpec()
-        if isinstance(sid, bytes):
-            for service in specs.service_identifiers:
-                if bytes.fromhex(specs.service_identifiers[service]["id"]) == sid:
-                    sid = service
-                    break
-        # Now check that the service id exists and has an associated body
-        if isinstance(sid, str):
-            if sid not in specs.bodies:
-                # Try with underscores (Ex: DESCRIPTION_REQUEST)
-                if sid in [to_property(x) for x in specs.bodies]:
-                    for body in specs.bodies:
-                        if sid == to_property(body):
-                            sid = body
-                            break
-                else:
-                    raise BOFProgrammingError("Service {0} does not exist.".format(sid))
-        else:
+        if not isinstance(sid, bytes) and not isinstance(sid, str):
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        self._blocks["body"].append(KnxBlock.factory(template=specs.bodies[sid],
+        # Now check that the service id exists and has an associated body
+        spec = KnxSpec()
+        sid = spec.get_service_name(sid)
+        if not sid or sid not in spec.bodies:
+            raise BOFProgrammingError("Service {0} does not exist.".format(sid))
+        self._blocks["body"].append(KnxBlock.factory(template=spec.bodies[sid],
                                             cemi=cemi, optional=optional))
         # Add fields names as properties to body :)
         for field in self._blocks["body"].fields:
             self._blocks["body"]._add_property(field.name, field)
-            if sid in specs.service_identifiers.keys():
-                value = bytes.fromhex(specs.service_identifiers[sid]["id"])
+            if sid in spec.service_identifiers.keys():
+                value = bytes.fromhex(spec.service_identifiers[sid]["id"])
                 self._blocks["header"].service_identifier._update_value(value)
         self.update()
 

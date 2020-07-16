@@ -61,6 +61,23 @@ class Test01BasicKnxFrame(unittest.TestCase):
         frame.body.ip_address.value = ip
         self.assertEqual(bytes(frame.body), b"\x08\x01\x7f\x00\x00\x01\x00\x00")
 
+class Test01KnxSpecTesting(unittest.TestCase):
+    """Test class for KnxSpec public methods."""
+    def test_01_get_service_id(self):
+        """Test that we can get a service identifier from its name"""
+        sid = knx.KnxSpec().get_service_id("description request")
+        self.assertEqual(sid, b"\x02\x03")
+    def test_02_get_service_name(self):
+        """Test that we can get the name of a service identifier from its id."""
+        name = knx.KnxSpec().get_service_name(b"\x02\x03")        
+        self.assertEqual(name, "DESCRIPTION REQUEST")
+        name = knx.KnxSpec().get_service_name("DESCRIPTION_REQUEST")        
+        self.assertEqual(name, "DESCRIPTION REQUEST")
+    def test_03_get_template_from_body(self):
+        """Test that we can retrieve the frame template associated to a body name."""
+        template = knx.KnxSpec().get_template_from_body("description request")        
+        self.assertEqual(isinstance(template, list), True)
+
 class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
     """Test class for advanced header fields handling and altering."""
     def test_01_basic_knx_header_from_frame(self):
