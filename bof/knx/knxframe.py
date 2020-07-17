@@ -349,10 +349,10 @@ class KnxFrame(BOFFrame):
         if "type" in kwargs:
             cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
-            self.build_from_sid(kwargs["type"], cemi, optional)
+            self.format(kwargs["type"], cemi=cemi, optional=optional)
             log("Created new frame from service identifier {0}".format(kwargs["type"]))
         elif "bytes" in kwargs:
-            self.build_from_frame(kwargs["bytes"])
+            self.fill(kwargs["bytes"])
             log("Created new frame from byte array {0}.".format(kwargs["bytes"]))
         # Update total frame length in header
         self.update()
@@ -361,17 +361,22 @@ class KnxFrame(BOFFrame):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def build_from_sid(self, sid, cemi:str=None, optional:bool=False) -> None:
+    # TEST REQUIRED
+    def format(self, service, **kwargs) -> None:
         """Fill in the KnxFrame object according to a predefined frame format
         corresponding to a service identifier. The frame format (blocks
         and field) can be found or added in the KNX specification JSON file.
 
-        :param sid: Service identifier as a string (service name) or as a
-                    byte array (normally on 2 bytes but, whatever).
-        :param cemi: Type of cEMI if the blocks associated to ``sid`` have
-                     a cEMI field/structure.
-        :param optional: Boolean, set to True if we want to build the optional
-                         blocks/fields as stated in the specs.
+        :param service_id: Service identifier as a string (service name) or as a
+                           byte array (normally on 2 bytes but, whatever).
+
+        Keyword arguments:
+
+        :param *: Unrecognized params may be used later when creating blocks;
+                  if the param name matches with a field required to define
+                  how to build the rest of the block, its value will be used
+                  to shape the block accordingly.
+
         :raises BOFProgrammingError: If the service identifier cannot be found
                                      in given JSON file.
 
@@ -380,39 +385,36 @@ class KnxFrame(BOFFrame):
             frame = KnxFrame()
             frame.build_from_sid("DESCRIPTION REQUEST")
         """
-        if not isinstance(sid, bytes) and not isinstance(sid, str):
+        if not isinstance(service, bytes) and not isinstance(service, str):
             raise BOFProgrammingError("Service id should be a string or a bytearray.")
         spec = KnxSpec()
         # Get data associated service identifier
-        sid = spec.get_service_name(sid)
-        if not sid or sid not in spec.bodies:
-            raise BOFProgrammingError("Service {0} does not exist.".format(sid))
-        template = spec.get_body_template(sid)
+        service_name = spec.get_service_name(service)
+        if not service_name or service_name not in spec.bodies:
+            raise BOFProgrammingError("Service {0} does not exist.".format(service_name))
+        template = spec.get_body_template(service_name)
         # Create KnxBlock according to template
         self._blocks["body"].append(KnxBlock.factory(
-            template=template, cemi=cemi, optional=optional))
+            template=template, **kwargs))
         # Add fields names as properties to body :)
         for field in self._blocks["body"].fields:
             self._blocks["body"]._add_property(field.name, field)
         # Update header
-        self._blocks["header"].service_identifier._update_value(spec.get_service_id(sid))
+        self._blocks["header"].service_identifier._update_value(
+            spec.get_service_id(service_name))
         self.update()
 
-    # TODO
-    def build_from_frame(self, frame:bytes) -> None:
+    # TEST REQUIRED
+    def fill(self, frame:bytes) -> None:
         """Fill in the KnxFrame object using a frame as a raw byte array. This
         method is used when receiving and parsing a file from a KNX object.
 
-        The parsing relies on the block lengths sometimes stated in first byte
-        of each part (block) of the frame.
-
-        :param frame: KNX frame as a byte array (or anything, whatever)
+        :param frame: KNX frame as a byte array
 
         Example::
 
             data, address = knx_connection.receive()
-            frame = KnxFrame(frame=data, source=address)
-
+            frame = KnxFrame(bytes=data)
         """
         spec = KnxSpec()
         header = frame[:frame[0]]
@@ -426,30 +428,15 @@ class KnxFrame(BOFFrame):
         # BODY
         cursor = 0 # We start at index len(header) (== 6)
         for block in template:
-            if cursor >= len(block):
-                break
             if block["type"] == "field":
                 entry = KnxField(**block)
-                entry.value = body[cursor:cursor+entry.size]
+                entry.value = body[cursor:cursor+len(entry)]
             else:
-                entry = KnxBlock(**block, bytes=body[cursor:])
+                entry = KnxBlock(bytes=body[cursor:], **block)
             self._blocks["body"].append(entry)
-            cursor += len(block)
-
-        # for block in template:
-        #     if cursor >= len(body):
-        #         break
-            # # If block is a cemi, we need its type before creating the structure
-            # cemi = spec.get_cemi_name(body[cursor:cursor+1]) if block["type"] == "cemi" else None
-            # # factory returns a list but we only expect one item
-            # # block_object = KnxBlock.factory(template=block,cemi=cemi)[0]
-            # if isinstance(block_object, KnxField):
-            #     block_object.value = body[cursor:cursor+block_object.size]
-            #     cursor += block_object.size
-            # else:
-            #     block_object.fill(body[cursor:cursor+frame[cursor]])
-            #     cursor += body[cursor]
-            # self._blocks["body"].append(block_object)
+            cursor += len(entry)
+            if cursor >= len(body):
+                break
 
     def update(self):
         """Update all fields corresponding to block lengths.
