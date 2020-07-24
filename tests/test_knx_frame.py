@@ -69,13 +69,13 @@ class Test01KnxSpecTesting(unittest.TestCase):
         self.assertEqual(sid, b"\x02\x03")
     def test_02_get_service_name(self):
         """Test that we can get the name of a service identifier from its id."""
-        name = knx.KnxSpec().get_service_name(b"\x02\x03")        
+        name = knx.KnxSpec().get_service_name(b"\x02\x03")
         self.assertEqual(name, "DESCRIPTION REQUEST")
         name = knx.KnxSpec().get_service_name("DESCRIPTION_REQUEST")        
         self.assertEqual(name, "DESCRIPTION REQUEST")
     def test_03_get_template_from_body(self):
         """Test that we can retrieve the frame template associated to a body name."""
-        template = knx.KnxSpec().get_body_template("description request")        
+        template = knx.KnxSpec().get_block_template("description request")        
         self.assertEqual(isinstance(template, list), True)
     def test_04_get_cemi_name(self):
         """Test that we can retrieve the name of a cEMI from its message code."""
@@ -196,12 +196,12 @@ class Test04DIBSpecificationClass(unittest.TestCase):
     """Test class for specification class building from JSON file."""
     def test_01_knx_spec_instantiate(self):
         spec = knx.KnxSpec()
-        self.assertEqual(list(spec.service_identifiers.keys())[0], "SEARCH REQUEST")
+        self.assertEqual(list(spec.codes["service identifier"].values())[0], "SEARCH REQUEST")
     def test_01_knx_spec_clear(self):
         spec = knx.KnxSpec()
         spec.clear()
         with self.assertRaises(AttributeError):
-            print(spec.service_identifiers)
+            print(spec.codes.service_identifier)
 
 class Test05DIBBlockFromSpec(unittest.TestCase):
     """Test class for blocks with dib types (from a service identifier)."""

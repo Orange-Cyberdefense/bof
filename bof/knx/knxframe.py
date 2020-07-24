@@ -62,33 +62,56 @@ class KnxSpec(BOFSpec):
         """Returns the content of parameter ``id`` for a given service
         identifier name in KNX spec JSON file.
         """
-        value = self.__get_dict_value(self.service_identifiers, name)
-        return bytes.fromhex(value["id"]) if value else None
+        return self.__get_code_id(self.codes["service identifier"], name)
 
     def get_service_name(self, sid:bytes) -> str:
         """Returns the name of the service identifier with id ``sid``."""
         if isinstance(sid, bytes):
-            return self.__get_dict_key(self.service_identifiers, "id", sid)
+            return self.get_code_name("service identifier", sid)
         if isinstance(sid, str):
             sid = to_property(sid)
-            for service in self.service_identifiers:
+            for service in self.codes["service identifier"].values():
                 if sid == to_property(service):
                     return service
         return None
 
-    def get_body_template(self, name:str) -> list:
+    def get_block_template(self, name:str) -> list:
         """Returns a template associated to a body, as a list, or None."""
-        return self.__get_dict_value(self.bodies, name)
+        return self.__get_dict_value(self.blocks, name)
+
+    def get_cemi_id(self, name:str) -> bytes:
+        """Returns the content of parameter ``id`` for a given service
+        identifier name in KNX spec JSON file.
+        """
+        return self.__get_code_id(self.codes["message code"], name)
 
     def get_cemi_name(self, cid:bytes) -> str:
-        """Returns the name of the cemi withid ``cid``."""
+        """Returns the name of the cemi with id ``cid``."""
         if isinstance(cid, bytes):
-            return self.__get_dict_key(self.cemis, "id", cid)
+            return self.get_code_name("message code", cid)
+        if isinstance(cid, str):
+            cid = to_property(cid)
+            for cemi in self.codes["message code"].values():
+                if cid == to_property(cemi):
+                    return cemi
+        return None
+
+    def get_code_name(self, dict_key:str, identifier:bytes) -> str:
+        for key in self.codes[dict_key]:
+            if identifier == bytes.fromhex(key):
+                return self.codes[dict_key][key]
         return None
 
     #-------------------------------------------------------------------------#
     # Internals                                                               #
     #-------------------------------------------------------------------------#
+
+    def __get_code_id(self, dictionary:dict, name:str) -> bytes:
+        name = to_property(name)
+        for key, value in dictionary.items():
+            if name == to_property(value):
+                return bytes.fromhex(key)
+        return None
 
     def __get_dict_value(self, dictionary:dict, key:str) -> object:
         """Return the value associated to a key from a given dictionary. Key
@@ -169,7 +192,6 @@ class KnxBlock(BOFBlock):
         descr_resp.append(KnxBlock(type="DIB_SUPP_SVC_FAMILIES"))
     """
 
-    # TODO
     def __init__(self, **kwargs):
         """Initialize the ``KnxBlock`` with a mandatory name and optional
         arguments to fill in the block content list (with fields or nested
@@ -186,19 +208,27 @@ class KnxBlock(BOFBlock):
                      with ``type``.
         """
         super().__init__(**kwargs)
-        specs = KnxSpec()
+        self._spec = KnxSpec()
         if "type" in kwargs:
-            if not kwargs["type"].upper() in specs.blocks.keys():
-                raise BOFProgrammingError("Unknown block type ({0})".format(kwargs["type"]))
+            block_type = kwargs["type"]
+            if block_type.startswith("depends:"):
+                block_type = self._get_depends_block(block_type.split(":")[1])
+            template = self._spec.get_block_template(block_type)
+            if not template:
+                raise BOFProgrammingError("Unknown block type ({0})".format(block_type))
             self.name = self.name if len(self.name) else kwargs["type"]
-            self.append(self.factory(template=specs.blocks[kwargs["type"].upper()]))
+            self.append(self.factory(template=template))
+        # TODO
         elif "cemi" in kwargs:
-            if not kwargs["cemi"] in specs.cemis.keys():
+            cemi = self._spec.get_cemi_name(kwargs["cemi"])
+            if not cemi:
                 raise BOFProgrammingError("cEMI is unknown ({0})".format(kwargs["cemi"]))
             self.name = self.name if len(self.name) else "cemi"
-            self.append(self.factory(template=specs.blocks[specs.cemis[kwargs["cemi"]]["type"]]))
-            self.message_code.value = bytes.fromhex(specs.cemis[kwargs["cemi"]]["id"])
+            self.append(self.factory(template=self._spec.blocks["DP_cEMI"])) # TODO
+            self.message_code.value = self._spec.get_cemi_id(cemi)
 
+    # TMP location
+        
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
@@ -256,8 +286,6 @@ class KnxBlock(BOFBlock):
         elif isinstance(template, dict):
             if "optional" in template.keys() and template["optional"] == True and not optional:
                 return blocklist
-            if "depends" in template.keys(): 
-                return blocklist # TODO
             if not "type" in template or template["type"] == "block":
                 blocklist.append(cls(**template))
             elif template["type"] == "field":
@@ -344,8 +372,13 @@ class KnxFrame(BOFFrame):
         :param bytes: Raw bytearray used to build a KnxFrame object.
         """
         super().__init__()
-        self._blocks["header"] = KnxBlock(type="header")
-        self._blocks["body"] = KnxBlock(name="body")
+        spec = KnxSpec()
+        sid = spec.get_service_id(kwargs["type"]) if "type" in kwargs else None
+        for block in spec.frame:
+            self._blocks[block["name"]] = KnxBlock(**block, parent=self)
+            if block["name"] == "header" and sid:
+                self._blocks[block["name"]].service_identifier.value = sid
+        #TODO
         if "type" in kwargs:
             cemi = kwargs["cemi"] if "cemi" in kwargs else None
             optional = kwargs["optional"] if "optional" in kwargs else False
@@ -390,9 +423,9 @@ class KnxFrame(BOFFrame):
         spec = KnxSpec()
         # Get data associated service identifier
         service_name = spec.get_service_name(service)
-        if not service_name or service_name not in spec.bodies:
+        if not service_name or service_name not in spec.blocks:
             raise BOFProgrammingError("Service {0} does not exist.".format(service_name))
-        template = spec.get_body_template(service_name)
+        template = spec.get_block_template(service_name)
         # Create KnxBlock according to template
         self._blocks["body"].append(KnxBlock.factory(
             template=template, **kwargs))
@@ -422,7 +455,7 @@ class KnxFrame(BOFFrame):
         # Fill in the header and retrieve information about the frame.
         self._blocks["header"].fill(header) # TODO
         sid = spec.get_service_name(self._blocks["header"].service_identifier.value)
-        template = spec.get_body_template(sid)
+        template = spec.get_block_template(sid)
         if not template:
             raise BOFProgrammingError("Unknown service identifier ({0})".format(sid))
         # BODY

@@ -267,13 +267,18 @@ class BOFBlock(object):
 
     :param name: Name of the block, so that it can be referred to by its name.
                  It is also use to create an attribute in the parent block.
+    :param parent: Parent frame, used when a field or a block depends on the
+                   value of a field previously written to the frame.
     :param content: List of blocks, fields or both.
     """
     _name:str
     _content:list
+    _parent:object
+    _spec:object
 
     def __init__(self, **kwargs):
         self.name = kwargs["name"] if "name" in kwargs else ""
+        self._parent = kwargs["parent"] if "parent" in kwargs else None
         self._content = []
 
     def __bytes__(self):
@@ -384,6 +389,22 @@ class BOFBlock(object):
                 setattr(self, to_property(bitfield_name), pointer.bitfield[bitfield_name])
         elif len(name) > 0:
             setattr(self, to_property(name), pointer)
+
+    def _get_depends_block(self, field:str):
+        """If the format of a block depends on the value of a field set
+        previously, we look for it and choose the appropriate format.
+        The closest field with such name is used.
+
+        :param name: Name of the field to look for and extract value.
+        """
+        field = to_property(field)
+        field_list = list(self._parent)
+        field_list.reverse()
+        for frame_field in field_list:
+            if field == to_property(frame_field.name):
+                block = self._spec.get_code_name(frame_field.name, frame_field.value)
+                return block
+        raise BOFProgrammingError("Field does not exist ({0}).".format(field))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
