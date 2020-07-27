@@ -284,7 +284,7 @@ class BOFBlock(object):
         """
         raise NotImplementedError("Factory should be instantiated in subclasses.")
 
-    def __init__(self, defaults:dict=None, **kwargs):
+    def __init__(self, **kwargs):
         """Initialize a block according to a set or arguments (template).
         
         A template usually contains the following information and has the
@@ -303,6 +303,8 @@ class BOFBlock(object):
         if not "type" in kwargs or kwargs["type"] == "block":
             return
         # Now we extract the final type of block from the arguments
+        value = kwargs["value"] if "value" in kwargs else None
+        defaults = kwargs["defaults"] if "defaults" in kwargs else {}
         block_type = kwargs["type"]
         if block_type.startswith("depends:"):
             field_name = to_property(block_type.split(":")[1])
@@ -314,7 +316,13 @@ class BOFBlock(object):
         # And we fill the block according to its content
         template = [template] if not isinstance(template, list) else template
         for item in template:
-            self.append(self.factory(item, defaults=defaults, parent=self))
+            new_item = self.factory(item, value=value, defaults=defaults, parent=self)
+            self.append(new_item)
+            # Update value
+            if value:
+                if len(new_item) >= len(value):
+                    break
+                value = value[len(new_item):]
 
     def __bytes__(self):
         return b''.join(bytes(item) for item in self._content)
