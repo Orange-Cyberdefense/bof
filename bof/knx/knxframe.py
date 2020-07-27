@@ -58,12 +58,6 @@ class KnxSpec(BOFSpec):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def get_service_id(self, name:str) -> bytes:
-        """Returns the content of parameter ``id`` for a given service
-        identifier name in KNX spec JSON file.
-        """
-        return self.__get_code_id(self.codes["service identifier"], name)
-
     def get_service_name(self, sid:bytes) -> str:
         """Returns the name of the service identifier with id ``sid``."""
         if isinstance(sid, bytes):
@@ -79,12 +73,6 @@ class KnxSpec(BOFSpec):
         """Returns a template associated to a body, as a list, or None."""
         return self.__get_dict_value(self.blocks, name)
 
-    def get_cemi_id(self, name:str) -> bytes:
-        """Returns the content of parameter ``id`` for a given service
-        identifier name in KNX spec JSON file.
-        """
-        return self.__get_code_id(self.codes["message code"], name)
-
     def get_cemi_name(self, cid:bytes) -> str:
         """Returns the name of the cemi with id ``cid``."""
         if isinstance(cid, bytes):
@@ -95,12 +83,6 @@ class KnxSpec(BOFSpec):
                 if cid == to_property(cemi):
                     return cemi
         return None
-
-    def get_connection_id(self, name:str) -> bytes:
-        """Returns the content of parameter ``id`` for a given service
-        identifier name in KNX spec JSON file.
-        """
-        return self.__get_code_id(self.codes["connection type code"], name)
 
     def get_connection_name(self, cid:bytes) -> str:
         """Returns the name of the cemi with id ``cid``."""
@@ -120,16 +102,15 @@ class KnxSpec(BOFSpec):
         raise BOFProgrammingError("Association not found for {0} ({1})".format(
             dict_key, identifier))
 
-    #-------------------------------------------------------------------------#
-    # Internals                                                               #
-    #-------------------------------------------------------------------------#
-
-    def __get_code_id(self, dictionary:dict, name:str) -> bytes:
+    def get_code_id(self, dict_key:dict, name:str) -> bytes:
         name = to_property(name)
-        for key, value in dictionary.items():
+        for key, value in self.codes[dict_key].items():
             if name == to_property(value):
                 return bytes.fromhex(key)
         return None
+    #-------------------------------------------------------------------------#
+    # Internals                                                               #
+    #-------------------------------------------------------------------------#
 
     def __get_dict_value(self, dictionary:dict, key:str) -> object:
         """Return the value associated to a key from a given dictionary. Key
@@ -212,97 +193,30 @@ class KnxBlock(BOFBlock):
 
     @classmethod
     def factory(cls, template, **kwargs) -> object:
+        """Returns either a KnxBlock or a KnxField, that's why it's a
+        factory as a class method.
+
+        :param template: Template of a block or field as a dictionary.
+        ;returns: A new instance of a KnxBlock or a KnxField.
+        """
         if "type" in template and template["type"] == "field":
-            return KnxField(**template)
+            value = b''
+            if "defaults" in kwargs and template["name"] in kwargs["defaults"]:
+                value = kwargs["defaults"][template["name"]]
+            return KnxField(**template, value=value)
         return cls(**template, **kwargs)
 
-    def __init__(self, **kwargs):
+    def __init__(self, defaults:dict=None, **kwargs):
         """Initialize the ``KnxBlock`` with a mandatory name and optional
         arguments to fill in the block content list (with fields or nested
         blocks).
-
-        From the specification file, the KnxBlock takes as argument a "block"
-        line, such as::
-
-	    {"name": "control endpoint", "type": "HPAI"},
-
-        Optional keyword arguments can be given to force values of fields
-        to depend on to create a field (ex: message code)
         """
         self._spec = KnxSpec()
-        super().__init__(**kwargs)
+        super().__init__(defaults, **kwargs)
 
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
-
-    # TODO
-    # @classmethod
-    # def factory(cls, **kwargs) -> object:
-    #     """Factory method to create a list of ``KnxBlock`` according to kwargs.
-    #     Available keywords arguments: 
-        
-    #     :param template: Cannot be used with ``type``. 
-    #     :param type: Type of block. Cannot be used with ``cemi``.
-    #     :param cemi: Type of block if this is a cemi structure. Cannot be used
-    #                  with ``type``.
-    #     :returns: A list of ``KnxBlock`` objects. 
-        
-    #     """
-        
-    #     if "template" in kwargs:
-    #         cemi = kwargs["cemi"] if "cemi" in kwargs else None
-    #         optional = kwargs["optional"] if "optional" in kwargs else False
-    #         return cls.create_from_template(kwargs["template"], cemi, optional)
-    #     if "type" in kwargs:
-    #         return cls(type=kwargs["type"], name=name)
-    #     if "cemi" in kwargs:
-    #         optional = kwargs["optional"] if "optional" in kwargs else False
-    #         return cls(cemi=kwargs["cemi"], name="cEMI")
-    #     return None
-
-    # TODO
-    @classmethod
-    def create_from_template(cls, template, cemi:str=None, optional:bool=False) -> list:
-        """Creates a list of ``KnxBlock``-inherited object according to the
-        list of templates specified in parameter ``template``.
-
-        :param template: template dictionary or list of template dictionaries
-                         for ``KnxBlock`` object instantiation.
-        :param cemi: when a block is a cEMI, we need to know what type of
-                     cEMI it is to build it accordingly.
-        :param optional: build optional templates (default: no/False)
-        :returns: A list of ``KnxBlock`` objects (one by item in ``template``).
-        :raises BOFProgrammingError: If the value of argument "type" in a
-                                     template dictionary is unknown.
-
-        Example::
-
-            block = KnxBlock(name="new block")
-            block.append(KnxBlock.factory(template=KnxSpec().blocks["HPAI"]))
-        """
-        blocklist = []
-        specs = KnxSpec()
-        if isinstance(template, list):
-            for item in template:
-                blocklist += cls.create_from_template(item, cemi, optional)
-        elif isinstance(template, dict):
-            if "optional" in template.keys() and template["optional"] == True and not optional:
-                return blocklist
-            if not "type" in template or template["type"] == "block":
-                blocklist.append(cls(**template))
-            elif template["type"] == "field":
-                blocklist.append(KnxField(**template))
-            elif template["type"] == "cemi":
-                blocklist.append(cls(cemi=cemi))
-            elif template["type"] in specs.blocks.keys():
-                nestedblock = cls(name=template["name"])
-                content = specs.blocks[template["type"]]
-                nestedblock.append(cls.create_from_template(content, cemi, optional))
-                blocklist.append(nestedblock)
-            else:
-                raise BOFProgrammingError("Unknown block type ({0})".format(template))
-        return blocklist
 
     # TODO
     def fill(self, frame:bytes) -> bytes:
@@ -349,6 +263,13 @@ class KnxFrame(BOFFrame):
 
     **KNX Standard v2.1 03_08_02**
     """
+    __defaults = {
+        # {Argument name: field name} 
+        "type": "service identifier",
+        "cemi": "message code",
+        "connection": "connection type code"
+    }
+
     # TODO
     def __init__(self, **kwargs):
         """Initialize a KnxFrame object from various origins using values from
@@ -377,23 +298,18 @@ class KnxFrame(BOFFrame):
         spec = KnxSpec()
         super().__init__()
         # We store some values before starting building the frame
-        additional_args = {}
-        sid = spec.get_service_id(kwargs["type"]) if "type" in kwargs else None
-        if "cemi" in kwargs:
-            additional_args["message code"] = spec.get_cemi_id(kwargs["cemi"])
-        if "connection" in kwargs:
-            additional_args["connection type code"] = spec.get_connection_id(kwargs["connection"])
+        defaults = {}
+        for arg, code in self.__defaults.items():
+            if arg in kwargs:
+                defaults[code] = spec.get_code_id(code, kwargs[arg])
         # Now we can start
         for block in spec.frame:
             # Create block
             self._blocks[block["name"]] = KnxBlock(
-                defaults=additional_args, **block, parent=self)
+                defaults=defaults, **block, parent=self)
             # Add fields as attributes to current frame block
             for field in self._blocks[block["name"]].fields:
                 self._blocks[block["name"]]._add_property(field.name, field)
-            # KNX-header specific attribute
-            if block["name"] == "header" and sid:
-                self._blocks[block["name"]].service_identifier.value = sid
         #TODO
         # if "type" in kwargs:
         #     cemi = kwargs["cemi"] if "cemi" in kwargs else None

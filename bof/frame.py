@@ -133,7 +133,7 @@ class BOFField(object):
         self._fixed_value = kwargs["fixed_value"] if "fixed_value" in kwargs else False
         self._set_bitfields(**kwargs)
         # From now on, _update_value must be used to modify values within the code
-        if "value" in kwargs:
+        if "value" in kwargs and len(kwargs["value"]):
             self._update_value(kwargs["value"])
         elif "default" in kwargs:
             self._update_value(kwargs["default"])
@@ -278,9 +278,24 @@ class BOFBlock(object):
 
     @classmethod
     def factory(cls, template) -> object:
+        """Class method to use when the object to create is not
+        necessarily a BOFBlock class. It should be instantiated
+        in protocol implementation classes.
+        """
         raise NotImplementedError("Factory should be instantiated in subclasses.")
 
     def __init__(self, defaults:dict=None, **kwargs):
+        """Initialize a block according to a set or arguments (template).
+        
+        A template usually contains the following information and has the
+        following format in a protocol's specification file:
+
+	    {"name": "control endpoint", "type": "HPAI"},
+
+        :param defaults: Dictionary for optional keyword arguments to force
+        values of fields to depend on to create a field (ex: message code).
+        Defaults values are transmitted to children.
+        """
         self.name = kwargs["name"] if "name" in kwargs else ""
         self._parent = kwargs["parent"] if "parent" in kwargs else None
         self._content = []
@@ -419,13 +434,6 @@ class BOFBlock(object):
         :raises BOFProgrammingError: If specified field was not found.
         """
         field = to_property(field)
-        # First search in default values list
-        if defaults:
-            for key in defaults:
-                if field == to_property(key):
-                    block = self._spec.get_code_name(key, defaults[key])
-                    return block
-        # Then we look for it in parent values
         field_list = list(self._parent)
         field_list.reverse()
         for frame_field in field_list:
