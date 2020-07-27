@@ -7,7 +7,7 @@
 
 import unittest
 
-BOIBOITE = "192.168.1.10"
+BOIBOITE = "192.168.1.242"
 
 class Test01Import(unittest.TestCase):
     """Test class for KNX submodule import."""

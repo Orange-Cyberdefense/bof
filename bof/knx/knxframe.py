@@ -96,11 +96,29 @@ class KnxSpec(BOFSpec):
                     return cemi
         return None
 
+    def get_connection_id(self, name:str) -> bytes:
+        """Returns the content of parameter ``id`` for a given service
+        identifier name in KNX spec JSON file.
+        """
+        return self.__get_code_id(self.codes["connection type code"], name)
+
+    def get_connection_name(self, cid:bytes) -> str:
+        """Returns the name of the cemi with id ``cid``."""
+        if isinstance(cid, bytes):
+            return self.get_code_name("connection type code", cid)
+        if isinstance(cid, str):
+            cid = to_property(cid)
+            for connect in self.codes["connection type code"].values():
+                if cid == to_property(connect):
+                    return connect
+        return None
+
     def get_code_name(self, dict_key:str, identifier:bytes) -> str:
         for key in self.codes[dict_key]:
             if identifier == bytes.fromhex(key):
                 return self.codes[dict_key][key]
-        return None
+        raise BOFProgrammingError("Association not found for {0} ({1})".format(
+            dict_key, identifier))
 
     #-------------------------------------------------------------------------#
     # Internals                                                               #
@@ -192,71 +210,56 @@ class KnxBlock(BOFBlock):
         descr_resp.append(KnxBlock(type="DIB_SUPP_SVC_FAMILIES"))
     """
 
+    @classmethod
+    def factory(cls, template, **kwargs) -> object:
+        if "type" in template and template["type"] == "field":
+            return KnxField(**template)
+        return cls(**template, **kwargs)
+
     def __init__(self, **kwargs):
         """Initialize the ``KnxBlock`` with a mandatory name and optional
         arguments to fill in the block content list (with fields or nested
         blocks).
 
-        A ``KnxBlock`` can be pre-filled according to a type or to a cEMI
-        block as defined in the specification file.
+        From the specification file, the KnxBlock takes as argument a "block"
+        line, such as::
 
-        Available keyword arguments:
+	    {"name": "control endpoint", "type": "HPAI"},
 
-        :param name: String to refer to the block using a property.
-        :param type: Type of block. Cannot be used with ``cemi``.
-        :param cemi: Type of block if this is a cemi structure. Cannot be used
-                     with ``type``.
+        Optional keyword arguments can be given to force values of fields
+        to depend on to create a field (ex: message code)
         """
-        super().__init__(**kwargs)
         self._spec = KnxSpec()
-        if "type" in kwargs:
-            block_type = kwargs["type"]
-            if block_type.startswith("depends:"):
-                block_type = self._get_depends_block(block_type.split(":")[1])
-            template = self._spec.get_block_template(block_type)
-            if not template:
-                raise BOFProgrammingError("Unknown block type ({0})".format(block_type))
-            self.name = self.name if len(self.name) else kwargs["type"]
-            self.append(self.factory(template=template))
-        # TODO
-        elif "cemi" in kwargs:
-            cemi = self._spec.get_cemi_name(kwargs["cemi"])
-            if not cemi:
-                raise BOFProgrammingError("cEMI is unknown ({0})".format(kwargs["cemi"]))
-            self.name = self.name if len(self.name) else "cemi"
-            self.append(self.factory(template=self._spec.blocks["DP_cEMI"])) # TODO
-            self.message_code.value = self._spec.get_cemi_id(cemi)
+        super().__init__(**kwargs)
 
-    # TMP location
-        
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
     # TODO
-    @classmethod
-    def factory(cls, **kwargs) -> object:
-        """Factory method to create a list of ``KnxBlock`` according to kwargs.
-        Available keywords arguments: 
+    # @classmethod
+    # def factory(cls, **kwargs) -> object:
+    #     """Factory method to create a list of ``KnxBlock`` according to kwargs.
+    #     Available keywords arguments: 
         
-        :param template: Cannot be used with ``type``. 
-        :param type: Type of block. Cannot be used with ``cemi``.
-        :param cemi: Type of block if this is a cemi structure. Cannot be used
-                     with ``type``.
-        :returns: A list of ``KnxBlock`` objects. 
+    #     :param template: Cannot be used with ``type``. 
+    #     :param type: Type of block. Cannot be used with ``cemi``.
+    #     :param cemi: Type of block if this is a cemi structure. Cannot be used
+    #                  with ``type``.
+    #     :returns: A list of ``KnxBlock`` objects. 
         
-        """
+    #     """
         
-        if "template" in kwargs:
-            cemi = kwargs["cemi"] if "cemi" in kwargs else None
-            optional = kwargs["optional"] if "optional" in kwargs else False
-            return cls.create_from_template(kwargs["template"], cemi, optional)
-        if "type" in kwargs:
-            return cls(type=kwargs["type"], name=name)
-        if "cemi" in kwargs:
-            optional = kwargs["optional"] if "optional" in kwargs else False
-            return cls(cemi=kwargs["cemi"], name="cEMI")
-        return None
+    #     if "template" in kwargs:
+    #         cemi = kwargs["cemi"] if "cemi" in kwargs else None
+    #         optional = kwargs["optional"] if "optional" in kwargs else False
+    #         return cls.create_from_template(kwargs["template"], cemi, optional)
+    #     if "type" in kwargs:
+    #         return cls(type=kwargs["type"], name=name)
+    #     if "cemi" in kwargs:
+    #         optional = kwargs["optional"] if "optional" in kwargs else False
+    #         return cls(cemi=kwargs["cemi"], name="cEMI")
+    #     return None
 
     # TODO
     @classmethod
@@ -371,20 +374,33 @@ class KnxFrame(BOFFrame):
                          optional fields (from spec).
         :param bytes: Raw bytearray used to build a KnxFrame object.
         """
-        super().__init__()
         spec = KnxSpec()
+        super().__init__()
+        # We store some values before starting building the frame
+        additional_args = {}
         sid = spec.get_service_id(kwargs["type"]) if "type" in kwargs else None
+        if "cemi" in kwargs:
+            additional_args["message code"] = spec.get_cemi_id(kwargs["cemi"])
+        if "connection" in kwargs:
+            additional_args["connection type code"] = spec.get_connection_id(kwargs["connection"])
+        # Now we can start
         for block in spec.frame:
-            self._blocks[block["name"]] = KnxBlock(**block, parent=self)
+            # Create block
+            self._blocks[block["name"]] = KnxBlock(
+                defaults=additional_args, **block, parent=self)
+            # Add fields as attributes to current frame block
+            for field in self._blocks[block["name"]].fields:
+                self._blocks[block["name"]]._add_property(field.name, field)
+            # KNX-header specific attribute
             if block["name"] == "header" and sid:
                 self._blocks[block["name"]].service_identifier.value = sid
         #TODO
-        if "type" in kwargs:
-            cemi = kwargs["cemi"] if "cemi" in kwargs else None
-            optional = kwargs["optional"] if "optional" in kwargs else False
-            self.format(kwargs["type"], cemi=cemi, optional=optional)
-            log("Created new frame from service identifier {0}".format(kwargs["type"]))
-        elif "bytes" in kwargs:
+        # if "type" in kwargs:
+        #     cemi = kwargs["cemi"] if "cemi" in kwargs else None
+        #     optional = kwargs["optional"] if "optional" in kwargs else False
+        #     self.format(kwargs["type"], cemi=cemi, optional=optional)
+        #     log("Created new frame from service identifier {0}".format(kwargs["type"]))
+        if "bytes" in kwargs:
             self.fill(kwargs["bytes"])
             log("Created new frame from byte array {0}.".format(kwargs["bytes"]))
         # Update total frame length in header
@@ -394,7 +410,7 @@ class KnxFrame(BOFFrame):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    # TEST REQUIRED
+    # to remove
     def format(self, service, **kwargs) -> None:
         """Fill in the KnxFrame object according to a predefined frame format
         corresponding to a service identifier. The frame format (blocks
@@ -418,24 +434,24 @@ class KnxFrame(BOFFrame):
             frame = KnxFrame()
             frame.build_from_sid("DESCRIPTION REQUEST")
         """
-        if not isinstance(service, bytes) and not isinstance(service, str):
-            raise BOFProgrammingError("Service id should be a string or a bytearray.")
-        spec = KnxSpec()
+        # if not isinstance(service, bytes) and not isinstance(service, str):
+        #     raise BOFProgrammingError("Service id should be a string or a bytearray.")
+        # spec = KnxSpec()
         # Get data associated service identifier
-        service_name = spec.get_service_name(service)
-        if not service_name or service_name not in spec.blocks:
-            raise BOFProgrammingError("Service {0} does not exist.".format(service_name))
-        template = spec.get_block_template(service_name)
+        # service_name = spec.get_service_name(service)
+        # if not service_name or service_name not in spec.blocks:
+        #     raise BOFProgrammingError("Service {0} does not exist.".format(service_name))
+        # template = spec.get_block_template(service_name)
         # Create KnxBlock according to template
-        self._blocks["body"].append(KnxBlock.factory(
-            template=template, **kwargs))
+        # self._blocks["body"].append(KnxBlock.factory(
+        #     template=template, **kwargs))
         # Add fields names as properties to body :)
-        for field in self._blocks["body"].fields:
-            self._blocks["body"]._add_property(field.name, field)
+        # for field in self._blocks["body"].fields:
+        #     self._blocks["body"]._add_property(field.name, field)
         # Update header
-        self._blocks["header"].service_identifier._update_value(
-            spec.get_service_id(service_name))
-        self.update()
+        # self._blocks["header"].service_identifier._update_value(
+        #     spec.get_service_id(service_name))
+        # self.update()
 
     # TEST REQUIRED
     def fill(self, frame:bytes) -> None:

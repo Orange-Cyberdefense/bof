@@ -9,7 +9,7 @@
 import unittest
 from bof import knx, byte, BOFProgrammingError
 
-BOIBOITE = "192.168.1.10"
+BOIBOITE = "192.168.1.242"
 
 class Test01BasicKnxFrame(unittest.TestCase):
     """Test class for basic KNX frame creation and usage."""
@@ -286,7 +286,7 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
     def test_04_knx_cemi_bitfields_parsing(self):
         """Test that a received cEMI frame with bit fields is parsed."""
         knxnet = knx.KnxNet()
-        knxnet.connect("192.168.1.10", 3671)
+        knxnet.connect(BOIBOITE, 3671)
         # ConnectReq
         connectreq = knx.KnxFrame(type="CONNECT REQUEST")
         connectreq.body.connection_request_information.connection_type_code.value = \

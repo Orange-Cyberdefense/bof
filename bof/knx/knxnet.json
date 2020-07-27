@@ -100,11 +100,11 @@
 	    {"name": "connection type code", "type": "field", "size": 1},
 	    {"name": "connection data", "type": "depends:connection type code"}
 	],
-	"DEVICE MANAGEMENT CONNECTION": [
+	"DEVICE_MANAGEMENT_CONNECTION": [
 	    {"name": "ip address", "type": "field", "size": 4},
 	    {"name": "port", "type": "field", "size": 2}
 	],
-	"TUNNELING CONNECTION": [
+	"TUNNELING_CONNECTION": [
 	    {"name": "knx address", "type": "field", "size": 2}
 	],
 	"CEMI": [

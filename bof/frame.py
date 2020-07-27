@@ -276,10 +276,30 @@ class BOFBlock(object):
     _parent:object
     _spec:object
 
-    def __init__(self, **kwargs):
+    @classmethod
+    def factory(cls, template) -> object:
+        raise NotImplementedError("Factory should be instantiated in subclasses.")
+
+    def __init__(self, defaults:dict=None, **kwargs):
         self.name = kwargs["name"] if "name" in kwargs else ""
         self._parent = kwargs["parent"] if "parent" in kwargs else None
         self._content = []
+        # Without a type, the block remains empty
+        if not "type" in kwargs or kwargs["type"] == "block":
+            return
+        # Now we extract the final type of block from the arguments
+        block_type = kwargs["type"]
+        if block_type.startswith("depends:"):
+            field_name = to_property(block_type.split(":")[1])
+            block_type = self._get_depends_block(field_name, defaults)
+        # We extract the block's content according to its type
+        template = self._spec.get_block_template(block_type)
+        if not template:
+            raise BOFProgrammingError("Unknown block type ({0})".format(block_type))
+        # And we fill the block according to its content
+        template = [template] if not isinstance(template, list) else template
+        for item in template:
+            self.append(self.factory(item, defaults=defaults, parent=self))
 
     def __bytes__(self):
         return b''.join(bytes(item) for item in self._content)
@@ -390,21 +410,29 @@ class BOFBlock(object):
         elif len(name) > 0:
             setattr(self, to_property(name), pointer)
 
-    def _get_depends_block(self, field:str):
+    def _get_depends_block(self, field:str, defaults:dict=None):
         """If the format of a block depends on the value of a field set
         previously, we look for it and choose the appropriate format.
         The closest field with such name is used.
 
         :param name: Name of the field to look for and extract value.
+        :raises BOFProgrammingError: If specified field was not found.
         """
         field = to_property(field)
+        # First search in default values list
+        if defaults:
+            for key in defaults:
+                if field == to_property(key):
+                    block = self._spec.get_code_name(key, defaults[key])
+                    return block
+        # Then we look for it in parent values
         field_list = list(self._parent)
         field_list.reverse()
         for frame_field in field_list:
             if field == to_property(frame_field.name):
                 block = self._spec.get_code_name(frame_field.name, frame_field.value)
                 return block
-        raise BOFProgrammingError("Field does not exist ({0}).".format(field))
+        raise BOFProgrammingError("Field nout found ({0}).".format(field))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
