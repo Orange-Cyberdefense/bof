@@ -133,7 +133,7 @@ class BOFField(object):
         self._fixed_value = kwargs["fixed_value"] if "fixed_value" in kwargs else False
         self._set_bitfields(**kwargs)
         # From now on, _update_value must be used to modify values within the code
-        if "value" in kwargs and len(kwargs["value"]):
+        if "value" in kwargs and kwargs["value"] != b'':
             self._update_value(kwargs["value"])
         elif "default" in kwargs:
             self._update_value(kwargs["default"])
@@ -299,30 +299,6 @@ class BOFBlock(object):
         self.name = kwargs["name"] if "name" in kwargs else ""
         self._parent = kwargs["parent"] if "parent" in kwargs else None
         self._content = []
-        # Without a type, the block remains empty
-        if not "type" in kwargs or kwargs["type"] == "block":
-            return
-        # Now we extract the final type of block from the arguments
-        value = kwargs["value"] if "value" in kwargs else None
-        defaults = kwargs["defaults"] if "defaults" in kwargs else {}
-        block_type = kwargs["type"]
-        if block_type.startswith("depends:"):
-            field_name = to_property(block_type.split(":")[1])
-            block_type = self._get_depends_block(field_name, defaults)
-        # We extract the block's content according to its type
-        template = self._spec.get_block_template(block_type)
-        if not template:
-            raise BOFProgrammingError("Unknown block type ({0})".format(block_type))
-        # And we fill the block according to its content
-        template = [template] if not isinstance(template, list) else template
-        for item in template:
-            new_item = self.factory(item, value=value, defaults=defaults, parent=self)
-            self.append(new_item)
-            # Update value
-            if value:
-                if len(new_item) >= len(value):
-                    break
-                value = value[len(new_item):]
 
     def __bytes__(self):
         return b''.join(bytes(item) for item in self._content)
