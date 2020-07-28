@@ -148,7 +148,7 @@ class KnxBlock(BOFBlock):
         factory as a class method.
 
         :param template: Template of a block or field as a dictionary.
-        ;returns: A new instance of a KnxBlock or a KnxField.
+        :returns: A new instance of a KnxBlock or a KnxField.
 
         Keyword arguments:
 
@@ -257,6 +257,8 @@ class KnxFrame(BOFFrame):
         :param optional: Boolean, set to True if we want to create a frame with
                          optional fields (from spec).
         :param bytes: Raw bytearray used to build a KnxFrame object.
+        :param *: Other params corresponding to default values can be given.
+                  The param name must be the name of the field to fill.
         """
         spec = KnxSpec()
         super().__init__()
@@ -271,7 +273,7 @@ class KnxFrame(BOFFrame):
             # Create block
             knxblock = KnxBlock(value=value, defaults=defaults, parent=self, **block)
             self.append(block["name"], knxblock)
-            # If a value is used to fill the blocks, update it:
+            # If a value is used to fill the blocks, update it
             if value:
                 if len(self._blocks[block["name"]]) >= len(value):
                     break
