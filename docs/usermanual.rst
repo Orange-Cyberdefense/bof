@@ -67,7 +67,7 @@ address (or on multiple KNX devices on an address range) and stores it to a
 >>> from bof import knx
 >>> device = knx.discover("192.168.1.10")
 >>> print(device)
-KnxDevice: Name=boiboite, MAC=00:00:54:ff:ff:ff, IP=192.168.1.10:3671 KNX=15/15/255
+KnxDevice: Name=boiboite, MAC=00:00:54:ff:ff:ff, IP=192.168.1.10:3671 KNX=15.15.255
 
 Send and receive packets
 ++++++++++++++++++++++++
@@ -125,6 +125,7 @@ The library has the following structure::
    ../bof
    ├── base.py
    ├── byte.py
+   ├── frame.py
    ├── __init__.py
    ├── knx
    │   ├── __init__.py
@@ -246,25 +247,42 @@ object is described in the next section.
    response = knxnet.receive()
    print(response) # Response is a KnxFrame object
 
-KNX frames
+BOF frames
 ----------
 
 Frames are sent and received as byte arrays. They can be divided into a set of
-blocks, which contain a set of fields of varying sizes. Conforming to the KNX
-Standard v2.1, the header's structure never changes and the body's structure
-varies according to the type of the frame given in the header's ``service
-identifier`` field. For instance, the format of a ``DESCRIPTION REQUEST``
-message extracted from the specification has the following content.
+blocks, which contain a set of fields of varying sizes. 
+
+In BOF, frames, blocks and fields are represented as objects (classes). A frame
+(``BOFFrame``) has a header and a body, both of them being blocks
+(``BOFBlock``).  A block contains a set of raw fields (``BOFField``) and/or
+nested ``BOFBlock`` objects with a special structure.
+
+Implementations (so far, KNX) inherit from these objects to build their own
+specification-defined frames. They are described in BOF in a JSON specification
+file, containing the definition of message codes, block types and frame
+structures. The class ``BOFSpec``, inherited in implementations, is a singleton
+class to parse and store specification JSON files. See "Developer manual" for
+more information (not available yet).
+
+KNX frames
+----------
+
+Conforming to the KNX Standard v2.1, the header's structure never changes and
+the body's structure varies according to the type of the frame given in the
+header's ``service identifier`` field. For instance, the format of a
+``DESCRIPTION REQUEST`` message extracted from the specification has the
+following content.
 
 .. figure:: images/knx_fields.png
 
-In BOF, frames, blocks and fields are represented as objects (classes). A frame
-(``KnxFrame``) has a header and a body, both of them being blocks
-(``KnxBlock``).  A block contains a set of raw fields (``KnxField``) and/or
-nested ``KnxBlock`` objects with a special structure (ex: ``HPAI`` is a type of
-block with fixed fields).  Finally, a ``KnxField`` object has three main
-attributes: a ``name``, a ``size`` (number of bytes) and a ``value`` (as a byte
-array). 
+Frame, block and field objects inherit from ``BOFFrame``, ``BOFBlock`` and
+``BOFField`` global structures. A frame (``KnxFrame``) has a header and a body,
+both of them being blocks (``KnxBlock``).  A block contains a set of raw fields
+(``KnxField``) and/or nested ``KnxBlock`` objects with a special structure (ex:
+``HPAI`` is a type of block with fixed fields).  Finally, a ``KnxField`` object
+has three main attributes: a ``name``, a ``size`` (number of bytes) and a
+``value`` (as a byte array).
 
 Create frames
 +++++++++++++
@@ -283,21 +301,20 @@ constructor.
 From the specification
 """"""""""""""""""""""
 
-The KNX standard describes a set of message types with different format. They
-are described in BOF in a JSON specification file, containing the definition of
-message codes, block types and frame structures. The KNX Standard has not been
-fully implemented yet so there may be missing content, please refer to
-`bof/knx/knxnet.json` to know what is currently supported. Obviously, the
-specification file content can be changed or a frame can be built without
-referring to the specification, we discuss it further in the "Advanced
-usage" section (not available yet).
+The KNX standard describes a set of message types with different
+format. Specific predefined blocks and identifiers are also written to KNX
+Specification's JSON file. It has not been fully implemented yet so there may be
+missing content, please refer to `bof/knx/knxnet.json` to know what is currently
+supported. Obviously, the specification file content can be changed or a frame
+can be built without referring to the specification, we discuss it further in
+the "Advanced usage" section (not available yet).
 
 .. code-block:: python
 
    frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
 
 A ``KnxFrame`` object based on a frame with the ``DESCRIPTION REQUEST`` service
-identifier (sid) will be built according to this portion of the `knxnet.json`
+identifier (sid) will be built according to this portion of the ``knxnet.json``
 specification file.
 
 .. code-block:: json
@@ -331,21 +348,22 @@ It should then have the following pattern:
 
 .. figure:: images/bof_spec.png
 
-In predefined frames, fields are empty except for fields with a default value or
-fields that store a length, which is evaluated automatically. Some frames can be
-sent as is to a remote server, such as ``DESCRIPTION REQUEST`` frames, but some
-of them require to fill the empty fields (see `Modify frames`_ below).
+In predefined frames, fields are empty except for optional fields, fields with a
+default value or fields that store a length, which is evaluated automatically.
+Some frames can be sent as is to a remote server, such as ``DESCRIPTION
+REQUEST`` frames, but some of them require to fill the empty fields (see `Modify
+frames`_ below).
 
 From a byte array
 """""""""""""""""
 
 A KnxFrame object can be created by parsing a raw byte array. This is what
-happens when receiving a frame from a remote server.x
+happens when receiving a frame from a remote server.
 
 .. code-block:: python
 
-   frame_from_byte =
-   knx.KnxFrame(frame=b'\x06\x10\x02\x03\x00\x0e\x08\x01\x7f\x00\x00\x01\xbe\x6d')
+   data = b'\x06\x10\x02\x03\x00\x0e\x08\x01\x7f\x00\x00\x01\xbe\x6d'
+   frame_from_byte = knx.KnxFrame(bytes=data)
    received_frame = knxnet.receive() # received_frame is a KnxFrame object
 
 The format of the frame must be understood by BOF to be efficient (i.e. the

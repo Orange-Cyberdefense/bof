@@ -19,7 +19,7 @@ def connect(ip:str, port:int) -> (knx.KnxNet, int):
         knxnet.connect(ip, port)
         connectreq = knx.KnxFrame(type="CONNECT REQUEST")
         connectreq.body.connection_request_information.connection_type_code.value = \
-        knx.KnxSpec().connection_types["Device Management Connection"]
+        knx.KnxSpec().get_code_id("connection_type_code", "Device Management Connection")
         connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
         connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
         connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
@@ -130,6 +130,6 @@ if len(argv) < 2:
     quit()
 
 propread = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
-propread.body.cemi.number_of_elements.value = 1
+propread.body.cemi.cemi_data.propread_req.number_of_elements.value = 1
 # fuzz(all_properties, propread)
 fuzz(argv[1], random_properties, propread)

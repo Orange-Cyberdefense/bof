@@ -139,4 +139,4 @@ class KnxNet(UDP):
         :returns: A parsed KnxFrame with the received frame's representation.
         """
         data, address = super().receive(timeout)
-        return KnxFrame(frame=data, source=address)
+        return KnxFrame(bytes=data, source=address)

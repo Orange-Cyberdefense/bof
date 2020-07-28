@@ -6,7 +6,6 @@
 """
 
 import logging
-import json
 from datetime import datetime
 from re import sub
 
@@ -103,24 +102,9 @@ def log(message:str, level:str="INFO") -> bool:
     return _LOGGING_ENABLED
 
 ###############################################################################
-# BOF JSON FILE HANDLING                                                      #
-###############################################################################
-
-def load_json(filename:str) -> dict:
-    """Loads a JSON file and returns the associated dictionary.
-
-    :raises BOFLibraryError: if the file cannot be opened.
-    """
-    try:
-        with open(filename, 'r') as jsonfile:
-            return json.load(jsonfile)
-    except Exception as e:
-        raise BOFLibraryError("JSON File {0} cannot be used.".format(filename)) from None
-
-###############################################################################
 # STRING MANIPULATION                                                         #
 ###############################################################################
 
 def to_property(value:str) -> str:
     """Replace all non alphanumeric characters in a string with ``_``"""
-    return sub('[^0-9a-zA-Z]+', '_', value)
+    return sub('[^0-9a-zA-Z]+', '_', value.lower())

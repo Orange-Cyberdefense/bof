@@ -7,7 +7,7 @@
 import unittest
 from bof import byte, knx, BOFProgrammingError
 
-BOIBOITE = "192.168.1.10"
+BOIBOITE = "192.168.1.242"
 
 class Test01DeviceDiscovery(unittest.TestCase):
     """Test class for basic KNX frame creation and usage."""
@@ -15,7 +15,7 @@ class Test01DeviceDiscovery(unittest.TestCase):
         device = knx.discover(BOIBOITE)
         self.assertTrue(isinstance(device, knx.KnxDevice))
     def test_02_knxmultidiscover(self):
-        devices = knx.discover("192.168.1.1,192.168.1.10")
+        devices = knx.discover("192.168.1.232,192.168.1.242")
         self.assertTrue(isinstance(devices, list))
         self.assertTrue(isinstance(devices[0], knx.KnxDevice))
     @unittest.skip("slow")
@@ -23,7 +23,7 @@ class Test01DeviceDiscovery(unittest.TestCase):
         devices = knx.discover("192.168.1.0/24")
         self.assertTrue(isinstance(devices, list))
         self.assertTrue(isinstance(devices[0], knx.KnxDevice))
-        self.assertEqual(devices[0].address, "192.168.1.10")
+        self.assertEqual(devices[0].address, BOIBOITE)
         self.assertEqual(devices[0].port, 3671)
     def test_04_knxwrongdiscover(self):
         device = knx.discover("192.168.1.1")
@@ -68,4 +68,4 @@ class Test03KnxDeviceDescription(unittest.TestCase):
     def test_01_knx_device_from_descrresp(self):
         device = knx.KnxDevice(self.connection.send_receive(knx.KnxFrame(type="DESCRIPTION_REQUEST")), 
                                ip_address=BOIBOITE)
-        self.assertEqual(device.knx_address, "15/15/255")
+        self.assertEqual(device.knx_address, "15.15.255")
