@@ -65,13 +65,13 @@ class Test01KnxSpecTesting(unittest.TestCase):
     """Test class for KnxSpec public methods."""
     def test_01_get_service_id(self):
         """Test that we can get a service identifier from its name"""
-        sid = knx.KnxSpec().get_service_id("description request")
+        sid = knx.KnxSpec().get_code_id("service identifier", "description request")
         self.assertEqual(sid, b"\x02\x03")
     def test_02_get_service_name(self):
         """Test that we can get the name of a service identifier from its id."""
-        name = knx.KnxSpec().get_service_name(b"\x02\x03")
+        name = knx.KnxSpec().get_code_name("service identifier", b"\x02\x03")
         self.assertEqual(name, "DESCRIPTION REQUEST")
-        name = knx.KnxSpec().get_service_name("DESCRIPTION_REQUEST")        
+        name = knx.KnxSpec().get_code_name("service identifier", "DESCRIPTION_REQUEST")        
         self.assertEqual(name, "DESCRIPTION REQUEST")
     def test_03_get_template_from_body(self):
         """Test that we can retrieve the frame template associated to a body name."""
@@ -79,7 +79,7 @@ class Test01KnxSpecTesting(unittest.TestCase):
         self.assertEqual(isinstance(template, list), True)
     def test_04_get_cemi_name(self):
         """Test that we can retrieve the name of a cEMI from its message code."""
-        cemi = knx.KnxSpec().get_cemi_name(b"\xfc")
+        cemi = knx.KnxSpec().get_code_name("message_code", b"\xfc")
         self.assertEqual(cemi, "PropRead.req")
 
 class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
@@ -196,7 +196,7 @@ class Test04DIBSpecificationClass(unittest.TestCase):
     """Test class for specification class building from JSON file."""
     def test_01_knx_spec_instantiate(self):
         spec = knx.KnxSpec()
-        self.assertEqual(list(spec.codes["service identifier"].values())[0], "SEARCH REQUEST")
+        self.assertEqual(list(spec.codes["service identifier"].values())[0], "EMPTY")
     def test_01_knx_spec_clear(self):
         spec = knx.KnxSpec()
         spec.clear()
@@ -232,10 +232,6 @@ class Test05DIBBlockFromSpec(unittest.TestCase):
         frame.body.device_hardware.friendly_name.value = "sushi"
         frame.body.friendly_name.value = "pizza"
         self.assertEqual(bytes(frame.body.device_hardware.friendly_name).decode('utf-8'), "pizza")
-    def test_05_knx_body_with_optional(self):
-        """Test that we can build a frame with the optional keyword."""
-        frame = knx.KnxFrame(type="CONNECT REQUEST", optional=True)
-        self.assertEqual(bytes(frame.body.port_2), b'\x00\x00')
 
 class Test05ReceivedFrameParsing(unittest.TestCase):
     """Test class for received frame parsing."""
@@ -252,7 +248,7 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
     def test_02_knx_parse_connectresp(self):
         connectreq = knx.KnxFrame(type="CONNECT_REQUEST")
         connectreq.body.connection_request_information.connection_type_code.value = \
-        knx.KnxSpec().connection_types["Device Management Connection"]
+        knx.KnxSpec().get_code_id("connection type code", "Device Management Connection")
         self.connection.send(connectreq)
         connectresp = self.connection.receive()
         channel = connectresp.body.communication_channel_id.value
@@ -270,19 +266,19 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         """Test that cEMI frames definition in JSON is handled."""
         frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
         self.assertEqual(bytes(frame.body.cemi.message_code), b"\xfc")
-    def test_02_knx_single_cemi(self):
+    def test_02_knx_single_cemi(self): # FIX: no type == empty block
         """Test that we can build a singleblock from cEMI."""
         propwrite = knx.KnxBlock(cemi="PropWrite.con")
-        self.assertEqual(bytes(propwrite.message_code), b"\xf5")
+        self.assertEqual(bytes(propwrite.cemi.cemi_data.propwrite_con.message_code), b"\xf5")
     def test_03_knx_cemi_bitfields(self):
         """Test that cemi blocks with bit fields (subfields) work."""
         frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
-        self.assertEqual(frame.body.cemi.number_of_elements.value, [0,0,0,0])
-        frame.body.cemi.number_of_elements.value = 15
-        frame.body.cemi.start_index.value = 1
-        self.assertEqual(frame.body.cemi.number_of_elements.value, [1,1,1,1])
-        self.assertEqual(frame.body.cemi.start_index.value, [0,0,0,0,0,0,0,0,0,0,0,1])
-        self.assertEqual(frame.body.cemi.number_of_elements_start_index.value, b'\xF0\x01')
+        self.assertEqual(frame.body.cemi.cemi_data.propread_req.number_of_elements.value, [0,0,0,0])
+        frame.body.cemi.cemi_data.propread_req.number_of_elements.value = 15
+        frame.body.cemi.cemi_data.propread_req.start_index.value = 1
+        self.assertEqual(frame.body.cemi.cemi_data.propread_req.number_of_elements.value, [1,1,1,1])
+        self.assertEqual(frame.body.cemi.cemi_data.propread_req.start_index.value, [0,0,0,0,0,0,0,0,0,0,0,1])
+        self.assertEqual(frame.body.cemi.cemi_data.propread_req.number_of_elements_start_index.value, b'\xF0\x01')
     def test_04_knx_cemi_bitfields_parsing(self):
         """Test that a received cEMI frame with bit fields is parsed."""
         knxnet = knx.KnxNet()
@@ -290,7 +286,7 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         # ConnectReq
         connectreq = knx.KnxFrame(type="CONNECT REQUEST")
         connectreq.body.connection_request_information.connection_type_code.value = \
-        knx.KnxSpec().connection_types["Device Management Connection"]
+        knx.KnxSpec().get_code_id("connection type code", "Device Management Connection")
         connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
         connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
         connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
@@ -301,20 +297,20 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         #ConfigReq
         request = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
         request.body.communication_channel_id.value = channel
-        request.body.cemi.number_of_elements.value = 1
-        request.body.cemi.object_type.value = 11
-        request.body.cemi.property_id.value = 53
+        request.body.cemi.cemi_data.propread_req.number_of_elements.value = 1
+        request.body.cemi.cemi_data.propread_req.object_type.value = 11
+        request.body.cemi.cemi_data.propread_req.property_id.value = 53
         # Ack + ConfigReq response
         response = knxnet.send_receive(request) # ACK
         while (1):
             response = knxnet.receive() # PropRead.con
             if response.sid == "CONFIGURATION REQUEST":
                 # TEST SUBFIELDS
-                self.assertEqual(byte.bit_list_to_int(response.body.cemi.number_of_elements.value), 0)
-                self.assertEqual(byte.bit_list_to_int(response.body.cemi.start_index.value), 0)
-                response.body.cemi.number_of_elements_start_index.value = b'\x10\x01'
-                self.assertEqual(byte.bit_list_to_int(response.body.cemi.number_of_elements.value), 1)
-                self.assertEqual(byte.bit_list_to_int(response.body.cemi.start_index.value), 1)
+                self.assertEqual(byte.bit_list_to_int(response.body.cemi.cemi_data.propread_con.number_of_elements.value), 0)
+                self.assertEqual(byte.bit_list_to_int(response.body.cemi.cemi_data.propread_con.start_index.value), 0)
+                response.body.cemi.cemi_data.propread_con.number_of_elements_start_index.value = b'\x10\x01'
+                self.assertEqual(byte.bit_list_to_int(response.body.cemi.cemi_data.propread_con.number_of_elements.value), 1)
+                self.assertEqual(byte.bit_list_to_int(response.body.cemi.cemi_data.propread_con.start_index.value), 1)
                 # We tell the boiboite we received it
                 ack = knx.KnxFrame(type="CONFIGURATION ACK")
                 ack.body.communication_channel_id.value = channel

@@ -133,6 +133,9 @@ class BOFField(object):
         self._fixed_value = kwargs["fixed_value"] if "fixed_value" in kwargs else False
         self._set_bitfields(**kwargs)
         # From now on, _update_value must be used to modify values within the code
+        if "optional" in kwargs and kwargs["optional"] and self._value == b'':
+            self._size = 0 # We create the field byt don't use it.
+            return
         if "value" in kwargs and kwargs["value"] != b'':
             self._update_value(kwargs["value"])
         elif "default" in kwargs:
@@ -424,7 +427,7 @@ class BOFBlock(object):
             if field == to_property(frame_field.name):
                 block = self._spec.get_code_name(frame_field.name, frame_field.value)
                 return block
-        raise BOFProgrammingError("Field nout found ({0}).".format(field))
+        raise BOFProgrammingError("Field not found ({0}).".format(field))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #

@@ -14,7 +14,6 @@ def connect_request(knxnet, connection_type):
     if connection_type == "Tunneling Connection":
         connectreq.body.connection_request_information.append(knx.KnxField(name="link layer", size=1, value=b"\x02"))
         connectreq.body.connection_request_information.append(knx.KnxField(name="reserved", size=1, value=b"\x00"))
-    print(connectreq)
     connectresp = knxnet.send_receive(connectreq)
     knxnet.channel = connectresp.body.communication_channel_id.value
     return connectresp
@@ -59,14 +58,11 @@ knxnet.connect(argv[1], 3671)
 
 # Gather device information
 connectresp = connect_request(knxnet, "Device Management Connection")
-print(connectresp)
-knx_addr = read_property(knxnet, 0, "IP PARAMETER OBJECTS", "PID_ADDITIONAL_INDIVIDUAL_ADDRESSES")
-print("Device individual address: {0}".format(knx_addr.body.cemi.data))
-# read_property(knxnet, 1, "DEVICE", "PID_MANUFACTURER_ID")
+read_property(knxnet, 0, "IP PARAMETER OBJECTS", "PID_ADDITIONAL_INDIVIDUAL_ADDRESSES")
 disconnect_request(knxnet)
 
 # Establish tunneling connection to read and write objects
 connectresp = connect_request(knxnet, "Tunneling Connection")
-print("Device individual address: {0}".format(connectresp.body.connection_response_data_block.knx_address.value))
+print("Device individual address: {0}".format(connectresp.body.connection_response_data_block.connection_data.knx_address.value))
 # TODO
 disconnect_request(knxnet)

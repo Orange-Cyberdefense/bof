@@ -10,6 +10,9 @@
 	    {"name": "service identifier", "type": "field", "size": 2},
 	    {"name": "total length", "type": "field", "size": 2}
 	],
+	"EMPTY": [
+	    {}
+	],
 	"SEARCH REQUEST": [
 	    {"name": "discovery endpoint", "type": "HPAI"}
 	],
@@ -101,8 +104,10 @@
 	    {"name": "connection data", "type": "depends:connection type code"}
 	],
 	"DEVICE_MANAGEMENT_CONNECTION": [
-	    {"name": "ip address", "type": "field", "size": 4},
-	    {"name": "port", "type": "field", "size": 2}
+	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
+	    {"name": "port", "type": "field", "size": 2, "optional": true},
+	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
+	    {"name": "port", "type": "field", "size": 2, "optional": true}
 	],
 	"TUNNELING_CONNECTION": [
 	    {"name": "knx address", "type": "field", "size": 2}
@@ -133,6 +138,7 @@
     },
     "codes" : {
 	"service identifier": {
+	    "0000": "EMPTY",
 	    "0201": "SEARCH REQUEST",
 	    "0202": "SEARCH RESPONSE",
 	    "0203": "DESCRIPTION REQUEST",

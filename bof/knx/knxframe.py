@@ -58,28 +58,22 @@ class KnxSpec(BOFSpec):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def get_service_name(self, sid:bytes) -> str:
-        """Returns the name of the service identifier with id ``sid``."""
-        if isinstance(sid, bytes):
-            return self.get_code_name("service identifier", sid)
-        if isinstance(sid, str):
-            sid = to_property(sid)
-            for service in self.codes["service identifier"].values():
-                if sid == to_property(service):
-                    return service
-        return None
-
     def get_block_template(self, name:str) -> list:
         """Returns a template associated to a body, as a list, or None."""
-        return self.__get_dict_value(self.blocks, name)
+        return self.__get_dict_value(self.blocks, name) if name else None
 
-
-    def get_code_name(self, dict_key:str, identifier:bytes) -> str:
-        for key in self.codes[dict_key]:
-            if identifier == bytes.fromhex(key):
-                return self.codes[dict_key][key]
-        raise BOFProgrammingError("Association not found for {0} ({1})".format(
-            dict_key, identifier))
+    def get_code_name(self, dict_key:str, identifier) -> str:
+        dict_key = self.__get_dict_key(self.codes, dict_key)
+        if isinstance(identifier, bytes):
+            for key in self.codes[dict_key]:
+                if identifier == bytes.fromhex(key):
+                    return self.codes[dict_key][key]
+        if isinstance(identifier, str):
+            identifier = to_property(identifier)
+            for service in self.codes["service identifier"].values():
+                if identifier == to_property(service):
+                    return service
+        return None
 
     def get_code_id(self, dict_key:dict, name:str) -> bytes:
         name = to_property(name)
@@ -87,9 +81,20 @@ class KnxSpec(BOFSpec):
             if name == to_property(value):
                 return bytes.fromhex(key)
         return None
+
     #-------------------------------------------------------------------------#
     # Internals                                                               #
     #-------------------------------------------------------------------------#
+
+    def __get_dict_key(self, dictionary:dict, dict_key:str) -> str:
+        """As a key can be given with wrong formatting (underscores,
+        capital, lower, upper cases, we match the value given with
+        the actual key in the dictionary.
+        """
+        dict_key = to_property(dict_key)
+        for key in dictionary:
+            if to_property(key) == dict_key:
+                return key
 
     def __get_dict_value(self, dictionary:dict, key:str) -> object:
         """Return the value associated to a key from a given dictionary. Key
@@ -100,15 +105,6 @@ class KnxSpec(BOFSpec):
         for entry in dictionary:
             if to_property(entry) == key:
                 return dictionary[entry]
-        return None
-
-    def __get_dict_key(self, dictionary:dict, inner_key:str, value:object) -> str:
-        """Return the key associated to a value from a given dictionary inside a
-        dictionary. Must be called inside class only.
-        """
-        for entry in dictionary:
-            if bytes.fromhex(dictionary[entry][inner_key]) == value:
-                return entry
         return None
 
 ###############################################################################
@@ -210,6 +206,8 @@ class KnxBlock(BOFBlock):
         if block_type.startswith("depends:"):
             field_name = to_property(block_type.split(":")[1])
             block_type = self._get_depends_block(field_name, defaults)
+            if not block_type:
+                raise BOFProgrammingError("Association not found for field {0}".format(field_name))
         # We extract the block's content according to its type
         template = self._spec.get_block_template(block_type)
         if not template:
@@ -341,7 +339,8 @@ class KnxFrame(BOFFrame):
         """Return the name associated to the frame's service identifier, or
         empty string if it is not set.
         """
-        sid = KnxSpec().get_service_name(self._blocks["header"].service_identifier.value)
+        sid = KnxSpec().get_code_name("service identifier",
+                                      self._blocks["header"].service_identifier.value)
         return sid if sid else str(self._blocks["header"].service_identifier.value)
 
     @property
