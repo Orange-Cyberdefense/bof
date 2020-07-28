@@ -1,76 +1,18 @@
 {
-    "service identifiers": {
-	"SEARCH REQUEST": {"id": "0201"},
-	"SEARCH RESPONSE": {"id": "0202"},
-	"DESCRIPTION REQUEST": {"id": "0203"},
-	"DESCRIPTION RESPONSE": {"id": "0204"},
-	"CONNECT REQUEST": {"id": "0205"},
-	"CONNECT RESPONSE": {"id": "0206"},
-	"CONNECTIONSTATE REQUEST": {"id": "0207"},
-	"CONNECTIONSTATE RESPONSE": {"id": "0208"},
-	"DISCONNECT REQUEST": {"id": "0209"},
-	"DISCONNECT RESPONSE": {"id": "020A"},
-	"CONFIGURATION REQUEST": {"id": "0310"},
-	"CONFIGURATION ACK": {"id": "0311"}
-    },
-    "cemis": {
-	"PropRead.req": {"id": "FC", "type": "DP_cEMI"},
-	"PropRead.con": {"id": "FB", "type": "DP_cEMI"},
-	"PropWrite.req": {"id": "F6", "type": "DP_cEMI"},
-	"PropWrite.con": {"id": "F5", "type": "DP_cEMI"}
-    },
-    "blocktypes": {
+    "frame": [
+	{"name": "header", "type": "HEADER"},
+	{"name": "body", "type": "depends:service identifier"}
+    ],
+    "blocks": {
 	"HEADER": [
 	    {"name": "header length", "type": "field", "size": 1, "is_length": true},
 	    {"name": "protocol version", "type": "field", "size": 1, "default": "10"},
 	    {"name": "service identifier", "type": "field", "size": 2},
 	    {"name": "total length", "type": "field", "size": 2}
 	],
-	"HPAI": [
-	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "host protocol code", "type": "field", "size": 1, "default": "01"},
-	    {"name": "ip address", "type": "field", "size": 4},
-	    {"name": "port", "type": "field", "size": 2}
+	"EMPTY": [
+	    {}
 	],
-	"DIB_DEVICE_INFO": [
-	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "description type code", "type": "field", "size": 1, "default": "01"},
-	    {"name": "knx medium", "type": "field", "size": 1},
-	    {"name": "device status", "type": "field", "size": 1},
-	    {"name": "knx individual address", "type": "field", "size": 2},
-	    {"name": "project installation identifier", "type": "field", "size": 2},
-	    {"name": "knx serial number", "type": "field", "size": 6},
-	    {"name": "multicast address", "type": "field", "size": 4},
-	    {"name": "mac address", "type": "field", "size": 6},
-	    {"name": "friendly name", "type": "field", "size": 30}
-	],
-	"DIB_SUPP_SVC_FAMILIES": [
-	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "description type code", "type": "field", "size": 1, "default": "02"},
-	    {"name": "service family", "type": "SERVICE_FAMILY", "size": 2, "repeat": true}
-	],
-	"SERVICE_FAMILY": [
-	    {"name": "id", "type": "field", "size": 1},
-	    {"name": "version", "type": "field", "size": 1}
-	],
-	"CRI_CRD": [
-	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "connection type code", "type": "field", "size": 1},
-	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
-	    {"name": "port", "type": "field", "size": 2, "optional": true},
-	    {"name": "ip address 2", "type": "field", "size": 4, "optional": true},
-	    {"name": "port 2", "type": "field", "size": 2, "optional": true}
-	],
-	"DP_cEMI": [
-	    {"name": "message code", "type": "field", "size": 1},
-	    {"name": "object type", "type": "field", "size": 2},
-	    {"name": "object instance", "type": "field", "size": 1},
-	    {"name": "property id", "type": "field", "size": 1},
-	    {"name": "number of elements, start index", "type": "field", "size": 2, "subsize": "4, 12"},
-	    {"name": "data", "type": "field", "size": 0}
-	]
-    },
-    "bodies": {
 	"SEARCH REQUEST": [
 	    {"name": "discovery endpoint", "type": "HPAI"}
 	],
@@ -121,18 +63,105 @@
 	    {"name": "communication channel id", "type": "field", "size": 1, "default": "01"},
 	    {"name": "sequence counter", "type": "field", "size": 1},
 	    {"name": "reserved", "type": "field", "size": 1},
-	    {"name": "cEMI", "type": "cemi"}
+	    {"name": "cEMI", "type": "CEMI"}
 	],
 	"CONFIGURATION ACK": [
 	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
 	    {"name": "communication channel id", "type": "field", "size": 1, "default": "01"},
 	    {"name": "sequence counter", "type": "field", "size": 1},
 	    {"name": "status", "type": "field", "size": 1}
+	],
+	"HPAI": [
+	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
+	    {"name": "host protocol code", "type": "field", "size": 1, "default": "01"},
+	    {"name": "ip address", "type": "field", "size": 4},
+	    {"name": "port", "type": "field", "size": 2}
+	],
+	"DIB_DEVICE_INFO": [
+	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
+	    {"name": "description type code", "type": "field", "size": 1, "default": "01"},
+	    {"name": "knx medium", "type": "field", "size": 1},
+	    {"name": "device status", "type": "field", "size": 1},
+	    {"name": "knx individual address", "type": "field", "size": 2},
+	    {"name": "project installation identifier", "type": "field", "size": 2},
+	    {"name": "knx serial number", "type": "field", "size": 6},
+	    {"name": "multicast address", "type": "field", "size": 4},
+	    {"name": "mac address", "type": "field", "size": 6},
+	    {"name": "friendly name", "type": "field", "size": 30}
+	],
+	"DIB_SUPP_SVC_FAMILIES": [
+	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
+	    {"name": "description type code", "type": "field", "size": 1, "default": "02"},
+	    {"name": "service family", "type": "SERVICE_FAMILY", "size": 2, "repeat": true}
+	],
+	"SERVICE_FAMILY": [
+	    {"name": "id", "type": "field", "size": 1},
+	    {"name": "version", "type": "field", "size": 1}
+	],
+	"CRI_CRD": [
+	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
+	    {"name": "connection type code", "type": "field", "size": 1, "default": "03"},
+	    {"name": "connection data", "type": "depends:connection type code"}
+	],
+	"DEVICE_MANAGEMENT_CONNECTION": [
+	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
+	    {"name": "port", "type": "field", "size": 2, "optional": true},
+	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
+	    {"name": "port", "type": "field", "size": 2, "optional": true}
+	],
+	"TUNNELING_CONNECTION": [
+	    {"name": "knx address", "type": "field", "size": 2}
+	],
+	"CEMI": [
+	    {"name": "message code", "type": "field", "size": 1},
+	    {"name": "cemi data", "type": "depends:message code"}
+	],
+	"DP_cEMI": [
+	    {"name": "object type", "type": "field", "size": 2},
+	    {"name": "object instance", "type": "field", "size": 1},
+	    {"name": "property id", "type": "field", "size": 1},
+	    {"name": "number of elements, start index", "type": "field", "size": 2, "bitsizes": "4, 12"},
+	    {"name": "data", "type": "field", "size": 0}
+	],
+	"PropRead.req": [
+	    {"name": "PropRead.req", "type": "DP_cEMI"}
+	],
+	"PropRead.con": [
+	    {"name": "PropRead.con", "type": "DP_cEMI"}
+	],
+	"PropWrite.req": [
+	    {"name": "PropWrite.req", "type": "DP_cEMI"}
+	],
+	"PropWrite.con": [
+	    {"name": "PropWrite.con", "type": "DP_cEMI"}
 	]
     },
-    "connection types": {
-	"Device Management Connection": "03",
-	"Tunneling Connection": "04"
+    "codes" : {
+	"service identifier": {
+	    "0000": "EMPTY",
+	    "0201": "SEARCH REQUEST",
+	    "0202": "SEARCH RESPONSE",
+	    "0203": "DESCRIPTION REQUEST",
+	    "0204": "DESCRIPTION RESPONSE",
+	    "0205": "CONNECT REQUEST",
+	    "0206": "CONNECT RESPONSE",
+	    "0207": "CONNECTIONSTATE REQUEST",
+	    "0208": "CONNECTIONSTATE RESPONSE",
+	    "0209": "DISCONNECT REQUEST",
+	    "020A": "DISCONNECT RESPONSE",
+	    "0310": "CONFIGURATION REQUEST",
+	    "0311": "CONFIGURATION ACK"
+	},
+	"message code": {
+	    "FC": "PropRead.req",
+	    "FB": "PropRead.con",
+	    "F6": "PropWrite.req",
+	    "F5": "PropWrite.con"
+	},
+	"connection type code": {
+	    "03": "DEVICE MANAGEMENT CONNECTION",
+	    "04": "TUNNELING CONNECTION"
+	}
     },
     "object types": {
 	"DEVICE": 0,
