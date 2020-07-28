@@ -522,7 +522,9 @@ class BOFFrame(object):
         if not isinstance(block, BOFBlock):
             raise BOFProgrammingError("Frame can only contain BOF blocks.")
         self._blocks[name] = block
-        setattr(self, to_property(name), self._blocks[name])
+        # Add fields as attributes to current frame block
+        for field in self._blocks[name].fields:
+            self._blocks[name]._add_property(field.name, field)
 
     def remove(self, name:str) -> None:
         """Remove a block or feld according to its name from the frame.

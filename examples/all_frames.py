@@ -7,7 +7,8 @@ def all_frames() -> knx.KnxFrame:
     spec = knx.KnxSpec()
     for sid, block in spec.codes["service identifier"].items(): 
         # If the frame has a cEMI block, we try all cEMI possibilities
-        if "CEMI" in [template["type"] for template in spec.blocks[block]]: 
+        if "CEMI" in [template["type"] for template in spec.blocks[block] \
+                      if "type" in template]:
             for cid, cemi in spec.codes["message code"].items():
                 print(block, cemi)
                 yield knx.KnxFrame(type=block, cemi=cemi)

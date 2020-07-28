@@ -83,6 +83,10 @@ class BOFSpec(object):
                 self.load(filepath)
             self.__is_init = True
 
+    #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#
+
     def load(self, filepath):
         """Loads the content of a JSON file and adds its categories as attributes
         to this class.
@@ -114,3 +118,28 @@ class BOFSpec(object):
         attributes = list(self.__dict__.keys()).copy()
         for key in attributes:
             delattr(self, key)
+
+    #-------------------------------------------------------------------------#
+    # Internals                                                               #
+    #-------------------------------------------------------------------------#
+
+    def _get_dict_key(self, dictionary:dict, dict_key:str) -> str:
+        """As a key can be given with wrong formatting (underscores,
+        capital, lower, upper cases, we match the value given with
+        the actual key in the dictionary.
+        """
+        dict_key = to_property(dict_key)
+        for key in dictionary:
+            if to_property(key) == dict_key:
+                return key
+
+    def _get_dict_value(self, dictionary:dict, key:str) -> object:
+        """Return the value associated to a key from a given dictionary. Key
+        is insensitive, the value can have different types. Must be called
+        inside class only.
+        """
+        key = to_property(key)
+        for entry in dictionary:
+            if to_property(entry) == key:
+                return dictionary[entry]
+        return None

@@ -229,8 +229,7 @@ class Test05DIBBlockFromSpec(unittest.TestCase):
         frame = knx.KnxFrame(type="DESCRIPTION_RESPONSE")
         self.assertEqual(bytes(frame.header.service_identifier), b'\x02\x04')
         self.assertEqual(frame.sid, "DESCRIPTION RESPONSE")
-        frame.body.device_hardware.friendly_name.value = "sushi"
-        frame.body.friendly_name.value = "pizza"
+        frame.body.device_hardware.friendly_name.value = "pizza"
         self.assertEqual(bytes(frame.body.device_hardware.friendly_name).decode('utf-8'), "pizza")
 
 class Test05ReceivedFrameParsing(unittest.TestCase):
@@ -266,11 +265,7 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         """Test that cEMI frames definition in JSON is handled."""
         frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
         self.assertEqual(bytes(frame.body.cemi.message_code), b"\xfc")
-    def test_02_knx_single_cemi(self): # FIX: no type == empty block
-        """Test that we can build a singleblock from cEMI."""
-        propwrite = knx.KnxBlock(cemi="PropWrite.con")
-        self.assertEqual(bytes(propwrite.cemi.cemi_data.propwrite_con.message_code), b"\xf5")
-    def test_03_knx_cemi_bitfields(self):
+    def test_02_knx_cemi_bitfields(self):
         """Test that cemi blocks with bit fields (subfields) work."""
         frame = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
         self.assertEqual(frame.body.cemi.cemi_data.propread_req.number_of_elements.value, [0,0,0,0])
@@ -279,7 +274,7 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         self.assertEqual(frame.body.cemi.cemi_data.propread_req.number_of_elements.value, [1,1,1,1])
         self.assertEqual(frame.body.cemi.cemi_data.propread_req.start_index.value, [0,0,0,0,0,0,0,0,0,0,0,1])
         self.assertEqual(frame.body.cemi.cemi_data.propread_req.number_of_elements_start_index.value, b'\xF0\x01')
-    def test_04_knx_cemi_bitfields_parsing(self):
+    def test_03_knx_cemi_bitfields_parsing(self):
         """Test that a received cEMI frame with bit fields is parsed."""
         knxnet = knx.KnxNet()
         knxnet.connect(BOIBOITE, 3671)

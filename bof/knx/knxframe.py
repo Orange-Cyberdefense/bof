@@ -60,10 +60,10 @@ class KnxSpec(BOFSpec):
 
     def get_block_template(self, name:str) -> list:
         """Returns a template associated to a body, as a list, or None."""
-        return self.__get_dict_value(self.blocks, name) if name else None
+        return self._get_dict_value(self.blocks, name) if name else None
 
     def get_code_name(self, dict_key:str, identifier) -> str:
-        dict_key = self.__get_dict_key(self.codes, dict_key)
+        dict_key = self._get_dict_key(self.codes, dict_key)
         if isinstance(identifier, bytes):
             for key in self.codes[dict_key]:
                 if identifier == bytes.fromhex(key):
@@ -77,34 +77,10 @@ class KnxSpec(BOFSpec):
 
     def get_code_id(self, dict_key:dict, name:str) -> bytes:
         name = to_property(name)
+        dict_key = self._get_dict_key(self.codes, dict_key)
         for key, value in self.codes[dict_key].items():
             if name == to_property(value):
                 return bytes.fromhex(key)
-        return None
-
-    #-------------------------------------------------------------------------#
-    # Internals                                                               #
-    #-------------------------------------------------------------------------#
-
-    def __get_dict_key(self, dictionary:dict, dict_key:str) -> str:
-        """As a key can be given with wrong formatting (underscores,
-        capital, lower, upper cases, we match the value given with
-        the actual key in the dictionary.
-        """
-        dict_key = to_property(dict_key)
-        for key in dictionary:
-            if to_property(key) == dict_key:
-                return key
-
-    def __get_dict_value(self, dictionary:dict, key:str) -> object:
-        """Return the value associated to a key from a given dictionary. Key
-        is insensitive, the value can have different types. Must be called
-        inside class only.
-        """
-        key = to_property(key)
-        for entry in dictionary:
-            if to_property(entry) == key:
-                return dictionary[entry]
         return None
 
 ###############################################################################
@@ -293,11 +269,8 @@ class KnxFrame(BOFFrame):
         # Now we can start
         for block in spec.frame:
             # Create block
-            self._blocks[block["name"]] = KnxBlock(
-                 value=value, defaults=defaults, parent=self, **block)
-            # Add fields as attributes to current frame block
-            for field in self._blocks[block["name"]].fields:
-                self._blocks[block["name"]]._add_property(field.name, field)
+            knxblock = KnxBlock(value=value, defaults=defaults, parent=self, **block)
+            self.append(block["name"], knxblock)
             # If a value is used to fill the blocks, update it:
             if value:
                 if len(self._blocks[block["name"]]) >= len(value):
