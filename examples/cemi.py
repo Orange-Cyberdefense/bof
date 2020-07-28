@@ -6,7 +6,7 @@ from bof import knx, BOFNetworkError, byte
 def connect_request(knxnet, connection_type):
     ip, port = knxnet.source
     connectreq = knx.KnxFrame(type="CONNECT REQUEST")
-    connectreq.body.connection_request_information.connection_type_code.value = knxspecs.connection_types[connection_type]
+    connectreq.body.connection_request_information.connection_type_code.value = knx.KnxSpec().get_code_id("connection type code", connection_type)
     connectreq.body.control_endpoint.ip_address.value = ip
     connectreq.body.control_endpoint.port.value = port
     connectreq.body.data_endpoint.ip_address.value = ip
@@ -14,7 +14,7 @@ def connect_request(knxnet, connection_type):
     if connection_type == "Tunneling Connection":
         connectreq.body.connection_request_information.append(knx.KnxField(name="link layer", size=1, value=b"\x02"))
         connectreq.body.connection_request_information.append(knx.KnxField(name="reserved", size=1, value=b"\x00"))
-    # print(connectreq)
+    print(connectreq)
     connectresp = knxnet.send_receive(connectreq)
     knxnet.channel = connectresp.body.communication_channel_id.value
     return connectresp
@@ -30,10 +30,11 @@ def read_property(knxnet, sequence_counter, object_type, property_id):
     request = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
     request.body.communication_channel_id.value = knxnet.channel
     request.body.sequence_counter.value = sequence_counter
-    request.body.cemi.number_of_elements.value = 1
-    request.body.cemi.object_type.value = knxspecs.object_types[object_type]
-    request.body.cemi.object_instance.value = 1
-    request.body.cemi.property_id.value = knxspecs.properties[object_type][property_id]
+    propread = request.body.cemi.cemi_data.propread_req
+    propread.number_of_elements.value = 1
+    propread.object_type.value = knxspecs.object_types[object_type]
+    propread.object_instance.value = 1
+    propread.property_id.value = knxspecs.properties[object_type][property_id]
     try:
         response = knxnet.send_receive(request) # ACK
         while (1):

@@ -97,7 +97,7 @@
 	],
 	"CRI_CRD": [
 	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "connection type code", "type": "field", "size": 1},
+	    {"name": "connection type code", "type": "field", "size": 1, "default": "03"},
 	    {"name": "connection data", "type": "depends:connection type code"}
 	],
 	"DEVICE_MANAGEMENT_CONNECTION": [
@@ -144,7 +144,7 @@
 	    "0209": "DISCONNECT REQUEST",
 	    "020A": "DISCONNECT RESPONSE",
 	    "0310": "CONFIGURATION REQUEST",
-	    "0311": "CONFIGURATION RESPONSE"
+	    "0311": "CONFIGURATION ACK"
 	},
 	"message code": {
 	    "FC": "PropRead.req",
