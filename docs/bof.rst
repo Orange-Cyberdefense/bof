@@ -1,6 +1,3 @@
-Source code documentation
-=========================
-
 .. automodule:: bof
    :members:
    :undoc-members:
