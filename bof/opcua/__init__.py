@@ -9,5 +9,13 @@ format. Therefore, a user can copy, modify or replace the specification file to
 include or change any content they want.
 
 The ``opcua`` submodule has the following content:
+
+:opcuaframe:
+    Object representations of OPC UA frames and frame content (blocks and
+    fields) and specification details, with methods to build, alter or read
+    a frame or part of it. Available from direct import of the ``opcua``
+    submodule (``from bof import opcua``).
 """
+
+from .opcuaframe import *
 
