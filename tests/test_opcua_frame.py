@@ -160,3 +160,11 @@ class Test03OpcuaBlock(unittest.TestCase):
             block = opcua.OpcuaBlock(
                 item_template_block={"name": "body", "type": "depends:message_type"},
                 defaults={"message_type": "unknown"})
+    def test_11_opcua_create_block_with_value(self):
+        """Test block creation with a value to fill it"""
+        block = opcua.OpcuaBlock(type="STRING", value=14*b"\x01")
+        self.assertEqual(block.string_length.value, b'\x01\x01\x01\x01')
+    def test_12_opcua_create_block_with_value_missing_type(self):
+        """Test that a block value with not type returns an empty list as expected"""
+        block = opcua.OpcuaBlock()
+        self.assertEqual(block.content, [])

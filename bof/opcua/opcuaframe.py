@@ -137,7 +137,7 @@ class OpcuaBlock(BOFBlock):
     value of another field. In that case the keyword "depends:" is used to
     associate the variable to its value, based on given parameters to another
     field. The process can be looked in details `__init__` method, and
-    understood from examples. 
+    understood from examples. They are not perfect/exhaustive (but at least allowed to identify some bugs when coding).
 
     Usage example:: 
 
@@ -155,6 +155,9 @@ class OpcuaBlock(BOFBlock):
                 item_template_block={"name": "body", "type": "depends:message_type"},
                 defaults={"message_type": "HEL"})
 
+        # fills block with value at creation (a type is still mandatory)
+        block = opcua.OpcuaBlock(type="STRING", value=14*b"\x01")
+
         # block customization "by hand"
         block = opcua.OpcuaBlock(type="HEADER")
         sub_block = opcua.OpcuaBlock(type="STRING")
@@ -165,8 +168,6 @@ class OpcuaBlock(BOFBlock):
 
         # and access on of those `fields` with
         block.protocol_version
-
-        #TODO: add example with block from value once implemented
     """
     
     @classmethod
@@ -180,14 +181,14 @@ class OpcuaBlock(BOFBlock):
         
         :param defaults: defaults values in a dict, needed to construct 
                              blocks with dependencies, see example above.
-        :param value: bytes value to fill the block with TODO: implement
+        :param value: bytes value to fill the block with
         
         """
         # case where item template represents a field (non-recursive)
         if "type" in item_template and item_template["type"] == "field":
             value = b''
-            if "defaults" in kwargs and item_template["name"] in kwargs["defaults"]:
-                value = kwargs["defaults"][item_template["name"]] 
+            if "value" in kwargs and kwargs["value"]:
+                value = kwargs["value"][:item_template["size"]]
             return OpcuaField(**item_template, value=value)
         # case where item template represents a sub-block (nested/recursive block)
         else:
@@ -207,7 +208,7 @@ class OpcuaBlock(BOFBlock):
                     account.
             :param defaults: defaults values in a dict, needed to construct 
                              blocks with dependencies.
-            :param value: bytes value to fill the block with TODO: implement
+            :param value: bytes value to fill the block with
             
         """
         self._spec = OpcuaSpec()
@@ -253,7 +254,7 @@ class OpcuaBlock(BOFBlock):
 
         if block_template:
             for item_template in block_template:
-                new_item = self.factory(item_template, defaults=defaults, parent=self)
+                new_item = self.factory(item_template, defaults=defaults, value=value, parent=self)
                 self.append(new_item)
         else:
             raise BOFProgrammingError("Block type '{0}' not found in specifications.".format(block_type))
