@@ -7,7 +7,7 @@
         "HEADER": [
             {"name": "message_type", "type": "field", "size": 3},
             {"name": "is_final", "type": "field", "size": 1},
-            {"name": "message_size", "type": "field", "size": 4, "is_length": true}
+            {"name": "message_size", "type": "field", "size": 4}
         ],
         "HEL_BODY": [
             {"name": "protocol_version", "type": "field", "size": 4},
@@ -18,7 +18,7 @@
             {"name": "endpoint_url", "type": "STRING", "size": 18}
         ],
         "STRING": [
-            {"name": "string_length", "type": "field", "size": 4, "is_length": true},
+            {"name": "string_length", "type": "field", "size": 4},
             {"name": "string_value", "type": "field", "size": 14}
         ]
     },
