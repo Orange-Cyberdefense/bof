@@ -124,7 +124,229 @@ are described in the next section.
    ``spec.py`` and ``frame.py`` contain base classes to use in implementation:
    specification file parsing base class, frame, block and field base classes.
 
-(TODO) Extend BOF
-=================
+Extend BOF
+==========
 
-TODO
+BOF can (and should) be extended to other network protocols. If you feel like
+contributing, here is how to start a new protocol implementation.
+
+Source files tree
+-----------------
+
+The folder ``bof`` contains the library core functions. Subfolders, such as
+``bof\knx`` contain implementations. Please create a new subfolder for your
+implementation.
+
+You should need 3 main components for a protocol implementation, described
+below:
+
+* A JSON file describing the protocol specification
+* A connection class
+* Frame, block and field building and parsing classes
+
+Create the specification
+------------------------
+
+BOF parses a JSON file that explains how the library should create and parse
+frames in a defined protocol. The main objective of using an external file is
+not to bind the code too tightly to the specification (to change both of them
+more easily). This JSON file is used within the code in a specification class
+inheriting from ``BOFSpec``. It is recommended to build your own spec class and
+to not use ``BOFSpec`` directly.
+
+Write the JSON file
++++++++++++++++++++
+
+The format of the JSON is "almost" up to you. We define 3 main categories that
+BOF core can recognize, but you can add more or change them, as long as you
+adapt the code in you subclasses. If you want not to rely on a JSON spec file,
+you can, but you may loose all the benefits of using BOF :(
+
+The JSON file should be in your protocol's subdirectory and we recommend that
+you use the following base.
+
+.. code-block:: json
+
+   {
+    "frame": [
+        {"name": "header", "type": "HEADER"},
+        {"name": "body", "type": "depends:message type"}
+    ],
+    "blocks": {
+       "EMPTY": [
+          {}
+       ],
+       "HEADER": [
+          {"name": "header length", "type": "field", "size": 1, "is_length": true},
+          {"name": "message type", "type": "field", "size": 1, "default": "01"},
+          {"name": "total length", "type": "field", "size": 2}
+       ],
+       "HELLO": [
+          {"name": "target otter", "type": "OTTER_DESC"}
+       ],
+       "OTTER_DESC": [
+          {"name": "otter name", "type": "field", "size": 30},
+          {"name": "age", "type": "field", "size": 1}
+       ],
+    },
+    "codes" : {
+       "message type": {
+          "01": "HELLO"
+       }
+    }
+   }
+
+There are three categories in a specification JSON file:
+
+:frame: The fixed definition of the frame format. For instance, many protocols
+	have a frame with a fixed header and a varying body.
+:blocks: The list of blocks (fixed set of fields and/or nested blocks. Blocks
+	 can be complete frame body (ex: in the base JSON file, ``message type``
+	 is used to choose the body) or part of another block.
+:codes: Tables to match received codes as bytes arrays with block types (blocks)
+
+.. warning::
+
+   You are free to use them or not. However, if you do not follow this format
+   you will have to create a class inheriting from ``BOFSpec`` in your protocol
+   implementation and either add methods and code in your subclass if you add
+   categories to the JSON file or overload methods from ``BOFSpec`` to change or
+   remove the handling of these three default categories.
+
+To sum up: 
+
+* ``frame`` is the structure of the corresponding ``BOFFrame`` subclass
+  of your implementation. each entry is added to the list of blocks contained
+  in the frame.
+* An entry is the definition of either a block with a specific type, referred by
+  its name in the ``blocks`` category, or a ``field``. A block can contain as many
+  nested blocks as required.
+* The smallest item of a frame is a field, ``BOF`` will read blocks until it
+  find fields. A field have a few mandatory parameters, and some optional ones.
+
+:name: Mandatory name of the field
+:size: Mandatory size of the field, in bytes
+:type: ``field`` :)
+:is_length: Optional boolean. If true, the value of this field is the size of
+	    the block, and is updated when the block size changed 
+:default: Default value, if no value has been specified before (by the user or
+	  by parsing an existing frame).
+
+Specification file parsing
+++++++++++++++++++++++++++
+
+Here is how the example JSON file above is used in the code:
+
+The protocol implementation shall refer to ``BOFSpec`` or a subclass of
+``BOFSpec`` that parses your JSON file.::
+
+  class OtterSpec(BOFSpec):
+     """Otter specification class, using the content of otter's JSON file."""
+     def __init__(self, filepath:str=None):
+        if not filepath:
+           filepath = path.join(path.dirname(path.realpath(__file__)), "otter.json")
+        super().__init__(filepath)
+
+By default, your implementation's frame class inheriting from ``BOFFrame`` will
+read the ``frame`` category. Here, the frame will have two main parts: a header
+and a body.::
+
+   {"name": "header", "type": "HEADER"},
+   {"name": "body", "type": "depends:message type"}
+
+We notice that ``header`` has type ``HEADER`` which is a type of block, defined
+in the ``blocks`` category. The block ``header`` will then filled according th
+the type defined and contain three fields.::
+
+  "HEADER": [
+     {"name": "header length", "type": "field", "size": 1, "is_length": true},
+     {"name": "message type", "type": "field", "size": 1, "default": "01"},
+     {"name": "total length", "type": "field", "size": 2}
+  ]
+
+A field has a set of attributes, discussed previously. When the frame is created
+from the specification, blocks and fields are created but not filled, unless
+there is a default value given (in command line or with the keyword ``default``
+in the JSON file). When created from parsing a byte array, the fields are filled
+directly with received bytes. The final header should look like this.::
+
+  BOFBLock: header
+     BOFField: header_length: b'\x04' (1 byte)
+     BOFField: message_type: b'\x01' (1 byte)
+     BOFField: total_length: b'\x00\x23' (2 byte)
+
+The field ``total length`` is the complete size of the frame. You will have to
+write some code in the frame to handle it, as well as any special field. Here is
+an example from the ``KNX`` implementation::
+
+  if "total_length" in self._blocks["header"].attributes:
+     total = sum([len(block) for block in self._blocks.values()])
+     self._blocks["header"].total_length._update_value(byte.from_int(total))
+
+Now let's move to the body. Here, it contains only one block, but its content
+changes entirely depending on the type of message: ``"type": "depends:message
+type"``. This means that the parser will require the value of a field with name
+``message type`` set previously (in the header, here). We'll need the category
+``codes`` to match values with associated block types. ``codes`` is a dictionary
+and each key is the name of a block. When extracting the value of ``message
+type``, we'll search in ``codes["message type"]`` to know if there is a matching
+block name for a value. If a value is ``\x01``, then the body block should be a
+block ``HELLO``.::
+
+  "codes" : {
+     "message type": {
+        "01": "HELLO"
+     },
+  }
+
+The block type ``HELLO`` contains a block ``OTTER_DESC``, so we build it as well
+as a nested block. The final body should look like this::
+
+  BOFBLock: body
+     BOFBlock: target otter
+        BOFField: otter_name: b'seraph\x00\x00\x00 [...]' (30 bytes)
+	BOFField: age: b'\x02' (1 byte)
+
+Write connection classes
+------------------------
+
+Inheriting (or not) from ``UDP``, ``TCP`` or whatever from ``network.py``, it
+(or they) should contain the protocol-specific connection steps. For instance,
+if the protocol requires to send an init message, it should be implemented
+here. You may or may not rely on methods from parent classes
+(``connect/disconnect``, ``send/receive``).
+
+For instance, the class ``KnxNet`` (connection class for KNX) implements ``UDP``
+and overloads the ``receive()`` method to convert received bytes to a
+``KnxFrame`` object.
+
+.. code-block:: python
+
+   def receive(self, timeout:float=1.0) -> object:
+      data, address = super().receive(timeout)
+      return KnxFrame(bytes=data, source=address)
+
+We recommend that you do the same for your implementation and return a usable
+frame object instead of a raw byte array.
+
+Write frame, block and field classes
+------------------------------------
+
+BOF's core source code assumes that the network protocols transmit frames as
+bytes arrays, which contain blocks, which contain fields. If they don't, you can
+skip this part. Otherwise, your protocol implementation should include three
+classes, inheriting from ``BOFFrame``, ``BOFBlock`` and ``BOFField``.
+
+Formats and behavior that do not match with what is decribed above (mostly, JSON
+specification file organization) have to be written to your protocol
+implementation's subclasses.
+
+.. note::
+
+   So far (BOF v0.2.X), part of the code that we expect to be generic and used
+   by most of the implementation is not written to BOF core, but to the KNX
+   implementation. We are carefully moving them as we notice that they can be
+   reused, but this is a long process and we don't want to miss steps. So far,
+   please refer to KNX's frame, block and field implementations in
+   ``bof/knx/knxframe.py`` to write your own implementation and feel free to try
+   and move part of it to the core (``bof/frame.py``).

@@ -233,7 +233,6 @@ class KnxFrame(BOFFrame):
         "connection": "connection type code"
     }
 
-    # TODO
     def __init__(self, **kwargs):
         """Initialize a KnxFrame object from various origins using values from
         keyword argument (kwargs).

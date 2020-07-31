@@ -186,6 +186,15 @@ constructor.
    existing_frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
    received_frame = knx.KnxFrame(bytes=data)
 
+.. warning:: For some frames, the structure of the body depends on the value of
+   a field inside the body, and sometimes inside the same block. Therefore, we
+   have to specify the value for that field as soon as possible. When the frame
+   is built from a received byte array, this part is handled directly, but when
+   building a frame from the specification, please remember to set this value in
+   the constructor::
+
+     KnxFrame(type="CONNECT REQUEST", connection_type_code="Tunneling connection")
+
 From the specification
 ++++++++++++++++++++++
 
@@ -277,45 +286,70 @@ available yet) contains details on how to do so.
    print(frame)
 
 
-(TODO) Modify frames
---------------------
+Modify frames
+-------------
 
-Say we want to create a ``CONNECT REQUEST`` frame. Using the two previous
-sections, here is how to do it.
+Modify fields
++++++++++++++
 
-We first need information associated to the current connection (source ip and
-port, stored within a ``KnxNet`` object after the UDP connection is
-established).
+As explained previously, blocks and fields are attributes within a frame or
+block object and can be reached using a syntax such as::
 
-.. code-block:: python
+  request.body.communication_channel_id
 
-   ip, port = knxnet.source
+.. tip:: Use ``print(request)`` and ``request.fields`` to locate the fields
+	 you need to change.
 
-We have to create the predefined frame with the appropriate format (blocks and
-fields), but some of them are empty (values set to 0). We then have to fill some
-of them that are required to be understood by the server.
+Terminal parts of a frame are KnxField objects, when you want to modify field
+values, you need to refer to the field's attributes::
 
-.. code-block:: python
+  request.body.communication_channel_id.value = "test"
 
-   connectreq = knx.KnxFrame(type="CONNECT REQUEST")
+Value accepts different types of values, which will be converted to bytes:
+``str``, ``int`` and ``bytes``. ``str`` with the following format have a
+different conversion strategy;
 
-   connectreq.body.control_endpoint.ip_address.value = ip
-   connectreq.body.control_endpoint.port.value = port
-   connectreq.body.data_endpoint.ip_address.value = ip
-   connectreq.body.data_endpoint.port.value = port
+:IPv4: ``A.B.C.D`` is converted to 4 corresponding bytes.
+:KNX address: *Not implemented yet*
 
-Finally, we need to specify the type of connection we want to establish with the
-server. The latter is sent as an identifier in the field
-``connection_type_code``.  The list of existing identifiers for this field are
-defined in the KNX standard and reported to the JSON specification
-file. Therefore, we can either set the ID manually, or refer to the
-specification file. The content of the specification file can be accessed by
-instantiating the singleton class ``KnxSpec``. From this object, the sections in
-the JSON file can be accessed as properties (details in "Advanced Usage" (not
-available yet)).
+Values you set change the size (the total size is recalculated anyway) of the
+field if they do not match. You may need to resize manually, e.g. with
+``byte.resize()``. Else you can set the size yourself beforehand::
 
-.. code-block::
+  request.body.communication_channel_id.size = 1
 
-   knxspecs = knx.KnxSpec()
-   connection_type = knxspecs.connection_types["Device Management Connection"]
-   connectreq.body.connection_request_information.connection_type_code.value = connection_type
+When you do so, the size parameter switches to a "manual" mode, and will not
+change until the end user manually changes it.
+
+Modify blocks (and frames)
+++++++++++++++++++++++++++
+
+Blocks order, types and names are based on the JSON specification file
+``knxnet.json``, which has been written according to KNX Standard v2.1. That
+said, please note that we had to made some very small adaptations, and that some
+types of messages, blocks and codes are still missing.
+
+There are two ways to modify blocks within a frame:
+
+:From the objects:
+
+   Blocks in a frame can be added, removed, or changed using ``append`` and
+   ``remove`` and by manipulating directly ``KnxBlock`` objects. For instance::
+
+     block = knx.KnxBlock(name="atoll")
+     block.append(knx.KnxField(name="pom-"))
+     block.append(knx.KnxField(name="pom")) ``
+
+:From the specification file:
+
+   You can obviously replace, change or extend the specification file. BOF
+   should not comply, unless the JSON parser can't read it, or unless it does
+   not contain the 3 required sections ``frame``, ``blocks`` and ``codes``.
+   Please refer to section "Extend BOF" for more information.
+
+.. warning::
+
+   KNX frame servers usually have strict parsing rules and won't consider
+   invalid frames. If you modify the structure of a frame or block and differ
+   too much from the specification, you should not expect the KNX device to
+   respond.
