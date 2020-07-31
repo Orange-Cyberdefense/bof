@@ -90,3 +90,26 @@ class OpcuaSpec(BOFSpec):
                 if identifier == association:
                     return self.codes[code_name][association]
         return None
+
+###############################################################################
+# OPC UA FRAME CONTENT                                                        #
+###############################################################################
+
+#-----------------------------------------------------------------------------#
+# OPC UA fields (byte or byte array) representation                           #
+#-----------------------------------------------------------------------------#
+
+class OpcuaField(BOFField):
+    """An ``OpcuaField`` is a set of raw bytes with a name, a size and a
+    content (``value``). Inherits ``BOFField``. See `frame.py`.
+
+    Usage example::
+
+        # creating a field from raw parameters
+        field = opcua.OpcuaField(name="protocol version", value=b"1", size=4)
+        field.value = field.value = b'\x00\x00\x00\x02'
+
+        # creating a field from a template
+        item_template_field = spec.get_item_template("HEL_BODY", "protocol version")
+        field = opcua.OpcuaField(**item_template_field)
+    """

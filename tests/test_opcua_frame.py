@@ -7,7 +7,9 @@ import unittest
 from bof import opcua, BOFLibraryError
 
 class Test01OpcuaSpec(unittest.TestCase):
-    """Test class for specification class building from JSON file."""
+    """Test class for specification class building from JSON file.
+    TODO: Some tests are generic to BOFSpec and could be moved.
+    """
     def test_01_opcua_spec_instantiate_default(self):
         """Test that the current `opcua.json` default file is valid."""
         try:
@@ -68,3 +70,35 @@ class Test01OpcuaSpec(unittest.TestCase):
         spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
         message_structure = spec.get_association("INVALID", "INVALID")
         self.assertEqual(message_structure, None)
+
+class Test02OpcuaField(unittest.TestCase):
+    """Test class for field crafting and access.
+    Note that we don't test for the whole BOFField behavior, but
+    uniquely what we are using in OpcuaField.
+    TODO: Some tests are generic to BOFField and could be moved.
+    """
+    def test_01_opcua_create_field_manual(self):
+        """Test that we can craft a field by hand and content is set"""
+        field = opcua.OpcuaField(name="protocol_version")
+        self.assertEqual(field.name, "protocol_version")
+    def test_02_opcua_create_field_template(self):
+        """Test that we can craft a field from a template and content is set"""
+        spec = opcua.OpcuaSpec()
+        item_template_field = spec.get_item_template("HEL_BODY", "protocol_version")
+        field = opcua.OpcuaField(**item_template_field)
+        self.assertEqual(field.name, "protocol_version")
+    def test_03_opcua_field_set(self):
+        """Test that a field value can get set as expected."""
+        field = opcua.OpcuaField(name="protocol_version", size=4)
+        field.value = b'\x00\x00\x00\x01'
+        self.assertEqual(field.value, b'\x00\x00\x00\x01')
+    def test_04_opcua_field_set_large(self):
+        """Test that if we set a value that is to large, it will be cropped."""
+        field = opcua.OpcuaField(name="protocol_version", size=4)
+        field.value = b'\x00\x00\x00\x00\x01'
+        self.assertEqual(field.value, b'\x00\x00\x00\x01')
+    def test_05_opcua_field_set_small(self):
+        """Test that if we set a value that is to small, it will be extended."""
+        field = opcua.OpcuaField(name="protocol_version", size=4)
+        field.value = b'\x00\x00\x01'
+        self.assertEqual(field.value, b'\x00\x00\x00\x01')
