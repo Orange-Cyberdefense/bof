@@ -256,6 +256,12 @@ class OpcuaBlock(BOFBlock):
             for item_template in block_template:
                 new_item = self.factory(item_template, defaults=defaults, value=value, parent=self)
                 self.append(new_item)
+
+                # Cut value to fill byte by byte
+                if value:
+                    if len(new_item) >= len(value):
+                        break
+                    value = value[len(new_item):]
         else:
             raise BOFProgrammingError("Block type '{0}' not found in specifications.".format(block_type))
 
