@@ -421,13 +421,16 @@ class BOFBlock(object):
         :raises BOFProgrammingError: If specified field was not found.
         """
         field = to_property(field)
-        field_list = list(self._parent)
-        field_list.reverse()
-        for frame_field in field_list:
-            if field == to_property(frame_field.name):
-                block = self._spec.get_code_name(frame_field.name, frame_field.value)
-                return block
-        raise BOFProgrammingError("Field not found ({0}).".format(field))
+        if self._parent:
+            field_list = list(self._parent)
+            field_list.reverse()
+            for frame_field in field_list:
+                if field == to_property(frame_field.name):
+                    block = self._spec.get_code_name(frame_field.name, frame_field.value)
+                    return block
+            raise BOFProgrammingError("Field not found ({0}).".format(field))
+        else:
+            return None
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
