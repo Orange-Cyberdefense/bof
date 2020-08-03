@@ -60,16 +60,27 @@ class Test01OpcuaSpec(unittest.TestCase):
         spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
         item_template = spec.get_template("INVALID", "INVALID")
         self.assertEqual(item_template, None)
-    def test_10_get_association_valid():
+    def test_10_get_association_str_valid():
         """Test that a valid association is returned as expeted"""
         spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
-        message_structure = spec.get_association("message_type", "HEL")
+        message_structure = spec.get_code_name("message_type", "HEL")
         self.assertEqual(message_structure, "HEL_BODY")
-    def test_11_get_association_invalid():
-        """Test that an ivalid association returns None"""
+    def test_11_get_association_str_invalid():
+        """Test that an invalid association returns None"""
         spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
-        message_structure = spec.get_association("INVALID", "INVALID")
+        message_structure = spec.get_code_name("INVALID", "INVALID")
         self.assertEqual(message_structure, None)
+    def test_12_get_association_bytes_valid():
+        """Test that a valid association with byte id is returned as expeted"""
+        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        message_structure = spec.get_code_name("message_type", b"HEL")
+        self.assertEqual(message_structure, "HEL_BODY")
+    def test_13_get_association_bytes_invalid():
+        """Test that an invalid association with byte id returns None"""
+        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        message_structure = spec.get_code_name("INVALID", b"INVALID")
+        self.assertEqual(message_structure, None)
+
 
 class Test02OpcuaField(unittest.TestCase):
     """Test class for field crafting and access.
@@ -140,31 +151,48 @@ class Test03OpcuaBlock(unittest.TestCase):
         sub_block = opcua.OpcuaBlock(type="STRING")
         block.append(sub_block)
         self.assertEqual(block.string.attributes, ['string_length', 'string_value'])
-    def test_08_opcua_create_dependency_block(self):
-        """Test dependecy block creation"""
+    def test_08_opcua_create_dependency_block_missing(self):
+        """Test nested block creation with missing dependency values (neither from
+        defaults or parent block"""
+        with self.assertRaises(BOFProgrammingError):
+            item_template_block = {"name": "body", "type": "depends:message_type"}
+            block = opcua.OpcuaBlock(
+                    item_template_block={"name": "body", "type": "depends:message_type"})
+    def test_09_opcua_create_dependency_defaults(self):
+        """Test dependecy block creation with defaults"""
         item_template_block = {"name": "body", "type": "depends:message_type"}
         block = opcua.OpcuaBlock(
                 item_template_block={"name": "body", "type": "depends:message_type"},
                 defaults={"message_type": "HEL"})
         self.assertEqual(block.name, "HEL_BODY")
-    def test_09_opcua_create_dependency_block_missing(self):
-        """Test nested block creation with missing defaults values"""
-        with self.assertRaises(BOFProgrammingError):
-            item_template_block = {"name": "body", "type": "depends:message_type"}
-            block = opcua.OpcuaBlock(
-                    item_template_block={"name": "body", "type": "depends:message_type"})
-    def test_10_opcua_create_nested_dependecy_block_wrong(self):
+    def test_10_opcua_create_dependency_defaults_wrong(self):
         """Test nested block creation with wrong defaults values"""
         with self.assertRaises(BOFProgrammingError):
             item_template_block = {"name": "body", "type": "depends:message_type"}
             block = opcua.OpcuaBlock(
                 item_template_block={"name": "body", "type": "depends:message_type"},
                 defaults={"message_type": "unknown"})
-    def test_11_opcua_create_block_with_value(self):
+    def test_11_opcua_create_block_value(self):
         """Test block creation with a value to fill it"""
         block = opcua.OpcuaBlock(type="STRING", value=14*b"\x01")
         self.assertEqual(block.string_length.value, b'\x01\x01\x01\x01')
-    def test_12_opcua_create_block_with_value_missing_type(self):
+    def test_12_opcua_create_block_value_missing_type(self):
         """Test that a block value with not type returns an empty list as expected"""
         block = opcua.OpcuaBlock()
         self.assertEqual(block.content, [])
+    def test_13_opcua_create_dependency_bytes(self):
+        """Test nested block creation from raw bytes"""
+        data1 = b'HEL\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data2 = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        block = opcua.OpcuaBlock()
+        block.append(opcua.OpcuaBlock(value=data1, parent=block, **{"name": "header", "type": "HEADER"}))
+        block.append(opcua.OpcuaBlock(value=data2, parent=block, **{"name": "body", "type": "depends:message_type"}))
+        self.assertNotEqual(block.hel_body, None)
+    def test_14_opcua_create_dependency_bytes_wrong(self):
+        """Test nested block creation from raw bytes with wrong dependency"""
+        with self.assertRaises(BOFProgrammingError):
+            data1 = b'XYZ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+            data2 = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+            block = opcua.OpcuaBlock()
+            block.append(opcua.OpcuaBlock(value=data1, parent=block, **{"name": "header", "type": "HEADER"}))
+            block.append(opcua.OpcuaBlock(value=data2, parent=block, **{"name": "body", "type": "depends:message_type"}))

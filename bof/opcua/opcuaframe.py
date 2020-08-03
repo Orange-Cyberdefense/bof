@@ -36,7 +36,7 @@ class OpcuaSpec(BOFSpec):
         spec = opcua.OpcuaSpec()
         block_template = spec.get_block_template(block_name="HEL_BODY")
         item_template = spec.get_item_template("HEL_BODY", "protocol version")
-        message_structure = spec.get_association("message_type", "HEL")
+        message_structure = spec.get_code_name("message_type", "HEL")
     """
 
     def __init__(self):
@@ -74,21 +74,25 @@ class OpcuaSpec(BOFSpec):
         :param block_name: Name of the block we want the template from.
         """
         return self._get_dict_value(self.blocks, block_name) if block_name else None
-            
-    def get_association(self, code_name:str, identifier:str) -> str:
+    
+    def get_code_name(self, code_name:str, identifier) -> str:
         """Returns the value associated to an `identifier` inside a `code_name`
         association table. See `opcua.json` + usage example to better 
         understand the association table concept.
         
-        :param identifier: Key we want the value from.
-        :code name: Association table name we want to look into for identifier
+        :param identifier: Key we want the value from, as str or byte.
+        :param code_name: Association table name we want to look into for identifier
                     match.
         """
-        #TODO: add support for bytes codes names (if needed in the specs ?)
-        if code_name in self.codes:
-            for association in self.codes[code_name]:
-                if identifier == association:
-                    return self.codes[code_name][association]
+        code_name = self._get_dict_key(self.codes, code_name)
+        if isinstance(identifier, bytes):
+            for key in self.codes[code_name]:
+                if identifier == str.encode(key):
+                    return self.codes[code_name][key]
+        if isinstance(identifier, str):
+            for key in self.codes[code_name]:
+                if identifier == key:
+                    return self.codes[code_name][key]
         return None
 
 ###############################################################################
@@ -137,31 +141,35 @@ class OpcuaBlock(BOFBlock):
     value of another field. In that case the keyword "depends:" is used to
     associate the variable to its value, based on given parameters to another
     field. The process can be looked in details `__init__` method, and
-    understood from examples. They are not perfect/exhaustive (but at least allowed to identify some bugs when coding).
+    understood from examples.
 
     Usage example:: 
 
-        # block creation directly from type
-        block = opcua.OpcuaBlock(name="parent-block", type="HEADER")
+        # block creation with direct parameters
+        block = opcua.OpcuaBlock(name="header", type="HEADER")
 
-        # block creation from an item template
+        # block creation from an item template (as found in json spec file)
         item_template_block = {"name": "header", "type": "HEADER"}
         block = opcua.OpcuaBlock(item_template_block=item_template_block)
 
-        # block creation from an item template with dependency (defaults is needed)
-        # see opcua.json to understand defaults parameter value.
+        # block creation from an item template with dependency specified in defaults
+        # parameters
         item_template_block = {"name": "body", "type": "depends:message_type"}
         block = opcua.OpcuaBlock(
                 item_template_block={"name": "body", "type": "depends:message_type"},
                 defaults={"message_type": "HEL"})
 
-        # fills block with value at creation (a type is still mandatory)
+        # fills block with byte value at creation (note that a type is still mandatory)
         block = opcua.OpcuaBlock(type="STRING", value=14*b"\x01")
 
-        # block customization "by hand"
-        block = opcua.OpcuaBlock(type="HEADER")
-        sub_block = opcua.OpcuaBlock(type="STRING")
-        block.append(sub_block)
+        # a block with dependency can be created from raw bytes too (no default parameter)
+        data1 = b'HEL\x00...'
+        data2 = b'\x00...'
+        block = opcua.OpcuaBlock()
+        block.append(opcua.OpcuaBlock(value=data1, parent=block, 
+                        **{"name": "header", "type": "HEADER"}))
+        block.append(opcua.OpcuaBlock(alue=data2, parent=block, 
+                        **{"name": "body", "type": "depends:message_type"}))
 
         # we can access list block `fields` using
         block.attributes
@@ -179,15 +187,20 @@ class OpcuaBlock(BOFBlock):
         
         Keyword arguments:
         
-        :param defaults: defaults values in a dict, needed to construct 
-                             blocks with dependencies, see example above.
+        :param defaults: defaults values to assign a field as dictionnary
+                         (can therefore be used to construct blocks with
+                         dependencies if not found in raw bytes, see example
+                         above)
         :param value: bytes value to fill the block with
-        
+                         (can create dependencies on its own, see example
+                         above)
         """
         # case where item template represents a field (non-recursive)
         if "type" in item_template and item_template["type"] == "field":
             value = b''
-            if "value" in kwargs and kwargs["value"]:
+            if "defaults" in kwargs and item_template["name"] in kwargs["defaults"]:
+                value = kwargs["defaults"][template["name"]]
+            elif "value" in kwargs and kwargs["value"]:
                 value = kwargs["value"][:item_template["size"]]
             return OpcuaField(**item_template, value=value)
         # case where item template represents a sub-block (nested/recursive block)
@@ -202,13 +215,21 @@ class OpcuaBlock(BOFBlock):
             :param type: a string specifying block type (as found in json
                          specifications) to construct the block on.
             :param item_template_block: item template dict corresponding to a 
-                    block (which is described in item_block_template['type']),
-                    giving its structure to the OpcuaBlock. If a block type
-                    is already specified this parameter won't be taken into
-                    account.
-            :param defaults: defaults values in a dict, needed to construct 
-                             blocks with dependencies.
+                         block (which is described in item_block_template['type']),
+                         giving its structure to the OpcuaBlock. If a block type
+                         is already specified this parameter won't be taken into
+                         account.
+            :param defaults: defaults values to assign a field as dictionnary
+                         (can therefore be used to construct blocks with
+                         dependencies if not found in raw bytes, see example
+                         above)
             :param value: bytes value to fill the block with
+                         (can create dependencies on its own, see example
+                         above). If defaults parameter is found it overcomes
+                         the value passed as bytes.
+
+            See example in class docstring to understand dependency creation
+            either with defaults or with value parameter.
             
         """
         self._spec = OpcuaSpec()
@@ -217,7 +238,6 @@ class OpcuaBlock(BOFBlock):
         # we gather args values and set some default values first
         defaults = kwargs["defaults"] if "defaults" in kwargs else {}
         value = kwargs["value"] if "value" in kwargs else {}
-        
         block_type = None
         block_template = None
 
@@ -235,13 +255,19 @@ class OpcuaBlock(BOFBlock):
         # if a dependency is found in block type
         # looks for needed information in default arg
         if block_type.startswith("depends:"):
-            dependency = to_property(block_type.split(":")[1])
+            dependency = block_type.split(":")[1]
+
+            # checks first for dependency defaults parameter
             if dependency in defaults:
-                block_type = self._spec.get_association(dependency, defaults[dependency])
+                block_type = self._spec.get_code_name(dependency, defaults[dependency])
+                if dependency == None:
+                    raise BOFProgrammingError("No valid association found for dependency '{0}' with '{1}'.".format(dependency, defaults[dependency]))
+            # if not found in defaults, check in parent block
             else:
-                raise BOFProgrammingError("Dependecy '{0}' missing in defaults parameter".format(dependency))
-            if not block_type:
-                raise BOFProgrammingError("Association not found for dependency '{0}'".format(dependency))
+                block_type = self._get_depends_block(dependency)
+                if block_type == None:
+                    raise BOFProgrammingError("No valid association found in parents for dependency '{0}'.".format(dependency))
+           
             log("Creating OpcuaBlock of type '{0}' from dependency '{1}'.".format(block_type, dependency))
         else:
             log("Creating OpcuaBlock of type '{0}'.".format(block_type))
@@ -249,20 +275,20 @@ class OpcuaBlock(BOFBlock):
         # for the moment, we set the block name to its type
         self._name = block_type
 
-        # if block template has not been we extract the block template according to the type found in item template
+        # if block template has not been found we extract the block template according to the type found in item template
         block_template = self._spec.get_block_template(block_type)
 
-        if block_template:
-            for item_template in block_template:
-                new_item = self.factory(item_template, defaults=defaults, value=value, parent=self)
-                self.append(new_item)
-
-                # Cut value to fill byte by byte
-                if value:
-                    if len(new_item) >= len(value):
-                        break
-                    value = value[len(new_item):]
-        else:
+        if not block_template:
             raise BOFProgrammingError("Block type '{0}' not found in specifications.".format(block_type))
+
+        for item_template in block_template:
+            new_item = self.factory(item_template, defaults=defaults, value=value, parent=self)
+            self.append(new_item)
+
+            # Cut value to fill byte by byte
+            if value:
+                if len(new_item) >= len(value):
+                    break
+                value = value[len(new_item):]
 
         return
