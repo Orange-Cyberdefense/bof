@@ -99,30 +99,6 @@ class OpcuaSpec(BOFSpec):
                     return self.codes[code][key]
         return None
 
-    def get_code_id(self, dict_key:dict, name:str) -> bytes:
-        """TODO:"""
-        dict_key = self._get_dict_key(self.codes, dict_key)
-        for key, value in self.codes[dict_key].items():
-            if name == value:
-                return bytes.fromhex(key)
-        return None
-
-    def get_association(self, code_name:str, identifier) -> str:
-        """Returns the value associated to an `identifier` inside a `code_name`
-        association table. See `opcua.json` + usage example to better 
-        understand the association table concept.
-        
-        :param identifier: Key we want the value from.
-        :code name: Association table name we want to look into for identifier
-                    match.
-        """
-        #TODO: add support for bytes codes names (if needed in the specs ?)
-        if code_name in self.codes:
-            for association in self.codes[code_name]:
-                if identifier == association:
-                    return self.codes[code_name][association]
-        return None
-
 ###############################################################################
 # OPC UA FRAME CONTENT                                                        #
 ###############################################################################
@@ -282,7 +258,6 @@ class OpcuaBlock(BOFBlock):
               
         # we extract the block template according to its type
         block_template = self._spec.get_block_template(block_type)
-
         if not block_template:
             raise BOFProgrammingError("Block type '{0}' not found in specifications.".format(block_type))
 
@@ -320,7 +295,7 @@ class OpcuaFrame(BOFFrame):
         
         # creation from known type (who is actually a needed dependence)
         # in order to create the frame (see frame structure in opcua.json)
-        frame = opcua.OpcuaFrame(type="MSG")
+        frame = opcua.OpcuaFrame(type="HEL")
     """
 
     __defaults = {
@@ -331,8 +306,6 @@ class OpcuaFrame(BOFFrame):
     def __init__(self, **kwargs):
         """Initialize an OpcuaFrame from various origins using values from
         keyword arguments :
-
-        Keyword arguments :
         
         :param byte: raw byte array used to build a frame.
         :defaults arguments: every element of __default specifies arguments
