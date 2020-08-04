@@ -123,13 +123,13 @@ class Test03OpcuaBlock(unittest.TestCase):
     def test_02_opcua_create_block_template(self):
         """Tests that a block can be created as expected from a template"""
         item_template_block = {"name": "header", "type": "HEADER"}
-        block = opcua.OpcuaBlock(item_template_block=item_template_block)
+        block = opcua.OpcuaBlock(**item_template_block)
         self.assertEqual(block.content[0].name, "message_type")
     def test_03_opcua_create_block_template_invalid(self):
         """Tests that block creation with invalid template fail case is handled"""
         with self.assertRaises(BOFProgrammingError):
             item_template_block = {"name": "header", "type": "unknown"}
-            block = opcua.OpcuaBlock(item_template_block=item_template_block)
+            block = opcua.OpcuaBlock(**item_template_block)
     def test_04_opcua_create_block_type(self):
         """Tests that a block can be created as expected from a type name"""
         block = opcua.OpcuaBlock(type="HEADER")
@@ -138,57 +138,31 @@ class Test03OpcuaBlock(unittest.TestCase):
         """Tests that block creation with invalid type name fail case is handled"""
         with self.assertRaises(BOFProgrammingError):
             block = opcua.OpcuaBlock(type="unknown")
-    def test_06_opcua_create_mixed(self):
-        """Tests that in case of mixed block type specification
-        (type + template) only the type is kept"""
-        item_template_block = {"name": "header", "type": "unknown"}
-        block = opcua.OpcuaBlock(item_template_block=item_template_block, type="STRING")
-        self.assertEqual(block.content[0].name, "string_length")
-        self.assertNotEqual(block.content[0].name, "message_type")
-    def test_07_opcua_create_nested_block(self):
+    def test_06_opcua_create_nested_block(self):
         """Test for manual creation of nested block"""
-        block = opcua.OpcuaBlock(type="HEADER")
-        sub_block = opcua.OpcuaBlock(type="STRING")
+        block = opcua.OpcuaBlock(name="header", type="HEADER")
+        sub_block = opcua.OpcuaBlock(name="sub_block", type="STRING", parent=block)
         block.append(sub_block)
-        self.assertEqual(block.string.attributes, ['string_length', 'string_value'])
-    def test_08_opcua_create_dependency_block_missing(self):
+        self.assertEqual(block.sub_block.attributes, ['string_length', 'string_value'])
+    def test_07_opcua_create_dependency_block_missing(self):
         """Test nested block creation with missing dependency values (neither from
         defaults or parent block"""
         with self.assertRaises(BOFProgrammingError):
             item_template_block = {"name": "body", "type": "depends:message_type"}
-            block = opcua.OpcuaBlock(
-                    item_template_block={"name": "body", "type": "depends:message_type"})
-    def test_09_opcua_create_dependency_defaults(self):
-        """Test dependecy block creation with defaults"""
-        item_template_block = {"name": "body", "type": "depends:message_type"}
-        block = opcua.OpcuaBlock(
-                item_template_block={"name": "body", "type": "depends:message_type"},
-                defaults={"message_type": "HEL"})
-        self.assertEqual(block.name, "HEL_BODY")
-    def test_10_opcua_create_dependency_defaults_wrong(self):
-        """Test nested block creation with wrong defaults values"""
-        with self.assertRaises(BOFProgrammingError):
-            item_template_block = {"name": "body", "type": "depends:message_type"}
-            block = opcua.OpcuaBlock(
-                item_template_block={"name": "body", "type": "depends:message_type"},
-                defaults={"message_type": "unknown"})
-    def test_11_opcua_create_block_value(self):
+            block = opcua.OpcuaBlock(**{"name": "body", "type": "depends:message_type"})
+    def test_08_opcua_create_block_value(self):
         """Test block creation with a value to fill it"""
         block = opcua.OpcuaBlock(type="STRING", value=14*b"\x01")
         self.assertEqual(block.string_length.value, b'\x01\x01\x01\x01')
-    def test_12_opcua_create_block_value_missing_type(self):
-        """Test that a block value with not type returns an empty list as expected"""
-        block = opcua.OpcuaBlock()
-        self.assertEqual(block.content, [])
-    def test_13_opcua_create_dependency_bytes(self):
+    def test_09_opcua_create_dependency_bytes(self):
         """Test nested block creation from raw bytes"""
         data1 = b'HEL\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         data2 = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         block = opcua.OpcuaBlock()
         block.append(opcua.OpcuaBlock(value=data1, parent=block, **{"name": "header", "type": "HEADER"}))
         block.append(opcua.OpcuaBlock(value=data2, parent=block, **{"name": "body", "type": "depends:message_type"}))
-        self.assertNotEqual(block.hel_body, None)
-    def test_14_opcua_create_dependency_bytes_wrong(self):
+        self.assertNotEqual(block.body, None)
+    def test_10_opcua_create_dependency_bytes_wrong(self):
         """Test nested block creation from raw bytes with wrong dependency"""
         with self.assertRaises(BOFProgrammingError):
             data1 = b'XYZ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
