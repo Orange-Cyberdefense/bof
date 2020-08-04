@@ -16,6 +16,7 @@ from os import path
 from ..base import BOFProgrammingError, to_property, log
 from ..frame import BOFFrame, BOFBlock, BOFField
 from ..spec import BOFSpec
+from .. import byte
 
 ###############################################################################
 # OPCUA SPECIFICATION CONTENT                                                 #
@@ -96,6 +97,30 @@ class OpcuaSpec(BOFSpec):
             for key in self.codes[code]:
                 if identifier == key:
                     return self.codes[code][key]
+        return None
+
+    def get_code_id(self, dict_key:dict, name:str) -> bytes:
+        """TODO:"""
+        dict_key = self._get_dict_key(self.codes, dict_key)
+        for key, value in self.codes[dict_key].items():
+            if name == value:
+                return bytes.fromhex(key)
+        return None
+
+    def get_association(self, code_name:str, identifier) -> str:
+        """Returns the value associated to an `identifier` inside a `code_name`
+        association table. See `opcua.json` + usage example to better 
+        understand the association table concept.
+        
+        :param identifier: Key we want the value from.
+        :code name: Association table name we want to look into for identifier
+                    match.
+        """
+        #TODO: add support for bytes codes names (if needed in the specs ?)
+        if code_name in self.codes:
+            for association in self.codes[code_name]:
+                if identifier == association:
+                    return self.codes[code_name][association]
         return None
 
 ###############################################################################
@@ -200,7 +225,7 @@ class OpcuaBlock(BOFBlock):
         if "type" in item_template and item_template["type"] == "field":
             value = b''
             if "defaults" in kwargs and item_template["name"] in kwargs["defaults"]:
-                value = kwargs["defaults"][template["name"]]
+                value = kwargs["defaults"][item_template["name"]]
             elif "value" in kwargs and kwargs["value"]:
                 value = kwargs["value"][:item_template["size"]]
             return OpcuaField(**item_template, value=value)
@@ -270,3 +295,94 @@ class OpcuaBlock(BOFBlock):
                 if len(new_item) >= len(value):
                     break
                 value = value[len(new_item):]
+
+#-----------------------------------------------------------------------------#
+# OPC UA frames representation                                                #
+#-----------------------------------------------------------------------------#
+
+class OpcuaFrame(BOFFrame):
+    """Object representation of an OPC UA frame, created from the tempalte
+    in `opcua.json`.
+
+    Uses various initialization methods to create a frame :
+
+        :Byte array: Build the object from a raw byte array, typically used
+                        when receiving incoming connection. In this case block
+                        dependencies are identified automatically.
+        :Keyword arguments: Uses keyword described in __defaults to fill frame
+                            fields.
+
+    Usage example::
+
+        # creation from raw bytes (format is automatically identified)
+        data = b'HEL\x00..'
+        frame = opcua.OpcuaFrame(bytes=data)
+        
+        # creation from known type (who is actually a needed dependence)
+        # in order to create the frame (see frame structure in opcua.json)
+        frame = opcua.OpcuaFrame(type="MSG")
+    """
+
+    __defaults = {
+        # {Argument name: field name} 
+        "type": "message_type",
+    }
+
+    def __init__(self, **kwargs):
+        """Initialize an OpcuaFrame from various origins using values from
+        keyword arguments :
+
+        Keyword arguments :
+        
+        :param byte: raw byte array used to build a frame.
+        :defaults arguments: every element of __default specifies arguments
+                             that can be passed in order to set fields values
+                             at frame creation.
+        """
+        spec = OpcuaSpec()
+        super().__init__()
+
+        # We store some values before starting building the frame
+        value = kwargs["bytes"] if "bytes" in kwargs else None
+        defaults = {}
+        for arg, code in self.__defaults.items():
+            if arg in kwargs:
+                defaults[code] = str.encode(kwargs[arg])
+        # Now we can start
+        for block in spec.frame:
+            # Create block
+            opcuablock = OpcuaBlock(value=value, defaults=defaults, parent=self, **block)
+            self.append(block["name"], opcuablock)
+            # If a value is used to fill the blocks, update it
+            if value:
+                if len(self._blocks[block["name"]]) >= len(value):
+                    break
+                value = value[len(self._blocks[block["name"]]):]
+        # Update total frame length in header
+        self.update()
+
+    #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#
+
+    def update(self):
+        """Update ``message_size`` field in header according to total
+        frame length.
+        """
+        #super().update()
+        if "message_size" in self._blocks["header"].attributes:
+            total = sum([len(block) for block in self._blocks.values()])
+            self._blocks["header"].message_size._update_value(byte.from_int(total))
+
+    #-------------------------------------------------------------------------#
+    # Properties                                                              #
+    #-------------------------------------------------------------------------#
+
+    @property
+    def header(self):
+        self.update()
+        return self._blocks["header"]
+    @property
+    def body(self):
+        self.update()
+        return self._blocks["body"]
