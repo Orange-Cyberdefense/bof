@@ -15,7 +15,7 @@
             {"name": "send_buffer_size", "type": "field", "size": 4},
             {"name": "max_message_size", "type": "field", "size": 4},
             {"name": "max_chunk_count", "type": "field", "size": 4},
-            {"name": "endpoint_url", "type": "STRING", "size": 18}
+            {"name": "endpoint_url", "type": "STRING"}
         ],
         "STRING": [
             {"name": "string_length", "type": "field", "size": 4},
