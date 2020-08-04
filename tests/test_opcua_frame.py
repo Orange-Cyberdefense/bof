@@ -19,68 +19,80 @@ class Test01OpcuaSpec(unittest.TestCase):
     def test_02_opcua_spec_instantiate_custom_valid_json(self):
         """Test that a custom and valid opcua spec file works as expected."""
         try:
-            spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+            spec = opcua.OpcuaSpec()
+            spec.load("tests/jsons/valid.json")
         except BOFLibraryError:
             self.fail("Valid json spec should not raise BOFLibraryError.")
     def test_03_opcua_spec_instantiate_custom_invalid_json(self):
         """Test that a custom and invalid opcua spec raises exception."""
         with self.assertRaises(BOFLibraryError):
-            spec = opcua.OpcuaSpec("./jsons/invalid.json")
+            spec = opcua.OpcuaSpec()
+            spec.load("tests/jsons/invalid.json")
     def test_04_opcua_spec_instantiate_custom_invalid_path(self):
         """Test an invalid custom path raises exception."""
         with self.assertRaises(BOFLibraryError):
-            spec = opcua.OpcuaSpec("./jsons/unexisting.json")
-    def test_05_opcua_spec_property_access_valid():
+            spec = opcua.OpcuaSpec()
+            spec.load("tests/jsons/unexisting.json")
+    def test_05_opcua_spec_property_access_valid(self):
         """Test that a JSON element can be accessed as property"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
         frame_template = spec.frame
         self.assertEqual(frame_template[0]["name"], "header")
-    def test_05_opcua_spec_property_access_invalid():
+    def test_06_opcua_spec_property_access_invalid(self):
         """Test that a unexisting JSON element can't be accessed as property"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
         with self.assertRaises(AttributeError):
             frame_template = spec.unexisting
-    def test_06_opcua_spec_get_blocks_valid():
+    def test_07_opcua_spec_get_blocks_valid(self):
         """Test that we can get block from spec as expected"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
         block_template = spec.get_block_template(block_name="HEADER")
         self.assertEqual(block_template[0]["name"], "message_type")
-    def test_07_opcua_spec_get_blocks_invalid():
+    def test_08_opcua_spec_get_blocks_invalid(self):
         """Test that an invalid block request returns None"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
         block_template = spec.get_block_template(block_name="INVALID")
         self.assertEqual(block_template, None)
-    def test_08_opcua_spec_get_item_valid():
+    def test_09_opcua_spec_get_item_valid(self):
         """Test that we can get an item from spec as expected"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
-        item_template = spec.get_template("HEL_BODY", "protocol_version")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
+        item_template = spec.get_item_template("HEL_BODY", "protocol_version")
         self.assertEqual(item_template["name"], "protocol_version")
-    def test_09_opcua_spec_get_item_invalid():
+    def test_10_opcua_spec_get_item_invalid(self):
         """Test that an invalid item request returns None"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
-        item_template = spec.get_template("INVALID", "INVALID")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
+        item_template = spec.get_item_template("INVALID", "INVALID")
         self.assertEqual(item_template, None)
-    def test_10_get_association_str_valid():
+    def test_11_get_association_str_valid(self):
         """Test that a valid association is returned as expeted"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
         message_structure = spec.get_code_name("message_type", "HEL")
         self.assertEqual(message_structure, "HEL_BODY")
-    def test_11_get_association_str_invalid():
+    def test_12_get_association_str_invalid(self):
         """Test that an invalid association returns None"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
         message_structure = spec.get_code_name("INVALID", "INVALID")
         self.assertEqual(message_structure, None)
-    def test_12_get_association_bytes_valid():
+    def test_13_get_association_bytes_valid(self):
         """Test that a valid association with byte id is returned as expeted"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
         message_structure = spec.get_code_name("message_type", b"HEL")
         self.assertEqual(message_structure, "HEL_BODY")
-    def test_13_get_association_bytes_invalid():
+    def test_14_get_association_bytes_invalid(self):
         """Test that an invalid association with byte id returns None"""
-        spec = opcua.OpcuaSpec("./jsons/valid_opcua.json")
+        spec = opcua.OpcuaSpec()
+        spec.load("tests/jsons/valid.json")
         message_structure = spec.get_code_name("INVALID", b"INVALID")
         self.assertEqual(message_structure, None)
-
 
 class Test02OpcuaField(unittest.TestCase):
     """Test class for field crafting and access.

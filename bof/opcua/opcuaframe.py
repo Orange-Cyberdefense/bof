@@ -89,11 +89,11 @@ class OpcuaSpec(BOFSpec):
         :returns: value associated to an identifier inside a code.
         """
         code = self._get_dict_key(self.codes, code)
-        if isinstance(identifier, bytes):
+        if isinstance(identifier, bytes) and code in self.codes:
             for key in self.codes[code]:
                 if identifier == str.encode(key):
                     return self.codes[code][key]
-        elif isinstance(identifier, str):
+        elif isinstance(identifier, str) and code in self.codes:
             for key in self.codes[code]:
                 if identifier == key:
                     return self.codes[code][key]
