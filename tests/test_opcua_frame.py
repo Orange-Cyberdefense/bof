@@ -6,6 +6,7 @@
 import unittest
 from bof import opcua, BOFLibraryError, BOFProgrammingError
 
+@unittest.skip("Rework JSON call")
 class Test01OpcuaSpec(unittest.TestCase):
     """Test class for specification class building from JSON file.
     TODO: Some tests are generic to BOFSpec and could be moved.

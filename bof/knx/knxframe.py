@@ -31,8 +31,7 @@ from textwrap import indent
 
 from ..base import BOFProgrammingError, to_property, log
 from ..frame import BOFFrame, BOFBlock, BOFField, BOFBitField
-from ..spec import BOFSpec
-from .. import byte
+from .. import byte, spec
 
 ###############################################################################
 # KNX SPECIFICATION CONTENT                                                   #
@@ -40,7 +39,7 @@ from .. import byte
 
 KNXSPECFILE = "knxnet.json"
 
-class KnxSpec(BOFSpec):
+class KnxSpec(spec.BOFSpec):
     """Singleton class for KnxSpec specification content usage.
     Inherits ``BOFSpec``.
 
@@ -54,23 +53,15 @@ class KnxSpec(BOFSpec):
             filepath = path.join(path.dirname(path.realpath(__file__)), KNXSPECFILE)
         super().__init__(filepath)
 
-    #-------------------------------------------------------------------------#
-    # Public                                                                  #
-    #-------------------------------------------------------------------------#
-
-    def get_block_template(self, name:str) -> list:
-        """Returns a template associated to a body, as a list, or None."""
-        return self._get_dict_value(self.blocks, name) if name else None
-
-    def get_code_name(self, dict_key:str, identifier) -> str:
-        dict_key = self._get_dict_key(self.codes, dict_key)
+    def get_code_name(self, code:str, identifier) -> str:
+        code = self._get_dict_key(self.codes, code)
         if isinstance(identifier, bytes):
-            for key in self.codes[dict_key]:
+            for key in self.codes[code]:
                 if identifier == bytes.fromhex(key):
-                    return self.codes[dict_key][key]
+                    return self.codes[code][key]
         if isinstance(identifier, str):
             identifier = to_property(identifier)
-            for service in self.codes["service identifier"].values():
+            for service in self.codes[code].values():
                 if identifier == to_property(service):
                     return service
         return None
@@ -156,7 +147,7 @@ class KnxBlock(BOFBlock):
                          with format {"field name": b"value"}
         :param value: Content of block or field to set.
         """
-        if "type" in template and template["type"] == "field":
+        if spec.TYPE in template and template[spec.TYPE] == spec.FIELD:
             value = b''
             if "defaults" in kwargs and template["name"] in kwargs["defaults"]:
                 value = kwargs["defaults"][template["name"]]
@@ -173,7 +164,7 @@ class KnxBlock(BOFBlock):
         self._spec = KnxSpec()
         super().__init__(**kwargs)
         # Without a type, the block remains empty
-        if not "type" in kwargs or kwargs["type"] == "block":
+        if not spec.TYPE in kwargs or kwargs[spec.TYPE] == spec.BLOCK:
             return
         # Now we extract the final type of block from the arguments
         value = kwargs["value"] if "value" in kwargs else None
@@ -230,7 +221,7 @@ class KnxFrame(BOFFrame):
         # {Argument name: field name} 
         "type": "service identifier",
         "cemi": "message code",
-        "connection": "connection type code"
+        "connection": "cri connection type code"
     }
 
     def __init__(self, **kwargs):

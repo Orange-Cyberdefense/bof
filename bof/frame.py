@@ -18,6 +18,12 @@ from .base import BOFProgrammingError, to_property, log
 from . import byte, spec
 
 ###############################################################################
+# CONSTANTS                                                                   #
+###############################################################################
+
+PARENT = "parent"
+
+###############################################################################
 # Bit field representation within a field                                     #
 ###############################################################################
 
@@ -118,6 +124,7 @@ class BOFField(object):
     _name:str
     _size:int
     _value:bytes
+    _parent:object
     _is_length:bool
     _fixed_size:bool
     _fixed_value:bool
@@ -125,21 +132,22 @@ class BOFField(object):
     _bitsizes:list
 
     def __init__(self, **kwargs):
-        self.name = kwargs["name"] if "name" in kwargs else ""
-        self._value = kwargs["value"] if "value" in kwargs else b''
-        self._size = int(kwargs["size"]) if "size" in kwargs else max(1, byte.get_size(self._value))
-        self._is_length = kwargs["is_length"] if "is_length" in kwargs else False
-        self._fixed_size = kwargs["fixed_size"] if "fixed_size" in kwargs else False
-        self._fixed_value = kwargs["fixed_value"] if "fixed_value" in kwargs else False
+        self.name = kwargs[spec.NAME] if spec.NAME in kwargs else ""
+        self._value = kwargs[spec.VALUE] if spec.VALUE in kwargs else b''
+        self._size = int(kwargs[spec.SIZE]) if spec.SIZE in kwargs else max(1, byte.get_size(self._value))
+        self._parent = kwargs[PARENT] if PARENT in kwargs else None
+        self._is_length = kwargs[spec.IS_LENGTH] if spec.IS_LENGTH in kwargs else False
+        self._fixed_size = kwargs[spec.F_SIZE] if spec.F_SIZE in kwargs else False
+        self._fixed_value = kwargs[spec.F_VALUE] if spec.F_VALUE in kwargs else False
         self._set_bitfields(**kwargs)
         # From now on, _update_value must be used to modify values within the code
-        if "optional" in kwargs and kwargs["optional"] and self._value == b'':
+        if spec.OPTIONAL in kwargs and kwargs[spec.OPTIONAL] and self._value == b'':
             self._size = 0 # We create the field byt don't use it.
             return
-        if "value" in kwargs and kwargs["value"] != b'':
-            self._update_value(kwargs["value"])
-        elif "default" in kwargs:
-            self._update_value(kwargs["default"])
+        if spec.VALUE in kwargs and kwargs[spec.VALUE] != b'':
+            self._update_value(kwargs[spec.VALUE])
+        elif spec.DEFAULT in kwargs:
+            self._update_value(kwargs[spec.DEFAULT])
         else:
             self._update_value(bytes(self._size))
 
@@ -153,10 +161,10 @@ class BOFField(object):
         self._bitsizes = None
         if not spec.SEPARATOR in self._name:
             return
-        if "bitsizes" not in kwargs:
+        if spec.BITSIZES not in kwargs:
             raise BOFProgrammingError("Fields with bit fields shall have bitsizes ({0}).".format(self._name))
         self._name = [x.strip() for x in self._name.split(spec.SEPARATOR)] # Now it's a table
-        self._bitsizes = [int(x) for x in kwargs["bitsizes"].split(spec.SEPARATOR)]
+        self._bitsizes = [int(x) for x in kwargs[spec.BITSIZES].split(spec.SEPARATOR)]
         if len(self._bitsizes) != len(self._name):
             raise BOFProgrammingError("Bitfield names do not match bitsizes ({0}).".format(self._name))
         self._bitfields = {}
@@ -262,8 +270,18 @@ class BOFField(object):
 
 class BOFBlock(object):
     """A ``BOFBlock`` object represents a block (set of fields) within a
-    frame. It contains an ordered set of nested blocks and/or fields
-    (``BOFField``).
+    frame. It contains an ordered set of items. Items are nested blocks and/or
+    fields (``BOFField``).
+
+    A block is usually built from a template which gives its structure.
+    Bytes can also be specified to "fill" this block stucture. If the bytes
+    values are consistent, the structure can also be determined directly from
+    them. If no structure is specified the block remains empty.
+
+    Some block field value (typically a sub-block type) may depend on the
+    value of another field. In that case the keyword "depends:" is used to
+    associate the variable to its value, based on given parameters to another
+    field.
 
     Implementations should inherit this class for block management inside
     frames.
@@ -273,6 +291,7 @@ class BOFBlock(object):
     :param parent: Parent frame, used when a field or a block depends on the
                    value of a field previously written to the frame.
     :param content: List of blocks, fields or both.
+    :param spec: Specification storage class (inheriting from ``BOFSPec``).
     """
     _name:str
     _content:list
@@ -281,9 +300,12 @@ class BOFBlock(object):
 
     @classmethod
     def factory(cls, template) -> object:
-        """Class method to use when the object to create is not
-        necessarily a BOFBlock class. It should be instantiated
-        in protocol implementation classes.
+        """Class method to use when the object to create is not necessarily a
+        BOFBlock class. It should be instantiated in protocol implementation 
+        classes as we need to instantiate protocol-specific block and field
+        classes and not BOFBlock and BOFField objects.
+
+        This part may be replaced later.
         """
         raise NotImplementedError("Factory should be instantiated in subclasses.")
 
@@ -299,8 +321,8 @@ class BOFBlock(object):
         values of fields to depend on to create a field (ex: message code).
         Defaults values are transmitted to children.
         """
-        self.name = kwargs["name"] if "name" in kwargs else ""
-        self._parent = kwargs["parent"] if "parent" in kwargs else None
+        self.name = kwargs[spec.NAME] if spec.NAME in kwargs else ""
+        self._parent = kwargs[PARENT] if PARENT in kwargs else None
         self._content = []
 
     def __bytes__(self):

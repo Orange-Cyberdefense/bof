@@ -32,13 +32,13 @@
 	"CONNECT REQUEST": [
 	    {"name": "control endpoint", "type": "HPAI"},
 	    {"name": "data endpoint", "type": "HPAI"},
-	    {"name": "connection request information", "type": "CRI_CRD"}
+	    {"name": "connection request information", "type": "CRI"}
 	],
 	"CONNECT RESPONSE": [
 	    {"name": "communication channel id", "type": "field", "size": 1},
 	    {"name": "status", "type": "field", "size": 1},
 	    {"name": "data endpoint", "type": "HPAI"},
-	    {"name": "connection response data block", "type": "CRI_CRD"}
+	    {"name": "connection response data block", "type": "CRD"}
 	],
 	"CONNECTIONSTATE REQUEST": [
 	    {"name": "communication channel id", "type": "field", "size": 1},
@@ -98,10 +98,15 @@
 	    {"name": "id", "type": "field", "size": 1},
 	    {"name": "version", "type": "field", "size": 1}
 	],
-	"CRI_CRD": [
+	"CRI": [
 	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "connection type code", "type": "field", "size": 1, "default": "03"},
-	    {"name": "connection data", "type": "depends:connection type code"}
+	    {"name": "cri connection type code", "type": "field", "size": 1, "default": "03"},
+	    {"name": "connection data", "type": "depends:cri connection type code"}
+	],
+	"CRD": [
+	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
+	    {"name": "crd connection type code", "type": "field", "size": 1, "default": "03"},
+	    {"name": "connection data", "type": "depends:crd connection type code"}
 	],
 	"DEVICE_MANAGEMENT_CONNECTION": [
 	    {"name": "ip address", "type": "field", "size": 4, "optional": true},
@@ -110,11 +115,25 @@
 	    {"name": "port", "type": "field", "size": 2, "optional": true}
 	],
 	"TUNNELING_CONNECTION": [
+	    {"name": "knx layer", "type": "field", "size": 1, "default": "02"},
+	    {"name": "reserved", "type": "field", "size": 1}
+	],
+	"CRD TUNNELING_CONNECTION": [
 	    {"name": "knx address", "type": "field", "size": 2}
 	],
 	"CEMI": [
 	    {"name": "message code", "type": "field", "size": 1},
 	    {"name": "cemi data", "type": "depends:message code"}
+	],
+	"L_cEMI": [
+	    {"name": "additional info length", "type": "field", "size": 1, "default": "00"},
+	    {"name": "additional information", "type": "field", "size": "depends:additional info length"},
+	    {"name": "frame type, empty, repeat, system broadcast, priority, ack request, confirm", "type": "field", "size": 1, "bitsizes": "1, 1, 1, 1, 2, 1, 1"},
+	    {"name": "destination address, hop count, extended frame format", "type": "field", "size": 1, "bitsizes": "1, 3, 4"},
+	    {"name": "source address", "type": "field", "size": 2},
+	    {"name": "destination address", "type": "field", "size": 2},
+	    {"name": "information length", "type": "field", "size": 1, "default": "01"},
+	    {"name": "tpci apci", "type": "field", "size": "depends: information length"}
 	],
 	"DP_cEMI": [
 	    {"name": "object type", "type": "field", "size": 2},
@@ -122,6 +141,12 @@
 	    {"name": "property id", "type": "field", "size": 1},
 	    {"name": "number of elements, start index", "type": "field", "size": 2, "bitsizes": "4, 12"},
 	    {"name": "data", "type": "field", "size": 0}
+	],
+	"L_Data.req": [
+	    {"name": "L_Data.req", "type": "L_cEMI"}
+	],
+	"L_Data.con": [
+	    {"name": "L_Data.con", "type": "L_cEMI"}
 	],
 	"PropRead.req": [
 	    {"name": "PropRead.req", "type": "DP_cEMI"}
@@ -153,14 +178,20 @@
 	    "0311": "CONFIGURATION ACK"
 	},
 	"message code": {
+	    "11": "L_Data.req",
+	    "2e": "L_Data.con",
 	    "FC": "PropRead.req",
 	    "FB": "PropRead.con",
 	    "F6": "PropWrite.req",
 	    "F5": "PropWrite.con"
 	},
-	"connection type code": {
+	"cri connection type code": {
 	    "03": "DEVICE MANAGEMENT CONNECTION",
 	    "04": "TUNNELING CONNECTION"
+	},
+	"crd connection type code": {
+	    "03": "DEVICE MANAGEMENT CONNECTION",
+	    "04": "CRD TUNNELING CONNECTION"
 	}
     },
     "object types": {
