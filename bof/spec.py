@@ -54,6 +54,9 @@ F_VALUE = "fixed_value"
 BITSIZES = "bitsizes"
 # BLOCKS
 BLOCK = "block"
+# GENERIC NAMES
+HEADER = "header"
+BODY = "body"
 
 ###############################################################################
 # JSON file management functions                                              #

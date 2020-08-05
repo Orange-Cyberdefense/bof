@@ -236,7 +236,7 @@ class OpcuaBlock(BOFBlock):
 #-----------------------------------------------------------------------------#
 
 class OpcuaFrame(BOFFrame):
-    """Object representation of an OPC UA frame, created from the tempalte
+    """Object representation of an OPC UA frame, created from the template
     in `opcua.json`.
 
     Uses various initialization methods to create a frame :
@@ -258,7 +258,7 @@ class OpcuaFrame(BOFFrame):
         frame = opcua.OpcuaFrame(type="HEL")
     """
 
-    __user_values = {
+    _user_args = {
         # {Argument name: field name} 
         "type": "message_type",
     }
@@ -272,26 +272,8 @@ class OpcuaFrame(BOFFrame):
                             that can be passed in order to set fields values
                             at frame creation.
         """
-        spec = OpcuaSpec()
-        super().__init__()
-
-        # We store some values before starting building the frame
-        value = kwargs["bytes"] if "bytes" in kwargs else None
-        user_values = {}
-        for arg, code in self.__user_values.items():
-            if arg in kwargs:
-                user_values[code] = str.encode(kwargs[arg])
-        # Now we can start
-        for block in spec.frame:
-            # Create block
-            opcuablock = OpcuaBlock(value=value, user_values=user_values, parent=self, **block)
-            self.append(block["name"], opcuablock)
-            # If a value is used to fill the blocks, update it
-            if value:
-                if len(self._blocks[block["name"]]) >= len(value):
-                    break
-                value = value[len(self._blocks[block["name"]]):]
-        # Update total frame length in header
+        self._spec = OpcuaSpec()
+        super().__init__(OpcuaBlock, **kwargs)
         self.update()
 
     #-------------------------------------------------------------------------#
@@ -303,9 +285,9 @@ class OpcuaFrame(BOFFrame):
         frame length.
         """
         #super().update()
-        if "message_size" in self._blocks["header"].attributes:
+        if "message_size" in self._blocks[spec.HEADER].attributes:
             total = sum([len(block) for block in self._blocks.values()])
-            self._blocks["header"].message_size._update_value(byte.from_int(total))
+            self._blocks[spec.HEADER].message_size._update_value(byte.from_int(total))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -314,8 +296,8 @@ class OpcuaFrame(BOFFrame):
     @property
     def header(self):
         self.update()
-        return self._blocks["header"]
+        return self._blocks[spec.HEADER]
     @property
     def body(self):
         self.update()
-        return self._blocks["body"]
+        return self._blocks[spec.BODY]

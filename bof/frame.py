@@ -22,6 +22,7 @@ from . import byte, spec
 ###############################################################################
 
 PARENT = "parent"
+BYTES = "bytes"
 VALUE = "value"
 USER_VALUES = "user_values"
 
@@ -583,16 +584,77 @@ class BOFFrame(object):
     - The frame contains a set of blocks
     - The order of blocks is defined, blocks are named.
 
+    In this class, a frame is built according to a special part of a JSON
+    specification file, which has the following name and format::
+
+    "frame": [
+        {"name": "header", "type": "HEADER"},
+        {"name": "body", "type": "depends:message_type"}
+    ]
+
+    Attributes:
+
     :param blocks: A dictionary containing blocks.
+    :param spec: The specification class as a ``BOFSpec`` object. Should be
+                 instantiated in a subclass as BOFFrame should never be
+                 used directly.
+    :param user_args: A dictionary containing the name of an argument that a end
+                      user can supply when creating the frame object instance,
+                      and the name of the corresponding field in the frame
+                      accçording to the JSON spec file. For instance:
+                      ``"type": "message_type"`` states that the user can create
+                      the frame object with ``OpcuaFrame(type="HEL") and that
+                      the field value to look for or to fill is ``message_type``
 
     .. warning: We rely on Python 3.6+'s ordering by insertion. If you use an
                 older implementation of Python, blocks may not come in the
                 right order (and I don't think BOF would work anyway).
     """
     _blocks:dict
+    _spec:object
+    _user_args = {
+        # {Argument name: field name} 
+    }
 
-    def __init__(self):
+    def __init__(self, block_class:object, **kwargs):
+        """Create the frame according to the category "frame" in a JSON
+        specification file.
+
+        Requires a specification file, as well as the type of block class it
+        has to create, therefore this constructor cannot be used directly and
+        must be called from a subclass init method, such as::
+
+        self._spec = KnxSpec()
+        super().__init__(KnxBlock, **kwargs)
+
+        :param block_class: Type of the class to create. Must inherit from
+                            ``BOFBlock`.`
+        """
+        # Check that the specification object has been defined in subclass
+        # before calling this constructor.
+        if not hasattr(self, "_spec") or not isinstance(self._spec, spec.BOFSpec):
+            raise BOFProgrammingError("BOFFrame cannot be instantiated directly " \
+            "and requires previous initialization of a BOFSpec object in the " \
+            "subclass' constructor.")
+        if not block_class or not isinstance(block_class(), BOFBlock):
+            raise BOFProgrammingError("BOFFrame expects a BOFBlock class type " \
+            "from a protocol implementation as first argument.")
         self._blocks = {}
+        # Retrieve actual or default values to use to build the frame
+        user_values = {}
+        for arg, code in self._user_args.items():
+            if arg in kwargs:
+                user_values[code] = self._spec.get_code_id(code, kwargs[arg])
+        value = kwargs[BYTES] if BYTES in kwargs else None
+        # Now build the frame according to what the spec says.
+        for block_template in self._spec.frame:
+            block = block_class(value=value, user_values=user_values,
+                                parent=self, **block_template)
+            self.append(block_template[spec.NAME], block)
+            if value:
+                if len(self._blocks[block_template[spec.NAME]]) >= len(value):
+                    break
+                value = value[len(self._blocks[block_template[spec.NAME]]):]
 
     def __bytes__(self):
         self.update()

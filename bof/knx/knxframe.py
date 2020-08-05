@@ -34,10 +34,17 @@ from ..frame import BOFFrame, BOFBlock, BOFField, USER_VALUES, VALUE
 from .. import byte, spec
 
 ###############################################################################
-# KNX SPECIFICATION CONTENT                                                   #
+# KNX-related constants                                                       #
 ###############################################################################
 
 KNXSPECFILE = "knxnet.json"
+
+TOTAL_LENGTH = "total_length"
+
+###############################################################################
+# KNX SPECIFICATION CONTENT                                                   #
+###############################################################################
+
 
 class KnxSpec(spec.BOFSpec):
     """Singleton class for KnxSpec specification content usage.
@@ -190,7 +197,7 @@ class KnxFrame(BOFFrame):
 
     **KNX Standard v2.1 03_08_02**
     """
-    __user_values = {
+    _user_args = {
         # {Argument name: field name} 
         "type": "service identifier",
         "cemi": "message code",
@@ -223,25 +230,8 @@ class KnxFrame(BOFFrame):
         :param *: Other params corresponding to default values can be given.
                   The param name must be the name of the field to fill.
         """
-        spec = KnxSpec()
-        super().__init__()
-        # We store some values before starting building the frame
-        value = kwargs["bytes"] if "bytes" in kwargs else None
-        user_values = {}
-        for arg, code in self.__user_values.items():
-            if arg in kwargs:
-                user_values[code] = spec.get_code_id(code, kwargs[arg])
-        # Now we can start
-        for block in spec.frame:
-            # Create block
-            knxblock = KnxBlock(value=value, user_values=user_values, parent=self, **block)
-            self.append(block["name"], knxblock)
-            # If a value is used to fill the blocks, update it
-            if value:
-                if len(self._blocks[block["name"]]) >= len(value):
-                    break
-                value = value[len(self._blocks[block["name"]]):]
-        # Update total frame length in header
+        self._spec = KnxSpec()
+        super().__init__(KnxBlock, **kwargs)
         self.update()
 
     #-------------------------------------------------------------------------#
@@ -255,9 +245,9 @@ class KnxFrame(BOFFrame):
         field in header, which requires an additional operation.
         """
         super().update()
-        if "total_length" in self._blocks["header"].attributes:
+        if TOTAL_LENGTH in self._blocks[spec.HEADER].attributes:
             total = sum([len(block) for block in self._blocks.values()])
-            self._blocks["header"].total_length._update_value(byte.from_int(total))
+            self._blocks[spec.HEADER].total_length._update_value(byte.from_int(total))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -266,22 +256,22 @@ class KnxFrame(BOFFrame):
     @property
     def header(self):
         self.update()
-        return self._blocks["header"]
+        return self._blocks[spec.HEADER]
     @property
     def body(self):
         self.update()
-        return self._blocks["body"]
+        return self._blocks[spec.BODY]
 
     @property
     def sid(self) -> str:
         """Return the name associated to the frame's service identifier, or
         empty string if it is not set.
         """
-        sid = KnxSpec().get_code_name("service identifier",
-                                      self._blocks["header"].service_identifier.value)
-        return sid if sid else str(self._blocks["header"].service_identifier.value)
+        sid = self._spec.get_code_name("service identifier",
+                                       self._blocks[spec.HEADER].service_identifier.value)
+        return sid if sid else str(self._blocks[spec.HEADER].service_identifier.value)
 
     @property
     def cemi(self) -> str:
         """Return the type of cemi, if any."""
-        KnxSpec().get_cemi_name(self._blocks["body"].cemi.message_code)
+        self._spec.get_cemi_name(self._blocks[spec.BODY].cemi.message_code)
