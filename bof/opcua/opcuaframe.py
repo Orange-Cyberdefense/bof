@@ -14,9 +14,8 @@ specifications. Therefore OPC UA frame structure and its content is described in
 from os import path
 
 from ..base import BOFProgrammingError, to_property, log
-from ..frame import BOFFrame, BOFBlock, BOFField
-from ..spec import BOFSpec
-from .. import byte
+from ..frame import BOFFrame, BOFBlock, BOFField, USER_VALUES, VALUE
+from .. import byte, spec
 
 ###############################################################################
 # OPCUA SPECIFICATION CONTENT                                                 #
@@ -24,7 +23,7 @@ from .. import byte
 
 OPCUASPECFILE = "opcua.json"
 
-class OpcuaSpec(BOFSpec):
+class OpcuaSpec(spec.BOFSpec):
     """Singleton class for OPC UA specification content usage.
     Inherits ``BOFSpec``, see `bof/frame.py`.
 
@@ -89,11 +88,11 @@ class OpcuaSpec(BOFSpec):
         :returns: value associated to an identifier inside a code.
         """
         code = self._get_dict_key(self.codes, code)
-        if isinstance(identifier, bytes):
+        if isinstance(identifier, bytes) and code in self.codes:
             for key in self.codes[code]:
                 if identifier == str.encode(key):
                     return self.codes[code][key]
-        elif isinstance(identifier, str):
+        elif isinstance(identifier, str) and code in self.codes:
             for key in self.codes[code]:
                 if identifier == key:
                     return self.codes[code][key]
@@ -194,16 +193,16 @@ class OpcuaBlock(BOFBlock):
         
         Keyword arguments:
         
-        :param defaults: Defaults values to assign a field as dictionnary.
+        :param user_values: Default values to assign a field as dictionnary.
         :param value: Bytes value to fill the item (block or field) with.
         """
         # case where item template represents a field (non-recursive)
-        if "type" in item_template and item_template["type"] == "field":
+        if spec.TYPE in item_template and item_template[spec.TYPE] == spec.FIELD:
             value = b''
-            if "defaults" in kwargs and item_template["name"] in kwargs["defaults"]:
-                value = kwargs["defaults"][item_template["name"]]
-            elif "value" in kwargs and kwargs["value"]:
-                value = kwargs["value"][:item_template["size"]]
+            if USER_VALUES in kwargs and item_template[spec.NAME] in kwargs[USER_VALUES]:
+                value = kwargs[USER_VALUES][item_template[spec.NAME]]
+            elif VALUE in kwargs and kwargs[VALUE]:
+                value = kwargs[VALUE][:item_template[spec.SIZE]]
             return OpcuaField(**item_template, value=value)
         # case where item template represents a sub-block (nested/recursive block)
         else:
@@ -216,60 +215,21 @@ class OpcuaBlock(BOFBlock):
 
             :param type: a string specifying block type (as found in json
                          specifications) to construct the block on.
-            :param defaults: defaults values to assign a field as dictionnary
+            :param user_values: default values to assign a field as dictionnary
                          (can therefore be used to construct blocks with
                          dependencies if not found in raw bytes, see example
                          above)
             :param value: bytes value to fill the block with
                          (can create dependencies on its own, see example
-                         above). If defaults parameter is found it overcomes
+                         above). If user_values parameter is found it overcomes
                          the value passed as bytes.
 
             See example in class docstring to understand dependency creation
-            either with defaults or with value parameter.
+            either with user_values or value parameter.
             
         """
         self._spec = OpcuaSpec()
         super().__init__(**kwargs)
-
-        # we gather args values and set some default values first
-        defaults = kwargs["defaults"] if "defaults" in kwargs else {}
-        value = kwargs["value"] if "value" in kwargs else {}
-        self._name = kwargs["name"] if "name" in kwargs else ""
-
-        # we gather the block type from args, if not found then returns an
-        # empty block
-        if "type" in kwargs and kwargs["type"] != "block":
-            block_type = kwargs["type"]
-        else:
-            log("No type or item_template_block specified, creating empty block")
-            return
-        
-        # if a dependency is found in block type
-        # looks for needed information in default arg
-        if block_type.startswith("depends:"):
-            dependency = block_type.split(":")[1]
-            block_type = self._get_depends_block(dependency)
-            if not block_type:
-                raise BOFProgrammingError("No valid association found in parents for dependency '{0}'.".format(dependency))
-            log("Creating OpcuaBlock of type '{0}' from dependency '{1}'.".format(block_type, dependency))
-        else:
-            log("Creating OpcuaBlock of type '{0}'.".format(block_type))
-              
-        # we extract the block template according to its type
-        block_template = self._spec.get_block_template(block_type)
-        if not block_template:
-            raise BOFProgrammingError("Block type '{0}' not found in specifications.".format(block_type))
-
-        for item_template in block_template:
-            new_item = self.factory(item_template, value=value, defaults=defaults, parent=self)
-            self.append(new_item)
-
-            # Cut value to fill byte by byte
-            if value:
-                if len(new_item) >= len(value):
-                    break
-                value = value[len(new_item):]
 
 #-----------------------------------------------------------------------------#
 # OPC UA frames representation                                                #
@@ -284,7 +244,7 @@ class OpcuaFrame(BOFFrame):
         :Byte array: Build the object from a raw byte array, typically used
                         when receiving incoming connection. In this case block
                         dependencies are identified automatically.
-        :Keyword arguments: Uses keyword described in __defaults to fill frame
+        :Keyword arguments: Uses keyword described in __user_values to fill frame
                             fields.
 
     Usage example::
@@ -298,7 +258,7 @@ class OpcuaFrame(BOFFrame):
         frame = opcua.OpcuaFrame(type="HEL")
     """
 
-    __defaults = {
+    __user_values = {
         # {Argument name: field name} 
         "type": "message_type",
     }
@@ -308,23 +268,23 @@ class OpcuaFrame(BOFFrame):
         keyword arguments :
         
         :param byte: raw byte array used to build a frame.
-        :defaults arguments: every element of __default specifies arguments
-                             that can be passed in order to set fields values
-                             at frame creation.
+        :param user_values: every element of __default specifies arguments
+                            that can be passed in order to set fields values
+                            at frame creation.
         """
         spec = OpcuaSpec()
         super().__init__()
 
         # We store some values before starting building the frame
         value = kwargs["bytes"] if "bytes" in kwargs else None
-        defaults = {}
-        for arg, code in self.__defaults.items():
+        user_values = {}
+        for arg, code in self.__user_values.items():
             if arg in kwargs:
-                defaults[code] = str.encode(kwargs[arg])
+                user_values[code] = str.encode(kwargs[arg])
         # Now we can start
         for block in spec.frame:
             # Create block
-            opcuablock = OpcuaBlock(value=value, defaults=defaults, parent=self, **block)
+            opcuablock = OpcuaBlock(value=value, user_values=user_values, parent=self, **block)
             self.append(block["name"], opcuablock)
             # If a value is used to fill the blocks, update it
             if value:

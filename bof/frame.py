@@ -18,6 +18,14 @@ from .base import BOFProgrammingError, to_property, log
 from . import byte, spec
 
 ###############################################################################
+# CONSTANTS                                                                   #
+###############################################################################
+
+PARENT = "parent"
+VALUE = "value"
+USER_VALUES = "user_values"
+
+###############################################################################
 # Bit field representation within a field                                     #
 ###############################################################################
 
@@ -118,6 +126,7 @@ class BOFField(object):
     _name:str
     _size:int
     _value:bytes
+    _parent:object
     _is_length:bool
     _fixed_size:bool
     _fixed_value:bool
@@ -125,21 +134,22 @@ class BOFField(object):
     _bitsizes:list
 
     def __init__(self, **kwargs):
-        self.name = kwargs["name"] if "name" in kwargs else ""
-        self._value = kwargs["value"] if "value" in kwargs else b''
-        self._size = int(kwargs["size"]) if "size" in kwargs else max(1, byte.get_size(self._value))
-        self._is_length = kwargs["is_length"] if "is_length" in kwargs else False
-        self._fixed_size = kwargs["fixed_size"] if "fixed_size" in kwargs else False
-        self._fixed_value = kwargs["fixed_value"] if "fixed_value" in kwargs else False
+        self.name = kwargs[spec.NAME] if spec.NAME in kwargs else ""
+        self._value = kwargs[spec.VALUE] if spec.VALUE in kwargs else b''
+        self._size = int(kwargs[spec.SIZE]) if spec.SIZE in kwargs else max(1, byte.get_size(self._value))
+        self._parent = kwargs[PARENT] if PARENT in kwargs else None
+        self._is_length = kwargs[spec.IS_LENGTH] if spec.IS_LENGTH in kwargs else False
+        self._fixed_size = kwargs[spec.F_SIZE] if spec.F_SIZE in kwargs else False
+        self._fixed_value = kwargs[spec.F_VALUE] if spec.F_VALUE in kwargs else False
         self._set_bitfields(**kwargs)
         # From now on, _update_value must be used to modify values within the code
-        if "optional" in kwargs and kwargs["optional"] and self._value == b'':
+        if spec.OPTIONAL in kwargs and kwargs[spec.OPTIONAL] and self._value == b'':
             self._size = 0 # We create the field byt don't use it.
             return
-        if "value" in kwargs and kwargs["value"] != b'':
-            self._update_value(kwargs["value"])
-        elif "default" in kwargs:
-            self._update_value(kwargs["default"])
+        if spec.VALUE in kwargs and kwargs[spec.VALUE] != b'':
+            self._update_value(kwargs[spec.VALUE])
+        elif spec.DEFAULT in kwargs:
+            self._update_value(kwargs[spec.DEFAULT])
         else:
             self._update_value(bytes(self._size))
 
@@ -153,10 +163,10 @@ class BOFField(object):
         self._bitsizes = None
         if not spec.SEPARATOR in self._name:
             return
-        if "bitsizes" not in kwargs:
+        if spec.BITSIZES not in kwargs:
             raise BOFProgrammingError("Fields with bit fields shall have bitsizes ({0}).".format(self._name))
         self._name = [x.strip() for x in self._name.split(spec.SEPARATOR)] # Now it's a table
-        self._bitsizes = [int(x) for x in kwargs["bitsizes"].split(spec.SEPARATOR)]
+        self._bitsizes = [int(x) for x in kwargs[spec.BITSIZES].split(spec.SEPARATOR)]
         if len(self._bitsizes) != len(self._name):
             raise BOFProgrammingError("Bitfield names do not match bitsizes ({0}).".format(self._name))
         self._bitfields = {}
@@ -262,8 +272,18 @@ class BOFField(object):
 
 class BOFBlock(object):
     """A ``BOFBlock`` object represents a block (set of fields) within a
-    frame. It contains an ordered set of nested blocks and/or fields
-    (``BOFField``).
+    frame. It contains an ordered set of items. Items are nested blocks and/or
+    fields (``BOFField``).
+
+    A block is usually built from a template which gives its structure.
+    Bytes can also be specified to "fill" this block stucture. If the bytes
+    values are consistent, the structure can also be determined directly from
+    them. If no structure is specified the block remains empty.
+
+    Some block field value (typically a sub-block type) may depend on the
+    value of another field. In that case the keyword "depends:" is used to
+    associate the variable to its value, based on given parameters to another
+    field.
 
     Implementations should inherit this class for block management inside
     frames.
@@ -273,6 +293,7 @@ class BOFBlock(object):
     :param parent: Parent frame, used when a field or a block depends on the
                    value of a field previously written to the frame.
     :param content: List of blocks, fields or both.
+    :param spec: Specification storage class (inheriting from ``BOFSPec``).
     """
     _name:str
     _content:list
@@ -281,27 +302,51 @@ class BOFBlock(object):
 
     @classmethod
     def factory(cls, template) -> object:
-        """Class method to use when the object to create is not
-        necessarily a BOFBlock class. It should be instantiated
-        in protocol implementation classes.
+        """Class method to use when the object to create is not necessarily a
+        BOFBlock class. It should be instantiated in protocol implementation 
+        classes as we need to instantiate protocol-specific block and field
+        classes and not BOFBlock and BOFField objects.
+
+        This part may be replaced later.
         """
         raise NotImplementedError("Factory should be instantiated in subclasses.")
 
     def __init__(self, **kwargs):
-        """Initialize a block according to a set or arguments (template).
+        """Initialize a block according to a set or arguments from an item
+        template (dictionary inside a spec JSON file) and directly from kwargs
+        given to the constructor when creating the block object instance.
         
-        A template usually contains the following information and has the
-        following format in a protocol's specification file:
+        Requires a specification file, therefore this constructor cannot be
+        used directly and must be called from a subclass init method, such as::
 
-	    {"name": "control endpoint", "type": "HPAI"},
+        self._spec = KnxSpec()
+        super().__init__(**kwargs)
 
-        :param defaults: Dictionary for optional keyword arguments to force
-        values of fields to depend on to create a field (ex: message code).
-        Defaults values are transmitted to children.
+        Calls the public method ``build()`` to create the structure and fill
+        items. Refer to its docstrings to know what type of arguments is
+        expected here.
+
+        Optional keyword arguments:
+
+        :param name: The name of the block. If empty and the block has a type,
+                     block name == block type
+        :param parent: The parent block (``BOFBlock`` instance), if any.
         """
-        self.name = kwargs["name"] if "name" in kwargs else ""
-        self._parent = kwargs["parent"] if "parent" in kwargs else None
+        # Check that the specification object has been defined in subclass
+        # before calling this constructor.
+        if not hasattr(self, "_spec") or not isinstance(self._spec, spec.BOFSpec):
+            raise BOFProgrammingError("BOFBlock cannot be instantiated directly " \
+            "and requires previous initialization of a BOFSpec object in the " \
+            "subclass' constructor.")
+        # Basic block information
+        self.name = kwargs[spec.NAME] if spec.NAME in kwargs else ""
+        self._parent = kwargs[PARENT] if PARENT in kwargs else None
         self._content = []
+        # Create and fill the block
+        self.build(**kwargs)
+        # If we still don't have a name, we try to set one
+        if not len(self.name) and spec.TYPE in kwargs:
+            self.name = kwargs[spec.TYPE]
 
     def __bytes__(self):
         return b''.join(bytes(item) for item in self._content)
@@ -321,6 +366,56 @@ class BOFBlock(object):
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
+
+    def build(self, **kwargs):
+        """Create and fill the KnxBlock from an item template extracted from
+        the JSON file and additional arguments if any.
+
+        A template usually contains the following information and has the
+        following format in a protocol's specification file:
+
+	    {"name": "control endpoint", "type": "HPAI"},
+
+        Mandatory keyword arguments:
+
+        :param type: Type of the block. If no type is set or type is block,
+                     we don't know how to build the structure, we stop here.
+
+        Optional keyword arguments:
+
+        :param value: Byte array (usually a received frame) to fill the block
+        :param user_values: Dictionary for optional keyword arguments to force
+                            values of fields to depend on to create a field
+                            (ex: message code). Transmitted to children.
+
+        :raises BOFProgrammingError: If specified type was not found in the
+                                     JSON spec file's blocks list or if the
+                                     format found is invalid.
+        """
+        if not spec.TYPE in kwargs or kwargs[spec.TYPE] == spec.BLOCK:
+            return
+        user_values = kwargs[USER_VALUES] if USER_VALUES in kwargs else {}
+        value = kwargs[VALUE] if VALUE in kwargs else None
+        # If values rely on previous content, replace it
+        for key in kwargs:
+            if isinstance(kwargs[key], str) and kwargs[key].startswith(spec.DEPENDS):
+                dependency = kwargs[key].split(spec.DEPENDS)[1]
+                kwargs[key] = self._get_depends_block(dependency, user_values)
+        # Retrieve the template in the JSON file and check it
+        block_template = self._spec.get_block_template(kwargs[spec.TYPE])
+        if not block_template:
+            raise BOFProgrammingError("Unknown block type ({0})".format(kwargs[spec.TYPE]))
+        if not isinstance(block_template, list):
+            raise BOFProgrammingError("Invalid block format ({0})".format(kwargs[spec.TYPE]))
+        # Create block and fill them (if value) one by one
+        for item_template in block_template:
+            item = self.factory(item_template, value=value, user_values=user_values, parent=self)
+            self.append(item)
+            # If value, we extract part of it to fill the item
+            if value:
+                if len(item) >= len(value):
+                    break
+                value = value[len(item):]
 
     def append(self, content) -> None:
         """Appends a block, a field or a list of blocks and/fields to
@@ -412,25 +507,34 @@ class BOFBlock(object):
         elif len(name) > 0:
             setattr(self, to_property(name), pointer)
 
-    def _get_depends_block(self, field:str, defaults:dict=None):
+    def _get_depends_block(self, field:str, user_values:dict=None):
         """If the format of a block depends on the value of a field set
         previously, we look for it and choose the appropriate format.
         The closest field with such name is used.
 
         :param name: Name of the field to look for and extract value.
-        :raises BOFProgrammingError: If specified field was not found.
+        :raises BOFProgrammingError: If specified field was not found or no
+                                     association was found.
         """
         field = to_property(field)
+        # First look in user-defined parameter values
+        if user_values:
+            for key in user_values:
+                if field == to_property(key):
+                    block = self._spec.get_code_name(key, user_values[key])
+                    if block:
+                        return block
+        # Then look in previously-set fields (starting by the closest ones)
         if self._parent:
             field_list = list(self._parent)
             field_list.reverse()
             for frame_field in field_list:
                 if field == to_property(frame_field.name):
                     block = self._spec.get_code_name(frame_field.name, frame_field.value)
-                    return block
-            raise BOFProgrammingError("Field not found ({0}).".format(field))
-        else:
-            return None
+                    if block:
+                        return block
+        raise BOFProgrammingError("Association not found for field {0}".format(field))
+
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
