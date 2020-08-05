@@ -30,7 +30,7 @@ from ipaddress import ip_address
 from textwrap import indent
 
 from ..base import BOFProgrammingError, to_property, log
-from ..frame import BOFFrame, BOFBlock, BOFField, BOFBitField
+from ..frame import BOFFrame, BOFBlock, BOFField, USER_VALUES, VALUE
 from .. import byte, spec
 
 ###############################################################################
@@ -143,16 +143,16 @@ class KnxBlock(BOFBlock):
 
         Keyword arguments:
 
-        :param defaults: Default values to assign a field as a dictionary
-                         with format {"field name": b"value"}
+        :param user_values: Default values to assign a field as a dictionary
+                            with format {"field name": b"value"}
         :param value: Content of block or field to set.
         """
         if spec.TYPE in template and template[spec.TYPE] == spec.FIELD:
             value = b''
-            if "defaults" in kwargs and template["name"] in kwargs["defaults"]:
-                value = kwargs["defaults"][template["name"]]
-            elif "value" in kwargs and kwargs["value"]:
-                value = kwargs["value"][:template["size"]]
+            if USER_VALUES in kwargs and template[spec.NAME] in kwargs[USER_VALUES]:
+                value = kwargs[USER_VALUES][template[spec.NAME]]
+            elif VALUE in kwargs and kwargs[VALUE]:
+                value = kwargs[VALUE][:template[spec.SIZE]]
             return KnxField(**template, value=value)
         return cls(**template, **kwargs)
 
@@ -163,33 +163,6 @@ class KnxBlock(BOFBlock):
         """
         self._spec = KnxSpec()
         super().__init__(**kwargs)
-        # Without a type, the block remains empty
-        if not spec.TYPE in kwargs or kwargs[spec.TYPE] == spec.BLOCK:
-            return
-        # Now we extract the final type of block from the arguments
-        value = kwargs["value"] if "value" in kwargs else None
-        defaults = kwargs["defaults"] if "defaults" in kwargs else {}
-        block_type = kwargs["type"]
-        if block_type.startswith("depends:"):
-            field_name = to_property(block_type.split(":")[1])
-            block_type = self._get_depends_block(field_name, defaults)
-            if not block_type:
-                raise BOFProgrammingError("Association not found for field {0}".format(field_name))
-        # We extract the block's content according to its type
-        template = self._spec.get_block_template(block_type)
-        if not template:
-            raise BOFProgrammingError("Unknown block type ({0})".format(block_type))
-        # And we fill the block according to its content
-        template = [template] if not isinstance(template, list) else template
-        for item in template:
-            new_item = self.factory(item, value=value,
-                                    defaults=defaults, parent=self)
-            self.append(new_item)
-            # Update value
-            if value:
-                if len(new_item) >= len(value):
-                    break
-                value = value[len(new_item):]
 
 #-----------------------------------------------------------------------------#
 # KNX frames / datagram representation                                        #
@@ -217,7 +190,7 @@ class KnxFrame(BOFFrame):
 
     **KNX Standard v2.1 03_08_02**
     """
-    __defaults = {
+    __user_values = {
         # {Argument name: field name} 
         "type": "service identifier",
         "cemi": "message code",
@@ -254,14 +227,14 @@ class KnxFrame(BOFFrame):
         super().__init__()
         # We store some values before starting building the frame
         value = kwargs["bytes"] if "bytes" in kwargs else None
-        defaults = {}
-        for arg, code in self.__defaults.items():
+        user_values = {}
+        for arg, code in self.__user_values.items():
             if arg in kwargs:
-                defaults[code] = spec.get_code_id(code, kwargs[arg])
+                user_values[code] = spec.get_code_id(code, kwargs[arg])
         # Now we can start
         for block in spec.frame:
             # Create block
-            knxblock = KnxBlock(value=value, defaults=defaults, parent=self, **block)
+            knxblock = KnxBlock(value=value, user_values=user_values, parent=self, **block)
             self.append(block["name"], knxblock)
             # If a value is used to fill the blocks, update it
             if value:
