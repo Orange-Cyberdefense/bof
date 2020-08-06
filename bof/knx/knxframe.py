@@ -62,7 +62,7 @@ class KnxSpec(spec.BOFSpec):
 
     def get_code_name(self, code:str, identifier) -> str:
         code = self._get_dict_key(self.codes, code)
-        if isinstance(identifier, bytes):
+        if isinstance(identifier, bytes) and code in self.codes:
             for key in self.codes[code]:
                 if identifier == bytes.fromhex(key):
                     return self.codes[code][key]
@@ -274,4 +274,4 @@ class KnxFrame(BOFFrame):
     @property
     def cemi(self) -> str:
         """Return the type of cemi, if any."""
-        self._spec.get_cemi_name(self._blocks[spec.BODY].cemi.message_code)
+        return self._spec.get_code_name("message code", self._blocks[spec.BODY].cemi.message_code.value)
