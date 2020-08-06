@@ -200,17 +200,22 @@ class OpcuaBlock(BOFBlock):
         :param value: Bytes value to fill the item (block or field) with.
         """
         # case where item template represents a field (non-recursive)
+        print(item_template, kwargs)
         if spec.TYPE in item_template and item_template[spec.TYPE] == spec.FIELD:
             value = b''
             if USER_VALUES in kwargs and item_template[spec.NAME] in kwargs[USER_VALUES]:
                 value = kwargs[USER_VALUES][item_template[spec.NAME]]
             elif VALUE in kwargs and kwargs[VALUE]:
+                if isinstance(item_template[spec.SIZE], bytes):
+                    item_template[spec.SIZE] = byte.to_int(item_template[spec.SIZE])
+                    #item_template[spec.SIZE] = int.from_bytes(item_template[spec.SIZE], byteorder='little', signed=False)
                 value = kwargs[VALUE][:item_template[spec.SIZE]]
             return OpcuaField(**item_template, value=value)
         # case where item template represents a sub-block (nested/recursive block)
         else:
             return cls(**item_template, **kwargs)
     
+
     def __init__(self, **kwargs):
         """Initialize the ``OpcuaBlock``.
 
@@ -276,6 +281,7 @@ class OpcuaFrame(BOFFrame):
                             at frame creation.
         """
         self._spec = OpcuaSpec()
+        byte.set_byteorder('little')
         super().__init__(OpcuaBlock, **kwargs)
         self.update()
 
