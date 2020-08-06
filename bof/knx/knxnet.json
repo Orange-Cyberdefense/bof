@@ -128,12 +128,14 @@
 	"L_cEMI": [
 	    {"name": "additional info length", "type": "field", "size": 1, "default": "00"},
 	    {"name": "additional information", "type": "field", "size": "depends:additional info length"},
-	    {"name": "frame type, empty, repeat, system broadcast, priority, ack request, confirm", "type": "field", "size": 1, "bitsizes": "1, 1, 1, 1, 2, 1, 1"},
-	    {"name": "destination address, hop count, extended frame format", "type": "field", "size": 1, "bitsizes": "1, 3, 4"},
+	    {"name": "frame type, empty, repeat, broadcast type, priority, ack request, confirm", "type": "field", "size": 1, "bitsizes": "1, 1, 1, 1, 2, 1, 1"},
+	    {"name": "address type, hop count, extended frame format", "type": "field", "size": 1, "bitsizes": "1, 3, 4"},
 	    {"name": "source address", "type": "field", "size": 2},
 	    {"name": "destination address", "type": "field", "size": 2},
 	    {"name": "information length", "type": "field", "size": 1, "default": "01"},
-	    {"name": "tpci apci", "type": "field", "size": "depends: information length"}
+	    {"name": "tpci", "type": "field", "size": 1},
+	    {"name": "apci", "type": "field", "size": 2},
+	    {"name": "data", "type": "field", "size": "depends: information length"}
 	],
 	"DP_cEMI": [
 	    {"name": "object type", "type": "field", "size": 2},
