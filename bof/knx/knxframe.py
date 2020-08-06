@@ -60,7 +60,7 @@ class KnxSpec(spec.BOFSpec):
             filepath = path.join(path.dirname(path.realpath(__file__)), KNXSPECFILE)
         super().__init__(filepath)
 
-    def get_code_name(self, code:str, identifier) -> str:
+    def get_code_value(self, code:str, identifier) -> str:
         code = self._get_dict_key(self.codes, code)
         if isinstance(identifier, bytes) and code in self.codes:
             for key in self.codes[code]:
@@ -73,7 +73,7 @@ class KnxSpec(spec.BOFSpec):
                     return service
         return None
 
-    def get_code_id(self, dict_key:dict, name:str) -> bytes:
+    def get_code_key(self, dict_key:dict, name:str) -> bytes:
         name = to_property(name)
         dict_key = self._get_dict_key(self.codes, dict_key)
         for key, value in self.codes[dict_key].items():
@@ -267,11 +267,11 @@ class KnxFrame(BOFFrame):
         """Return the name associated to the frame's service identifier, or
         empty string if it is not set.
         """
-        sid = self._spec.get_code_name("service identifier",
+        sid = self._spec.get_code_value("service identifier",
                                        self._blocks[spec.HEADER].service_identifier.value)
         return sid if sid else str(self._blocks[spec.HEADER].service_identifier.value)
 
     @property
     def cemi(self) -> str:
         """Return the type of cemi, if any."""
-        return self._spec.get_code_name("message code", self._blocks[spec.BODY].cemi.message_code.value)
+        return self._spec.get_code_value("message code", self._blocks[spec.BODY].cemi.message_code.value)

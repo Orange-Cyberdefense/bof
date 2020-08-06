@@ -532,13 +532,13 @@ class BOFBlock(object):
             if user_values:
                 for key in user_values:
                     if value == to_property(key):
-                        block = self._spec.get_code_name(key, user_values[key])
+                        block = self._spec.get_code_value(key, user_values[key])
                         return block if block else user_values[key]
             field_list = list(self._parent) + list(self) if self._parent else list(self)
             field_list.reverse()
             for field in field_list:
                 if value == to_property(field.name):
-                    block = self._spec.get_code_name(field.name, field.value)
+                    block = self._spec.get_code_value(field.name, field.value)
                     return block if block else field.value
             raise BOFProgrammingError("Association not found for field {0}".format(value))
         for key in template:
@@ -654,7 +654,7 @@ class BOFFrame(object):
         user_values = {}
         for arg, code in self._user_args.items():
             if arg in kwargs:
-                user_values[code] = self._spec.get_code_id(code, kwargs[arg])
+                user_values[code] = self._spec.get_code_key(code, kwargs[arg])
         value = kwargs[BYTES] if BYTES in kwargs else None
         # Now build the frame according to what the spec says.
         for block_template in self._spec.frame:

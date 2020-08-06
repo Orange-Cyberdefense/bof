@@ -36,7 +36,7 @@ class OpcuaSpec(spec.BOFSpec):
         spec = opcua.OpcuaSpec()
         block_template = spec.get_block_template("HEL_BODY")
         item_template = spec.get_item_template("HEL_BODY", "protocol version")
-        message_structure = spec.get_code_name("message_type", "HEL")
+        message_structure = spec.get_code_value("message_type", "HEL")
     """
 
     def __init__(self):
@@ -77,7 +77,7 @@ class OpcuaSpec(spec.BOFSpec):
         """
         return self._get_dict_value(self.blocks, block_name) if block_name else None
     
-    def get_code_name(self, code:str, identifier) -> str:
+    def get_code_value(self, code:str, identifier) -> str:
         """Returns the value associated to an `identifier` inside a
         `code` association table. See opcua.json + usage
         example to better understand the association table concept.
@@ -97,6 +97,9 @@ class OpcuaSpec(spec.BOFSpec):
                 if identifier == key:
                     return self.codes[code][key]
         return None
+
+    def get_code_key(self, dict_key:dict, name:str) -> bytes:
+        return name
 
 ###############################################################################
 # OPC UA FRAME CONTENT                                                        #
