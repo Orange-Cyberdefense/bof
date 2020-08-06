@@ -17,9 +17,8 @@ def connect(ip:str, port:int) -> (knx.KnxNet, int):
     channel = 0
     try:
         knxnet.connect(ip, port)
-        connectreq = knx.KnxFrame(type="CONNECT REQUEST")
-        connectreq.body.connection_request_information.connection_type_code.value = \
-        knx.KnxSpec().get_code_id("connection_type_code", "Device Management Connection")
+        connectreq = knx.KnxFrame(type="CONNECT REQUEST",
+                                  connection="DEVICE MANAGEMENT CONNECTION")
         connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
         connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
         connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])

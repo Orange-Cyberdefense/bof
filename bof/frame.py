@@ -22,6 +22,7 @@ from . import byte, spec
 ###############################################################################
 
 PARENT = "parent"
+BYTES = "bytes"
 VALUE = "value"
 USER_VALUES = "user_values"
 
@@ -136,7 +137,11 @@ class BOFField(object):
     def __init__(self, **kwargs):
         self.name = kwargs[spec.NAME] if spec.NAME in kwargs else ""
         self._value = kwargs[spec.VALUE] if spec.VALUE in kwargs else b''
-        self._size = int(kwargs[spec.SIZE]) if spec.SIZE in kwargs else max(1, byte.get_size(self._value))
+        if spec.SIZE in kwargs:
+            self._size = byte.to_int(kwargs[spec.SIZE]) if isinstance(kwargs[spec.SIZE], bytes) \
+                         else int(kwargs[spec.SIZE])
+        else: 
+            self._size = max(1, byte.get_size(self._value))
         self._parent = kwargs[PARENT] if PARENT in kwargs else None
         self._is_length = kwargs[spec.IS_LENGTH] if spec.IS_LENGTH in kwargs else False
         self._fixed_size = kwargs[spec.F_SIZE] if spec.F_SIZE in kwargs else False
@@ -221,7 +226,12 @@ class BOFField(object):
         return self._size
     @size.setter
     def size(self, size:int):
-        self._size = size
+        if isinstance(size, int):
+            self._size = size
+        elif isinstance(size, bytes):
+            self._size = byte.to_int(size)
+        else:
+            raise BOFProgrammingError("Size value should be int or bytes.")
         self._value = byte.resize(self._value, self._size)
 
     @property
@@ -394,13 +404,9 @@ class BOFBlock(object):
         """
         if not spec.TYPE in kwargs or kwargs[spec.TYPE] == spec.BLOCK:
             return
+        # If values rely on previous content, replace them
         user_values = kwargs[USER_VALUES] if USER_VALUES in kwargs else {}
-        value = kwargs[VALUE] if VALUE in kwargs else None
-        # If values rely on previous content, replace it
-        for key in kwargs:
-            if isinstance(kwargs[key], str) and kwargs[key].startswith(spec.DEPENDS):
-                dependency = kwargs[key].split(spec.DEPENDS)[1]
-                kwargs[key] = self._get_depends_block(dependency, user_values)
+        self._get_depends(kwargs, user_values)
         # Retrieve the template in the JSON file and check it
         block_template = self._spec.get_block_template(kwargs[spec.TYPE])
         if not block_template:
@@ -408,8 +414,12 @@ class BOFBlock(object):
         if not isinstance(block_template, list):
             raise BOFProgrammingError("Invalid block format ({0})".format(kwargs[spec.TYPE]))
         # Create block and fill them (if value) one by one
+        value = kwargs[VALUE] if VALUE in kwargs else None
         for item_template in block_template:
-            item = self.factory(item_template, value=value, user_values=user_values, parent=self)
+            # First we need to replace the "depends" part (dictionary must be copied)
+            final_template = self._get_depends(item_template.copy(), user_values)
+            item = self.factory(final_template, value=value,
+                                user_values=user_values, parent=self)
             self.append(item)
             # If value, we extract part of it to fill the item
             if value:
@@ -507,34 +517,35 @@ class BOFBlock(object):
         elif len(name) > 0:
             setattr(self, to_property(name), pointer)
 
-    def _get_depends_block(self, field:str, user_values:dict=None):
-        """If the format of a block depends on the value of a field set
-        previously, we look for it and choose the appropriate format.
-        The closest field with such name is used.
+    def _get_depends(self, template:dict, user_values:dict=None) -> None:
+        """If a value or the format of a block depends on another field value 
+        for a field set previously, we look for it and choose the appropriate
+        format. The closest field with such name is used. If the field name
+        is in the list of existing code, we match the value with a code, else
+        we return the value directly.
 
-        :param name: Name of the field to look for and extract value.
+        :param template: Dictionary in which to look for values.
         :raises BOFProgrammingError: If specified field was not found or no
                                      association was found.
         """
-        field = to_property(field)
-        # First look in user-defined parameter values
-        if user_values:
-            for key in user_values:
-                if field == to_property(key):
-                    block = self._spec.get_code_name(key, user_values[key])
-                    if block:
-                        return block
-        # Then look in previously-set fields (starting by the closest ones)
-        if self._parent:
-            field_list = list(self._parent)
+        def get_depends_value(value, user_values):
+            if user_values:
+                for key in user_values:
+                    if value == to_property(key):
+                        block = self._spec.get_code_value(key, user_values[key])
+                        return block if block else user_values[key]
+            field_list = list(self._parent) + list(self) if self._parent else list(self)
             field_list.reverse()
-            for frame_field in field_list:
-                if field == to_property(frame_field.name):
-                    block = self._spec.get_code_name(frame_field.name, frame_field.value)
-                    if block:
-                        return block
-        raise BOFProgrammingError("Association not found for field {0}".format(field))
-
+            for field in field_list:
+                if value == to_property(field.name):
+                    block = self._spec.get_code_value(field.name, field.value)
+                    return block if block else field.value
+            raise BOFProgrammingError("Association not found for field {0}".format(value))
+        for key in template:
+            if isinstance(template[key], str) and template[key].startswith(spec.DEPENDS):
+                dependency = to_property(template[key].split(spec.DEPENDS)[1])
+                template[key] = get_depends_value(dependency, user_values)
+        return template
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -583,16 +594,77 @@ class BOFFrame(object):
     - The frame contains a set of blocks
     - The order of blocks is defined, blocks are named.
 
+    In this class, a frame is built according to a special part of a JSON
+    specification file, which has the following name and format::
+
+    "frame": [
+        {"name": "header", "type": "HEADER"},
+        {"name": "body", "type": "depends:message_type"}
+    ]
+
+    Attributes:
+
     :param blocks: A dictionary containing blocks.
+    :param spec: The specification class as a ``BOFSpec`` object. Should be
+                 instantiated in a subclass as BOFFrame should never be
+                 used directly.
+    :param user_args: A dictionary containing the name of an argument that a end
+                      user can supply when creating the frame object instance,
+                      and the name of the corresponding field in the frame
+                      accçording to the JSON spec file. For instance:
+                      ``"type": "message_type"`` states that the user can create
+                      the frame object with ``OpcuaFrame(type="HEL") and that
+                      the field value to look for or to fill is ``message_type``
 
     .. warning: We rely on Python 3.6+'s ordering by insertion. If you use an
                 older implementation of Python, blocks may not come in the
                 right order (and I don't think BOF would work anyway).
     """
     _blocks:dict
+    _spec:object
+    _user_args = {
+        # {Argument name: field name} 
+    }
 
-    def __init__(self):
+    def __init__(self, block_class:object, **kwargs):
+        """Create the frame according to the category "frame" in a JSON
+        specification file.
+
+        Requires a specification file, as well as the type of block class it
+        has to create, therefore this constructor cannot be used directly and
+        must be called from a subclass init method, such as::
+
+        self._spec = KnxSpec()
+        super().__init__(KnxBlock, **kwargs)
+
+        :param block_class: Type of the class to create. Must inherit from
+                            ``BOFBlock`.`
+        """
+        # Check that the specification object has been defined in subclass
+        # before calling this constructor.
+        if not hasattr(self, "_spec") or not isinstance(self._spec, spec.BOFSpec):
+            raise BOFProgrammingError("BOFFrame cannot be instantiated directly " \
+            "and requires previous initialization of a BOFSpec object in the " \
+            "subclass' constructor.")
+        if not block_class or not isinstance(block_class(), BOFBlock):
+            raise BOFProgrammingError("BOFFrame expects a BOFBlock class type " \
+            "from a protocol implementation as first argument.")
         self._blocks = {}
+        # Retrieve actual or default values to use to build the frame
+        user_values = {}
+        for arg, code in self._user_args.items():
+            if arg in kwargs:
+                user_values[code] = self._spec.get_code_key(code, kwargs[arg])
+        value = kwargs[BYTES] if BYTES in kwargs else None
+        # Now build the frame according to what the spec says.
+        for block_template in self._spec.frame:
+            block = block_class(value=value, user_values=user_values,
+                                parent=self, **block_template)
+            self.append(block_template[spec.NAME], block)
+            if value:
+                if len(self._blocks[block_template[spec.NAME]]) >= len(value):
+                    break
+                value = value[len(self._blocks[block_template[spec.NAME]]):]
 
     def __bytes__(self):
         self.update()

@@ -65,13 +65,13 @@ class Test01KnxSpecTesting(unittest.TestCase):
     """Test class for KnxSpec public methods."""
     def test_01_get_service_id(self):
         """Test that we can get a service identifier from its name"""
-        sid = knx.KnxSpec().get_code_id("service identifier", "description request")
+        sid = knx.KnxSpec().get_code_key("service identifier", "description request")
         self.assertEqual(sid, b"\x02\x03")
     def test_02_get_service_name(self):
         """Test that we can get the name of a service identifier from its id."""
-        name = knx.KnxSpec().get_code_name("service identifier", b"\x02\x03")
+        name = knx.KnxSpec().get_code_value("service identifier", b"\x02\x03")
         self.assertEqual(name, "DESCRIPTION REQUEST")
-        name = knx.KnxSpec().get_code_name("service identifier", "DESCRIPTION_REQUEST")        
+        name = knx.KnxSpec().get_code_value("service identifier", "DESCRIPTION_REQUEST")        
         self.assertEqual(name, "DESCRIPTION REQUEST")
     def test_03_get_template_from_body(self):
         """Test that we can retrieve the frame template associated to a body name."""
@@ -79,7 +79,7 @@ class Test01KnxSpecTesting(unittest.TestCase):
         self.assertEqual(isinstance(template, list), True)
     def test_04_get_cemi_name(self):
         """Test that we can retrieve the name of a cEMI from its message code."""
-        cemi = knx.KnxSpec().get_code_name("message_code", b"\xfc")
+        cemi = knx.KnxSpec().get_code_value("message_code", b"\xfc")
         self.assertEqual(cemi, "PropRead.req")
 
 class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
@@ -247,7 +247,7 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
     def test_02_knx_parse_connectresp(self):
         connectreq = knx.KnxFrame(type="CONNECT_REQUEST")
         connectreq.body.connection_request_information.cri_connection_type_code.value = \
-        knx.KnxSpec().get_code_id("cri connection type code", "Device Management Connection")
+        knx.KnxSpec().get_code_key("cri connection type code", "Device Management Connection")
         self.connection.send(connectreq)
         connectresp = self.connection.receive()
         channel = connectresp.body.communication_channel_id.value
@@ -281,7 +281,7 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         # ConnectReq
         connectreq = knx.KnxFrame(type="CONNECT REQUEST")
         connectreq.body.connection_request_information.cri_connection_type_code.value = \
-        knx.KnxSpec().get_code_id("cri connection type code", "Device Management Connection")
+        knx.KnxSpec().get_code_key("cri connection type code", "Device Management Connection")
         connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
         connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
         connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])

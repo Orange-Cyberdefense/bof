@@ -74,25 +74,25 @@ class Test01OpcuaSpec(unittest.TestCase):
         """Test that a valid association is returned as expeted"""
         spec = opcua.OpcuaSpec()
         spec.load("tests/jsons/valid.json")
-        message_structure = spec.get_code_name("message_type", "HEL")
+        message_structure = spec.get_code_value("message_type", "HEL")
         self.assertEqual(message_structure, "HEL_BODY")
     def test_12_get_association_str_invalid(self):
         """Test that an invalid association returns None"""
         spec = opcua.OpcuaSpec()
         spec.load("tests/jsons/valid.json")
-        message_structure = spec.get_code_name("INVALID", "INVALID")
+        message_structure = spec.get_code_value("INVALID", "INVALID")
         self.assertEqual(message_structure, None)
     def test_13_get_association_bytes_valid(self):
         """Test that a valid association with byte id is returned as expeted"""
         spec = opcua.OpcuaSpec()
         spec.load("tests/jsons/valid.json")
-        message_structure = spec.get_code_name("message_type", b"HEL")
+        message_structure = spec.get_code_value("message_type", b"HEL")
         self.assertEqual(message_structure, "HEL_BODY")
     def test_14_get_association_bytes_invalid(self):
         """Test that an invalid association with byte id returns None"""
         spec = opcua.OpcuaSpec()
         spec.load("tests/jsons/valid.json")
-        message_structure = spec.get_code_name("INVALID", b"INVALID")
+        message_structure = spec.get_code_value("INVALID", b"INVALID")
         self.assertEqual(message_structure, None)
 
 class Test02OpcuaField(unittest.TestCase):
