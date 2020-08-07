@@ -337,16 +337,42 @@ bytes arrays, which contain blocks, which contain fields. If they don't, you can
 skip this part. Otherwise, your protocol implementation should include three
 classes, inheriting from ``BOFFrame``, ``BOFBlock`` and ``BOFField``.
 
-Formats and behavior that do not match with what is decribed above (mostly, JSON
-specification file organization) have to be written to your protocol
-implementation's subclasses.
+Most of the creation and parsing operation is handled directly by these BOF
+classes, relying on what you wrote in a JSON file. Therefore:
+
+- Block and frame require that you instantiate a specification object inheriting
+  from ``BOFSpec`` in your subclass' constructor (``__init__``) prior to calling
+  their init. For frames, you also need to specify the type of block to
+  instantiate (BOF cannot guess :(). For instance::
+
+    self._spec = KnxSpec()
+    super().__init__(KnxBlock, **kwargs)
+    self.update()
+
+- All protocol-specific content must be added to your subclass, most probably by
+  overloading ``BOFFrame``, ``BOFBlock`` and ``BOFField`` methods and
+  properties. As an example, the setter for the attribute ``value`` in
+  ``KnxField`` (inheriting from ``BOFField``) has been modified to handle and
+  convert to bytes IPv4 addresses and KNX individual and group addresses::
+
+    @value.setter
+    def value(self, content) -> None:
+        if isinstance(content, str):
+            # Check if content is an IPv4 address (A.B.C.D):
+            try:
+                ip_address(content)
+                content = byte.from_ipv4(content)
+            except ValueError:
+                # Check if content is a KNX address (X.Y.Z or X/Y/Z)
+                knx_addr = byte.from_knx(content)
+                content = knx_addr if knx_addr else content
+        super(KnxField, self.__class__).value.fset(self, content)
 
 .. note::
 
-   So far (BOF v0.2.X), part of the code that we expect to be generic and used
-   by most of the implementation is not written to BOF core, but to the KNX
-   implementation. We are carefully moving them as we notice that they can be
-   reused, but this is a long process and we don't want to miss steps. So far,
-   please refer to KNX's frame, block and field implementations in
-   ``bof/knx/knxframe.py`` to write your own implementation and feel free to try
-   and move part of it to the core (``bof/frame.py``).
+   The generic part of BOF's frames implementation has been written
+   according to two protocol implementation (KNX and OPCUA). There may be
+   some improvement to make (adding parts that are currently written
+   directly to implementation in the core or removing parts that are not
+   generic enough) and we count on you to let us know (or make the change
+   yourself)!
