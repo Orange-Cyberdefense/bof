@@ -29,14 +29,12 @@ def group_write(knxnet, channel, kga, value):
     request.body.cemi.cemi_data.l_data_req.broadcast_type.value = 1
     request.body.cemi.cemi_data.l_data_req.address_type.value = 1
     request.body.cemi.cemi_data.l_data_req.hop_count.value = 6
-    request.body.cemi.cemi_data.l_data_req.source_address.value = b"\xff\xff" # TODO: 15.15.255
-    request.body.cemi.cemi_data.l_data_req.destination_address.value = b"\x09\x01" # TODO: 15.15.255
+    request.body.cemi.cemi_data.l_data_req.source_address.value = "15.15.255"
+    request.body.cemi.cemi_data.l_data_req.destination_address.value = kga
     request.body.cemi.cemi_data.l_data_req.service.value = 2
     request.body.cemi.cemi_data.l_data_req.data.value = value
     received_ack = knxnet.send_receive(request)
-    print(received_ack)
     response = knxnet.receive()
-    print(response.cemi)
     if response.sid == "TUNNELING REQUEST":
         ack_to_send = knx.KnxFrame(type="TUNNELING ACK")
         ack_to_send.body.communication_channel_id.value = channel
@@ -44,7 +42,7 @@ def group_write(knxnet, channel, kga, value):
     print(response)
 
 if len(argv) < 4:
-    print("Usage: {0} IP_ADDRESS KNX_GROUPADDRESS VALUE".format(argv[0]))
+    print("Usage: {0} IP_ADDRESS KNX_ADDRESS VALUE".format(argv[0]))
     exit(-1)
 
 try:

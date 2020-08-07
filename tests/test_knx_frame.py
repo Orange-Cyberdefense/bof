@@ -350,7 +350,7 @@ class Test07cEMITunnelFrame(unittest.TestCase):
         discoresp = self.connection.send_receive(discoreq)
         self.connection.disconnect()
     def test_01_knx_cemi_datareq_working(self):
-        """Test that a received cEMI frame with bit fields is parsed."""
+        """Test that a received cEMI frame after a group write is correct."""
         request = knx.KnxFrame(type="TUNNELING REQUEST", cemi="L_Data.req")
         request.body.cemi.cemi_data.l_data_req.frame_type.value = 1
         request.body.cemi.cemi_data.l_data_req.repeat.value = 1

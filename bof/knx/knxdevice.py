@@ -210,13 +210,7 @@ class KnxDevice():
         return self.__knx_address
     @knx_address.setter
     def knx_address(self, value:str):
-        if len(value):
-            bitlist = byte.to_bit_list(value[:1])
-            x = int("".join([str(x) for x in bitlist[:4]]), 2)
-            y = int("".join([str(x) for x in bitlist[4:]]), 2)
-            z = byte.to_int(value[1:])
-            value = "{0}.{1}.{2}".format(x, y, z)
-        self.__knx_address = value
+        self.__knx_address = byte.to_knx(value)
     @property
     def port(self) -> str:
         return self.__port

@@ -115,7 +115,9 @@ class KnxField(BOFField):
                 ip_address(content)
                 content = byte.from_ipv4(content)
             except ValueError:
-                pass
+                # Check if content is a KNX address (X.Y.Z or X/Y/Z)
+                knx_addr = byte.from_knx(content)
+                content = knx_addr if knx_addr else content
         super(KnxField, self.__class__).value.fset(self, content)
 
 #-----------------------------------------------------------------------------#
