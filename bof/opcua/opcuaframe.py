@@ -200,7 +200,6 @@ class OpcuaBlock(BOFBlock):
         :param value: Bytes value to fill the item (block or field) with.
         """
         # case where item template represents a field (non-recursive)
-        print(item_template, kwargs)
         if spec.TYPE in item_template and item_template[spec.TYPE] == spec.FIELD:
             value = b''
             if USER_VALUES in kwargs and item_template[spec.NAME] in kwargs[USER_VALUES]:

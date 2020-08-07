@@ -17,11 +17,19 @@
             {"name": "max_chunk_count", "type": "field", "size": 4},
             {"name": "endpoint_url_length", "type": "field", "size": 4},
             {"name": "endpoint_url", "type": "field", "size": "depends:endpoint_url_length"}
+        ],
+        "ACK_BODY": [
+            {"name": "protocol_version", "type": "field", "size": 4},
+            {"name": "receive_buffer_size", "type": "field", "size": 4},
+            {"name": "send_buffer_size", "type": "field", "size": 4},
+            {"name": "max_message_size", "type": "field", "size": 4},
+            {"name": "max_chunk_count", "type": "field", "size": 4}
         ]
     },
     "codes" : {
         "message_type": {
-            "HEL": "HEL_BODY"
+            "HEL": "HEL_BODY",
+            "ACK": "ACK_BODY"
         }
     }
 }
