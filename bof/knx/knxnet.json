@@ -71,6 +71,19 @@
 	    {"name": "sequence counter", "type": "field", "size": 1},
 	    {"name": "status", "type": "field", "size": 1}
 	],
+	"TUNNELING REQUEST": [
+	    {"name": "structure length", "type": "field", "size": 1, "default": "04"},
+	    {"name": "communication channel id", "type": "field", "size": 1, "default": "01"},
+	    {"name": "sequence counter", "type": "field", "size": 1},
+	    {"name": "reserved", "type": "field", "size": 1},
+	    {"name": "cEMI", "type": "CEMI"}
+	],
+	"TUNNELING ACK": [
+	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
+	    {"name": "communication channel id", "type": "field", "size": 1, "default": "01"},
+	    {"name": "sequence counter", "type": "field", "size": 1},
+	    {"name": "status", "type": "field", "size": 1}
+	],
 	"HPAI": [
 	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
 	    {"name": "host protocol code", "type": "field", "size": 1, "default": "01"},
@@ -133,9 +146,8 @@
 	    {"name": "source address", "type": "field", "size": 2},
 	    {"name": "destination address", "type": "field", "size": 2},
 	    {"name": "information length", "type": "field", "size": 1, "default": "01"},
-	    {"name": "tpci", "type": "field", "size": 1},
-	    {"name": "apci", "type": "field", "size": 2},
-	    {"name": "data", "type": "field", "size": "depends: information length"}
+	    {"name": "packet type, sequence type, empty", "type": "field", "size": 2, "bitsizes": "1, 1, 6"},
+	    {"name": "service, data", "type": "field", "size": "depends: information length", "bitsizes": "2, 6"}
 	],
 	"DP_cEMI": [
 	    {"name": "object type", "type": "field", "size": 2},
@@ -177,7 +189,9 @@
 	    "0209": "DISCONNECT REQUEST",
 	    "020A": "DISCONNECT RESPONSE",
 	    "0310": "CONFIGURATION REQUEST",
-	    "0311": "CONFIGURATION ACK"
+	    "0311": "CONFIGURATION ACK",
+	    "0420": "TUNNELING REQUEST",
+	    "0421": "TUNNELING ACK"
 	},
 	"message code": {
 	    "11": "L_Data.req",

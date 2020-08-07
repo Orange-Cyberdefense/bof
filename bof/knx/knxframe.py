@@ -159,6 +159,8 @@ class KnxBlock(BOFBlock):
             if USER_VALUES in kwargs and template[spec.NAME] in kwargs[USER_VALUES]:
                 value = kwargs[USER_VALUES][template[spec.NAME]]
             elif VALUE in kwargs and kwargs[VALUE]:
+                if isinstance(template[spec.SIZE], bytes):
+                    template[spec.SIZE] = byte.to_int(template[spec.SIZE])
                 value = kwargs[VALUE][:template[spec.SIZE]]
             return KnxField(**template, value=value)
         return cls(**template, **kwargs)
