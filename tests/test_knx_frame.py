@@ -65,13 +65,13 @@ class Test01KnxSpecTesting(unittest.TestCase):
     """Test class for KnxSpec public methods."""
     def test_01_get_service_id(self):
         """Test that we can get a service identifier from its name"""
-        sid = knx.KnxSpec().get_code_id("service identifier", "description request")
+        sid = knx.KnxSpec().get_code_key("service identifier", "description request")
         self.assertEqual(sid, b"\x02\x03")
     def test_02_get_service_name(self):
         """Test that we can get the name of a service identifier from its id."""
-        name = knx.KnxSpec().get_code_name("service identifier", b"\x02\x03")
+        name = knx.KnxSpec().get_code_value("service identifier", b"\x02\x03")
         self.assertEqual(name, "DESCRIPTION REQUEST")
-        name = knx.KnxSpec().get_code_name("service identifier", "DESCRIPTION_REQUEST")        
+        name = knx.KnxSpec().get_code_value("service identifier", "DESCRIPTION_REQUEST")        
         self.assertEqual(name, "DESCRIPTION REQUEST")
     def test_03_get_template_from_body(self):
         """Test that we can retrieve the frame template associated to a body name."""
@@ -79,7 +79,7 @@ class Test01KnxSpecTesting(unittest.TestCase):
         self.assertEqual(isinstance(template, list), True)
     def test_04_get_cemi_name(self):
         """Test that we can retrieve the name of a cEMI from its message code."""
-        cemi = knx.KnxSpec().get_code_name("message_code", b"\xfc")
+        cemi = knx.KnxSpec().get_code_value("message_code", b"\xfc")
         self.assertEqual(cemi, "PropRead.req")
 
 class Test02AdvancedKnxHeaderCrafting(unittest.TestCase):
@@ -246,8 +246,8 @@ class Test05ReceivedFrameParsing(unittest.TestCase):
         self.assertEqual(bytes(datagram.header.service_identifier), b"\x02\x04")
     def test_02_knx_parse_connectresp(self):
         connectreq = knx.KnxFrame(type="CONNECT_REQUEST")
-        connectreq.body.connection_request_information.connection_type_code.value = \
-        knx.KnxSpec().get_code_id("connection type code", "Device Management Connection")
+        connectreq.body.connection_request_information.cri_connection_type_code.value = \
+        knx.KnxSpec().get_code_key("cri connection type code", "Device Management Connection")
         self.connection.send(connectreq)
         connectresp = self.connection.receive()
         channel = connectresp.body.communication_channel_id.value
@@ -274,48 +274,100 @@ class Test06CEMIFrameCrafting(unittest.TestCase):
         self.assertEqual(frame.body.cemi.cemi_data.propread_req.number_of_elements.value, [1,1,1,1])
         self.assertEqual(frame.body.cemi.cemi_data.propread_req.start_index.value, [0,0,0,0,0,0,0,0,0,0,0,1])
         self.assertEqual(frame.body.cemi.cemi_data.propread_req.number_of_elements_start_index.value, b'\xF0\x01')
-    def test_03_knx_cemi_bitfields_parsing(self):
-        """Test that a received cEMI frame with bit fields is parsed."""
-        knxnet = knx.KnxNet()
-        knxnet.connect(BOIBOITE, 3671)
+
+class Test06cEMIConfigFrame(unittest.TestCase):
+    def setUp(self):
+        def update_source(knxnet, field):
+            field.ip_address.value = knxnet.source_address
+            field.port.value = knxnet.source_port
+        self.connection = knx.KnxNet()
+        self.connection.connect(BOIBOITE, 3671)
         # ConnectReq
-        connectreq = knx.KnxFrame(type="CONNECT REQUEST")
-        connectreq.body.connection_request_information.connection_type_code.value = \
-        knx.KnxSpec().get_code_id("connection type code", "Device Management Connection")
-        connectreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
-        connectreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
-        connectreq.body.data_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
-        connectreq.body.data_endpoint.port.value = byte.from_int(knxnet.source[1])
+        connectreq = knx.KnxFrame(type="CONNECT REQUEST",
+                                  connection="Device Management Connection")
+        update_source(self.connection, connectreq.body.control_endpoint)
+        update_source(self.connection, connectreq.body.data_endpoint)
         #ConnectResp
-        connectresp = knxnet.send_receive(connectreq)
-        channel = connectresp.body.communication_channel_id.value
+        connectresp = self.connection.send_receive(connectreq)
+        self.channel = connectresp.body.communication_channel_id.value
+    def tearDown(self):
+        def update_source(knxnet, field):
+            field.ip_address.value = knxnet.source_address
+            field.port.value = knxnet.source_port
+        discoreq = knx.KnxFrame(type="DISCONNECT_REQUEST")
+        discoreq.body.communication_channel_id.value = self.channel
+        update_source(self.connection, discoreq.body.control_endpoint)
+        discoresp = self.connection.send_receive(discoreq)
+        self.connection.disconnect()
+    def test_01_knx_cemi_bitfields_parsing(self):
+        """Test that a received cEMI frame with bit fields is parsed."""
         #ConfigReq
         request = knx.KnxFrame(type="CONFIGURATION REQUEST", cemi="PropRead.req")
-        request.body.communication_channel_id.value = channel
+        request.body.communication_channel_id.value = self.channel
         request.body.cemi.cemi_data.propread_req.number_of_elements.value = 1
         request.body.cemi.cemi_data.propread_req.object_type.value = 11
         request.body.cemi.cemi_data.propread_req.property_id.value = 53
         # Ack + ConfigReq response
-        response = knxnet.send_receive(request) # ACK
+        response = self.connection.send_receive(request) # ACK
         while (1):
-            response = knxnet.receive() # PropRead.con
+            response = self.connection.receive() # PropRead.con
             if response.sid == "CONFIGURATION REQUEST":
                 # TEST SUBFIELDS
-                self.assertEqual(byte.bit_list_to_int(response.body.cemi.cemi_data.propread_con.number_of_elements.value), 0)
-                self.assertEqual(byte.bit_list_to_int(response.body.cemi.cemi_data.propread_con.start_index.value), 0)
-                response.body.cemi.cemi_data.propread_con.number_of_elements_start_index.value = b'\x10\x01'
-                self.assertEqual(byte.bit_list_to_int(response.body.cemi.cemi_data.propread_con.number_of_elements.value), 1)
-                self.assertEqual(byte.bit_list_to_int(response.body.cemi.cemi_data.propread_con.start_index.value), 1)
+                propread_con = response.body.cemi.cemi_data.propread_con
+                self.assertEqual(byte.bit_list_to_int(propread_con.number_of_elements.value), 0)
+                self.assertEqual(byte.bit_list_to_int(propread_con.start_index.value), 0)
+                propread_con.number_of_elements_start_index.value = b'\x10\x01'
+                self.assertEqual(byte.bit_list_to_int(propread_con.number_of_elements.value), 1)
+                self.assertEqual(byte.bit_list_to_int(propread_con.start_index.value), 1)
                 # We tell the boiboite we received it
                 ack = knx.KnxFrame(type="CONFIGURATION ACK")
-                ack.body.communication_channel_id.value = channel
-                knxnet.send(ack)
+                ack.body.communication_channel_id.value = self.channel
+                self.connection.send(ack)
                 break
-        # DisconnectReq
-        discoreq = knx.KnxFrame(type="DISCONNECT REQUEST")
-        discoreq.body.communication_channel_id.value = channel
-        discoreq.body.control_endpoint.ip_address.value = byte.from_ipv4(knxnet.source[0])
-        discoreq.body.control_endpoint.port.value = byte.from_int(knxnet.source[1])
-        # DisconnectResp
-        knxnet.send(discoreq)
-        knxnet.disconnect()
+
+class Test07cEMITunnelFrame(unittest.TestCase):
+    def setUp(self):
+        def update_source(knxnet, field):
+            field.ip_address.value = knxnet.source_address
+            field.port.value = knxnet.source_port
+        self.connection = knx.KnxNet()
+        self.connection.connect(BOIBOITE, 3671)
+        # ConnectReq
+        connectreq = knx.KnxFrame(type="CONNECT REQUEST",
+                                  connection="Tunneling Connection")
+        update_source(self.connection, connectreq.body.control_endpoint)
+        update_source(self.connection, connectreq.body.data_endpoint)
+        #ConnectResp
+        connectresp = self.connection.send_receive(connectreq)
+        self.channel = connectresp.body.communication_channel_id.value
+    def tearDown(self):
+        def update_source(knxnet, field):
+            field.ip_address.value = knxnet.source_address
+            field.port.value = knxnet.source_port
+        discoreq = knx.KnxFrame(type="DISCONNECT_REQUEST")
+        discoreq.body.communication_channel_id.value = self.channel
+        update_source(self.connection, discoreq.body.control_endpoint)
+        discoresp = self.connection.send_receive(discoreq)
+        self.connection.disconnect()
+    def test_01_knx_cemi_datareq_working(self):
+        """Test that a received cEMI frame after a group write is correct."""
+        request = knx.KnxFrame(type="TUNNELING REQUEST", cemi="L_Data.req")
+        request.body.cemi.cemi_data.l_data_req.frame_type.value = 1
+        request.body.cemi.cemi_data.l_data_req.repeat.value = 1
+        request.body.cemi.cemi_data.l_data_req.broadcast_type.value = 1
+        request.body.cemi.cemi_data.l_data_req.address_type.value = 1
+        request.body.cemi.cemi_data.l_data_req.hop_count.value = 6
+        request.body.cemi.cemi_data.l_data_req.source_address.value = b"\xff\xff" # TODO: 15.15.255
+        request.body.cemi.cemi_data.l_data_req.destination_address.value = b"\x09\x01" # TODO: 15.15.255
+        request.body.cemi.cemi_data.l_data_req.service.value = 2
+        request.body.cemi.cemi_data.l_data_req.data.value = 1
+        received_ack = self.connection.send_receive(request)
+        self.assertEqual(received_ack.body.status.value, b'\x00')
+        response = self.connection.receive()
+        if response.sid == "TUNNELING REQUEST":
+            ack_to_send = knx.KnxFrame(type="TUNNELING ACK")
+            ack_to_send.body.communication_channel_id.value = self.channel
+            self.connection.send(ack_to_send)
+        l_data_con = response.body.cemi.cemi_data.l_data_con
+        self.assertEqual(l_data_con.destination_address.value, b'\x09\x01')
+        self.assertEqual(l_data_con.service_data.value, b'\x81')

@@ -190,6 +190,23 @@ class Test07BytesMacConversion(unittest.TestCase):
         result = bof.to_mac(b'\xAB\x5C')
         self.assertEqual("AB:5C".upper(),result.upper())
 
+class Test07BytesMacConversion(unittest.TestCase):
+    """Test class for bytes conversion to mac address."""
+    @classmethod
+    def setUpClass(self):
+        bof.set_byteorder('big')
+    def test_01_knx_individual_to_bytes(self):
+        """Test that we can convert a KNX address with format X.Y.Z"""
+        self.assertEqual(bof.byte.from_knx("15.15.255"), b"\xff\xff")
+    def test_02_bytes_to_knx_individual(self):
+        """Test that we can convert bytes to X.Y.Z"""
+        self.assertEqual(bof.byte.to_knx(b"\x11\x02"), "1.1.2")
+    def test_03_knx_group_to_bytes(self):
+        """Test that we can convert KNX address with format X/Y/Z"""
+        self.assertEqual(bof.byte.from_knx("1/1/1"), b"\x09\x01")
+    def test_02_bytes_to_knx_group(self):
+        """Test that we can convert bytes to X/Y/Z"""
+        self.assertEqual(bof.byte.to_knx(b"\x09\xff", group=True), "1/1/255")
 
 if __name__ == '__main__':
     unittest.main()

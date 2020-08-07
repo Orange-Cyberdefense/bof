@@ -36,7 +36,27 @@ from .base import BOFLibraryError, to_property
 # Global structure                                                            #
 #-----------------------------------------------------------------------------#
 
+# GENERAL SYNTAX
 SEPARATOR = ","
+DEPENDS = "depends:"
+# ITEMS (FIELDS AND BLOCKS)
+NAME = "name"
+TYPE = "type"
+VALUE = "value"
+SIZE = "size"
+OPTIONAL = "optional"
+DEFAULT = "default"
+# FIELDS
+FIELD = "field"
+IS_LENGTH = "is_length"
+F_SIZE = "fixed_size"
+F_VALUE = "fixed_value"
+BITSIZES = "bitsizes"
+# BLOCKS
+BLOCK = "block"
+# GENERIC NAMES
+HEADER = "header"
+BODY = "body"
 
 ###############################################################################
 # JSON file management functions                                              #
@@ -84,7 +104,7 @@ class BOFSpec(object):
             self.__is_init = True
 
     #-------------------------------------------------------------------------#
-    # Public                                                                  #
+    # Public JSON file management methods                                     #
     #-------------------------------------------------------------------------#
 
     def load(self, filepath):
@@ -118,6 +138,35 @@ class BOFSpec(object):
         attributes = list(self.__dict__.keys()).copy()
         for key in attributes:
             delattr(self, key)
+
+    #-------------------------------------------------------------------------#
+    # Public getters                                                          #
+    #-------------------------------------------------------------------------#
+
+    def get_item_template(self, block_name:str, item_name:str) -> dict:
+        """Returns an item template (dict of values) from a `block_name` and
+        a `field_name`.
+        
+        Note that an item template can represent either a field or a block,
+        depending on the "type" key of the item.
+
+        :param block_name: Name of the block containing the item.
+        :param item_name: Name of the item to look for in the block.
+        :returns: Item template associated to block_name and item_name
+        """
+        if block_name in self.blocks:
+            for item in self.blocks[block_name]:
+                if item[NAME] == item_name:
+                    return item
+        return None
+
+    def get_block_template(self, block_name:str) -> list:
+        """Returns a block template (list of item templates) from a block name.
+
+        :param block_name: Name of the block we want the template from.
+        :returns: Block template associated with the specifified block_name.
+        """
+        return self._get_dict_value(self.blocks, block_name) if block_name else None
 
     #-------------------------------------------------------------------------#
     # Internals                                                               #

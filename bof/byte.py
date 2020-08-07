@@ -9,6 +9,8 @@
           as first parameter.
 """
 
+from re import match
+
 from .base import BOFProgrammingError
 from ipaddress import IPv4Address
 
@@ -177,6 +179,52 @@ def from_mac(mac:str):
     """
     array = bytes.fromhex(mac.replace(":", ""))
     return array
+
+def to_knx(value:bytes, group=False) -> str:
+    """Converts a 2-bytes array to a KNX individual (X.Y.Z) or group 
+    address (X/Y/Z).
+
+    :Individual address ``X.Y.Z``: X and Y are 4 bits (1st byte) and
+                                   Z is 8 bits (2nd byte).
+    :Group address ``X/Y/Z``: X is 6 bits, Y is 3 bits (1st byte) and
+                              Z is 8 bits (2nd byte).
+
+    :param value: Byte array (2 bytes) to convert
+    :param group: Boolean stating if the KNX address is a group address
+                  (default is False: the final string will have a the
+                  format of an individual KNX address.
+    """
+    if not len(value):
+        return None
+    first_chunk_size = 5 if group else 4
+    string_format = "{0}/{1}/{2}" if group else "{0}.{1}.{2}"
+    bitlist = to_bit_list(value[:1])
+    x = int("".join([str(x) for x in bitlist[:first_chunk_size]]), 2)
+    y = int("".join([str(x) for x in bitlist[first_chunk_size:]]), 2)
+    z = to_int(value[1:])
+    return string_format.format(x, y, z)
+
+def from_knx(address:str) -> bytes:
+    """Converts a KNX individual address (X.Y.Z) or group address
+    (X/Y/Z) to a byte array (2 bytes, X Y being one byte, and Z the
+    other).
+
+    :param address: KNX address as a string with format X.Y.Z or
+                    X/Y/Z.
+    """
+    addr = match("(\d{1,2})\.(\d{1,2})\.(\d{1,3})", address)
+    first_chunk_size = 4 # individual address
+    if not addr:
+        addr = match("(\d{1,2})/(\d{1,2})/(\d{1,3})", address)
+        first_chunk_size = 5 # group address
+    if not addr:
+        return None
+    x, y, z = (int(addr.group(a+1)) for a in range(3))
+    x = int_to_bit_list(x)[8-first_chunk_size:]
+    y = int_to_bit_list(y)[first_chunk_size:]
+    b1 = from_int(bit_list_to_int(x + y))
+    b2 = from_int(z)
+    return b''.join([b1, b2])
 
 def int_to_bit_list(n:int, size:int=8, byteorder:str=None) -> list:
     """Representation of n as a list of bits (0 or 1).

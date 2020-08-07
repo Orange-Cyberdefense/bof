@@ -4,8 +4,20 @@ Boiboite Opener Framework's documentation
 =========================================
 
 .. toctree::
-   :maxdepth: 3
-   :caption: Table of content:
+   :maxdepth: 2
+   :caption: User manual
 
-   usermanual
+   man/user
+   man/knx
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer manual
+
+   man/dev
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Source code documentation
+
    bof
