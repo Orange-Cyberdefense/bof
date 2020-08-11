@@ -92,6 +92,12 @@ class OpcuaSpec(spec.BOFSpec):
             for key in self.codes[code]:
                 if identifier == str.encode(key):
                     return self.codes[code][key]
+                else:
+                    try:
+                        if identifier == bytes.fromhex(key):
+                            return self.codes[code][key]
+                    except ValueError:
+                        pass
         elif isinstance(identifier, str) and code in self.codes:
             for key in self.codes[code]:
                 if identifier == key:
@@ -206,8 +212,8 @@ class OpcuaBlock(BOFBlock):
                 value = kwargs[USER_VALUES][item_template[spec.NAME]]
             elif VALUE in kwargs and kwargs[VALUE]:
                 if isinstance(item_template[spec.SIZE], bytes):
-                    item_template[spec.SIZE] = byte.to_int(item_template[spec.SIZE])
-                    #item_template[spec.SIZE] = int.from_bytes(item_template[spec.SIZE], byteorder='little', signed=False)
+                    #item_template[spec.SIZE] = byte.to_int(item_template[spec.SIZE])
+                    item_template[spec.SIZE] = int.from_bytes(item_template[spec.SIZE], byteorder='little', signed=True)
                 value = kwargs[VALUE][:item_template[spec.SIZE]]
             return OpcuaField(**item_template, value=value)
         # case where item template represents a sub-block (nested/recursive block)
@@ -268,6 +274,8 @@ class OpcuaFrame(BOFFrame):
     _user_args = {
         # {Argument name: field name} 
         "type": "message_type",
+        "encryption": "encryption_algorithm",
+        "service": "node_id_value"
     }
 
     def __init__(self, **kwargs):
