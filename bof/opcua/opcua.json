@@ -4,10 +4,44 @@
         {"name": "body", "type": "depends:message_type"}
     ],
     "blocks": {
+        "EMPTY": [
+            {}
+        ],
         "HEADER": [
             {"name": "message_type", "type": "field", "size": 3},
             {"name": "is_final", "type": "field", "size": 1},
             {"name": "message_size", "type": "field", "size": 4}
+        ],
+        "ASYMMETRIC_SECURITY_HEADER": [
+            {"name": "security_policy_uri_length", "type": "field", "size": 4},
+            {"name": "security_policy_uri", "type": "field", "size": "depends:security_policy_uri_length"},
+            {"name": "sender_certificate_length", "type": "field", "size": 4},
+            {"name": "sender_certificate", "type": "field", "size": "depends:sender_certificate_length"},
+            {"name": "receiver_certificate_thumbprint_length", "type": "field", "size": 4},
+            {"name": "receiver_certificate_thumbprint", "type": "field", "size": "depends:receiver_certificate_thumbprint_length"}
+        ],
+        "SEQUENCE_HEADER": [
+            {"name": "sequence_number", "type": "field", "size": 4},
+            {"name": "request_id", "type": "field", "size": 4}
+        ],
+        "REQUEST_HEADER": [
+            {"name": "authentication_token", "type": "TWO_BYTES_NODE_ID"},
+            {"name": "timestamp", "type": "field", "size": 8},
+            {"name": "request_handle", "type": "field", "size": 4},
+            {"name": "return_diagnostics", "type": "field", "size": 4},
+            {"name": "audit_entry_id_size", "type": "field", "size": 4},
+            {"name": "audit_entry_id", "type": "field", "size": "depends:audit_entry_id_size"},
+            {"name": "timeout_hint", "type": "field", "size": 4},
+            {"name": "additional_header", "type": "field", "size": 3}
+        ],
+        "RESPONSE_HEADER": [
+            {"name": "timestamp", "type": "field", "size": 8},
+            {"name": "request_handle", "type": "field", "size": 4},
+            {"name": "service_result", "type": "field", "size": 4},
+            {"name": "diagnostic_info", "type": "field", "size": 1},
+            {"name": "string_table_size", "type": "field", "size": 4},
+            {"name": "string_table", "type": "field", "size":"depends:string_table_size"},
+            {"name": "additional_header", "type": "field", "size": 3}
         ],
         "HEL_BODY": [
             {"name": "protocol_version", "type": "field", "size": 4},
@@ -24,12 +58,46 @@
             {"name": "send_buffer_size", "type": "field", "size": 4},
             {"name": "max_message_size", "type": "field", "size": 4},
             {"name": "max_chunk_count", "type": "field", "size": 4}
+        ],
+        "OPN_BODY": [
+            {"name": "secure_channel_id", "type": "field", "size": 4},
+            {"name": "security_header", "type": "ASYMMETRIC_SECURITY_HEADER"},
+            {"name": "sequence_header", "type": "SEQUENCE_HEADER"},
+            {"name": "type_id", "type": "FOUR_BYTES_NODE_ID"},
+            {"name": "service", "type": "depends:node_id_value"}
+        ],
+        "OPEN_SECURE_CHANNEL_REQUEST": [
+            {"name": "request_header", "type": "REQUEST_HEADER"},
+            {"name": "client_protocol_version", "type": "field", "size": 4},
+            {"name": "security_token_request_type", "type": "field", "size": 4},
+            {"name": "message_security_mode", "type": "field", "size": 4},
+            {"name": "client_nonce_size", "type": "field", "size": 4},
+            {"name": "client_nonce", "type": "field", "size": "depends:client_nonce_size"},
+            {"name": "requested_lifetime", "type": "field", "size": 4}
+        ],
+        "OPEN_SECURE_CHANNEL_RESPONSE": [
+            {"name": "response_header", "type": "RESPONSE_HEADER"}
+        ],
+        "TWO_BYTES_NODE_ID": [
+            {"name": "node_id_data_encoding", "type": "field", "size": 1},
+            {"name": "node_id_value", "type": "field", "size": 1}
+        ],
+        "FOUR_BYTES_NODE_ID": [
+            {"name": "node_id_data_encoding", "type": "field", "size": 1},
+            {"name": "node_id_namespace", "type": "field", "size": 1},
+            {"name": "node_id_value", "type": "field", "size": 2}
         ]
     },
     "codes" : {
         "message_type": {
             "HEL": "HEL_BODY",
-            "ACK": "ACK_BODY"
+            "ACK": "ACK_BODY",
+            "OPN": "OPN_BODY"
+        },
+        "node_id_value": {
+            "0000": "EMPTY",
+            "be01": "OPEN_SECURE_CHANNEL_REQUEST",
+            "c101": "OPEN_SECURE_CHANNEL_RESPONSE"
         }
     }
 }
