@@ -250,7 +250,10 @@ class BOFField(object):
         elif isinstance(content, int):
             self._value = byte.from_int(content, size=self.size)
         elif isinstance(content, str) and content.isdigit():
+            try:
             self._value = bytes.fromhex(content)
+            except ValueError:
+                self._value = content.encode('utf-8')
             self._value = byte.resize(self._value, self.size)
         elif isinstance(content, str):
             self._value = content.encode('utf-8')
