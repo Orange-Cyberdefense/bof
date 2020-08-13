@@ -49,15 +49,24 @@ class OpcuaNet(TCP):
     # Override                                                                #
     #-------------------------------------------------------------------------#
 
+    def tcp_connect(self, ip:str, port:int) -> object:
+        """Initialize a connection over TCP via OpcuaNet object.
+
+        :param ip: IPv4 address as a string with format ``A.B.C.D``.
+        :param port: Port number as an integer.
+        :returns: TODO:
+        """
+        super().connect(ip, port)
+        return
+
     def connect(self, endpoint_url:str) -> object:
         """Initialize OPC UA Binary connection over TCP.
 
         :param endpoint_url: OPC UA endpoint with format "opc.tcp://localhost:4840".
-        
         :returns: TODO:
         """
         ip, port = self._get_address_from_url(endpoint_url)
-        super().connect(ip, port)
+        tcp_connect(ip, port)
         self._open_connection((ip, port), endpoint_url)
         return
 
@@ -91,7 +100,7 @@ class OpcuaNet(TCP):
         """
         if isinstance(data, OpcuaFrame):
             data = bytes(data)
-        super().send(data)
+        super().send(data, address)
         return
 
     def receive(self, timeout:float=1.0) -> object:
