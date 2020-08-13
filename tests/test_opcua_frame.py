@@ -189,3 +189,57 @@ class Test03OpcuaBlockBase(unittest.TestCase):
         header_bytes = bytes.fromhex('48454c4638000000')
         block = opcua.OpcuaBlock(type="HEADER", value=header_bytes)
         self.assertEqual(block.message_type.value, b'HEL')
+
+class Test04OpcuaBlockDepends(unittest.TestCase):
+    """Test class for dependency-related block behavior.
+    Note that we don't test for the whole BOFBlock behavior, but
+    uniquely what we are using in OpcuaBlock. Therefore more test
+    might be needed as OPC UA protocol implementation progresses.
+    """
+    def test_01_opcua_block_dependency_base_valid(self):
+        """Test base dependency search mechanism within blocks"""
+        block = opcua.OpcuaBlock(name="fake_frame")
+        block.append(opcua.OpcuaBlock(**{"name": "header", "type": "HEADER"}, parent=block))
+        block.header.message_type.value = b'HEL'
+        block.append(opcua.OpcuaBlock(**{"name": "body", "type": "depends:message_type"}, parent=block))
+        expected_attributes = ['protocol_version', 'receive_buffer_size', 'send_buffer_size', 
+                               'max_message_size', 'max_chunk_count', 'endpoint_url_length',
+                               'endpoint_url']
+        self.assertEqual(block.body.attributes, expected_attributes)
+    def test_02_opcua_block_dependency_base_invalid(self):
+        """Test that missing dependency causes an error"""
+        with self.assertRaises(BOFProgrammingError):
+            item_template_block = {"name": "body", "type": "depends:message_type"}
+            block = opcua.OpcuaBlock(**{"name": "body", "type": "depends:message_type"})
+    def test_03_opcua_block_dependency_user_value_valid(self):
+        """Test dependency search with user supplied value"""
+        block = opcua.OpcuaBlock(**{"name": "body", "type": "depends:message_type"},
+                                 user_values={'message_type':'HEL'})
+        expected_attributes = ['protocol_version', 'receive_buffer_size', 'send_buffer_size', 
+                               'max_message_size', 'max_chunk_count', 'endpoint_url_length',
+                               'endpoint_url']
+        self.assertEqual(block.attributes, expected_attributes)
+    def test_04_opcua_block_dependency_user_value_invalid(self):
+        """Test dependency search with invalid user supplied value"""
+        with self.assertRaises(BOFProgrammingError):
+            block = opcua.OpcuaBlock(**{"name": "body", "type": "depends:message_type"},
+                                    user_values={'message_type':'INVALID'})
+    def test_05_opcua_block_dependency_bytes_valid(self):
+        """Test dependency search within blocks created from raw bytes"""
+        data1 = b'HEL\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data2 = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        block = opcua.OpcuaBlock(name="fake_frame")
+        block.append(opcua.OpcuaBlock(value=data1, parent=block, **{"name": "header", "type": "HEADER"}))
+        block.append(opcua.OpcuaBlock(value=data2, parent=block, **{"name": "body", "type": "depends:message_type"}))
+        expected_attributes = ['protocol_version', 'receive_buffer_size', 'send_buffer_size', 
+                               'max_message_size', 'max_chunk_count', 'endpoint_url_length',
+                               'endpoint_url']
+        self.assertEqual(block.body.attributes, expected_attributes)
+    def test_06_opcua_block_dependency_bytes_invalid(self):
+        """Test that invalid byte dependency causes an error"""
+        data1 = b'NAN\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data2 = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        block = opcua.OpcuaBlock(name="fake_frame")
+        block.append(opcua.OpcuaBlock(value=data1, parent=block, **{"name": "header", "type": "HEADER"}))
+        with self.assertRaises(BOFProgrammingError):
+            block.append(opcua.OpcuaBlock(value=data2, parent=block, **{"name": "body", "type": "depends:message_type"}))
