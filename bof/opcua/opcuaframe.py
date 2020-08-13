@@ -25,7 +25,7 @@ OPCUASPECFILE = "opcua.json"
 
 class OpcuaSpec(spec.BOFSpec):
     """Singleton class for OPC UA specification content usage.
-    Inherits ``BOFSpec``, see `bof/frame.py`.
+    Inherits ``BOFSpec``, see `bof/spec.py`.
 
     The default specification is ``opcua.json`` however the end user is free
     to modify this file (add categories, contents and attributes) or create a
@@ -39,13 +39,13 @@ class OpcuaSpec(spec.BOFSpec):
         message_structure = spec.get_code_value("message_type", "HEL")
     """
 
-    def __init__(self):
+    def __init__(self, filepath:str=None):
         """Initialize the specification object with a JSON file.
         If `filepath` is not specified, we use a default one specified in 
         `OPCUASPECFILE`.
         """
-        #TODO: add support for custom file path (depends on BOFSpec)
-        filepath = path.join(path.dirname(path.realpath(__file__)), OPCUASPECFILE)
+        if not filepath:
+            filepath = path.join(path.dirname(path.realpath(__file__)), OPCUASPECFILE)
         super().__init__(filepath)
 
     #-------------------------------------------------------------------------#
@@ -105,6 +105,9 @@ class OpcuaSpec(spec.BOFSpec):
         return None
 
     def get_code_key(self, dict_key:dict, name:str) -> bytes:
+        """TODO: see if could be done better, particulary concerning service
+        identifiers names.
+        """
         return name
 
 ###############################################################################
