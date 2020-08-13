@@ -243,3 +243,36 @@ class Test04OpcuaBlockDepends(unittest.TestCase):
         block.append(opcua.OpcuaBlock(value=data1, parent=block, **{"name": "header", "type": "HEADER"}))
         with self.assertRaises(BOFProgrammingError):
             block.append(opcua.OpcuaBlock(value=data2, parent=block, **{"name": "body", "type": "depends:message_type"}))
+
+class Test05OpcuaFrameBase(unittest.TestCase):
+    def test_01_opcua_frame_create_empty(self):
+        """Test that because OPC UA has a dependency directly in its frame that
+        defines its whole structure, an empty frame cannot be created on itself.
+        """
+        with self.assertRaises(BOFProgrammingError):
+            frame = opcua.OpcuaFrame()
+        return
+    def test_01_opcua_frame_create_user_args_UACP(self):
+        """Test that an OPC UA simple frame from UACP can be created from user
+        supplied parameter. Here with frame type HEL.
+        """
+        frame = opcua.OpcuaFrame(type='HEL')
+        expected_attributes = ['message_type', 'is_final', 'message_size',
+                               'protocol_version', 'receive_buffer_size', 
+                               'send_buffer_size', 'max_message_size', 
+                               'max_chunk_count', 'endpoint_url_length', 
+                               'endpoint_url']
+        self.assertEqual(frame.attributes, expected_attributes)
+    def test_01_opcua_frame_create_bytes_UACP(self):
+        """Test that an OPC UA simple frame from UACP can be created from raw
+        bytes values. Here with frame type HEL.
+        """
+        hel_data = bytes.fromhex('48454c463800000000000000ffff0000ffff00000000000000000000180000006f70632e7463703a2f2f6c6f63616c686f73743a34383430')
+        frame = opcua.OpcuaFrame(bytes=hel_data)
+        expected_attributes = ['message_type', 'is_final', 'message_size',
+                               'protocol_version', 'receive_buffer_size', 
+                               'send_buffer_size', 'max_message_size', 
+                               'max_chunk_count', 'endpoint_url_length', 
+                               'endpoint_url']
+        self.assertEqual(frame.attributes, expected_attributes)
+        return
