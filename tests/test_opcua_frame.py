@@ -1,6 +1,5 @@
-"""unittest for ``bof.opcua``.
-
-- OPC UA specification gathering
+"""unittest for opcua frame, implementing ``bof.frame``'s
+``BOFSpec``, ``BOFFrame``, ``BOFBlock`` and ``BOFField`` classes.
 """
 
 import unittest
