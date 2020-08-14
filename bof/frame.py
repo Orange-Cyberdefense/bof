@@ -251,7 +251,7 @@ class BOFField(object):
             self._value = byte.from_int(content, size=self.size)
         elif isinstance(content, str) and content.isdigit():
             try:
-            self._value = bytes.fromhex(content)
+                self._value = bytes.fromhex(content)
             except ValueError:
                 self._value = content.encode('utf-8')
             self._value = byte.resize(self._value, self.size)
@@ -540,6 +540,12 @@ class BOFBlock(object):
             field_list = list(self._parent) + list(self) if self._parent else list(self)
             field_list.reverse()
             for field in field_list:
+                if field._bitfields:
+                    for bitfield in field._bitfields.values():
+                        if value == to_property(bitfield.name):
+                            bits = ''.join(map(str, bitfield.value)) # from list to str
+                            block = self._spec.get_code_value(bitfield.name, bits)
+                            return block if block else field.value
                 if value == to_property(field.name):
                     block = self._spec.get_code_value(field.name, field.value)
                     return block if block else field.value
