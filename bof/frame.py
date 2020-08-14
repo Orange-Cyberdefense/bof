@@ -347,13 +347,15 @@ class BOFBlock(object):
         """
         # Check that the specification object has been defined in subclass
         # before calling this constructor.
+        self._parent = kwargs[PARENT] if PARENT in kwargs else None
+        if not self._spec and self._parent._spec:
+            self._spec = self._parent._spec
         if not hasattr(self, "_spec") or not isinstance(self._spec, spec.BOFSpec):
             raise BOFProgrammingError("BOFBlock cannot be instantiated directly " \
             "and requires previous initialization of a BOFSpec object in the " \
             "subclass' constructor.")
         # Basic block information
         self.name = kwargs[spec.NAME] if spec.NAME in kwargs else ""
-        self._parent = kwargs[PARENT] if PARENT in kwargs else None
         self._content = []
         # Create and fill the block
         self.build(**kwargs)

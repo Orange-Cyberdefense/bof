@@ -244,7 +244,7 @@ class OpcuaBlock(BOFBlock):
             either with user_values or value parameter.
             
         """
-        self._spec = OpcuaSpec()
+        self._spec = kwargs['spec'] if 'spec' in kwargs else OpcuaSpec()
         super().__init__(**kwargs)
 
 #-----------------------------------------------------------------------------#
@@ -290,7 +290,7 @@ class OpcuaFrame(BOFFrame):
                             that can be passed in order to set fields values
                             at frame creation.
         """
-        self._spec = OpcuaSpec()
+        self._spec = kwargs['spec'] if 'spec' in kwargs else OpcuaSpec()
         byte.set_byteorder('little')
         super().__init__(OpcuaBlock, **kwargs)
         self.update()
