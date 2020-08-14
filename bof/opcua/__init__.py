@@ -18,4 +18,5 @@ The ``opcua`` submodule has the following content:
 """
 
 from .opcuaframe import *
+from .opcuanet import *
 

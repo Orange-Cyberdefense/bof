@@ -74,6 +74,8 @@ def resize(array:bytes, size:int, byteorder:str=None) -> bytes:
     """
     global _BYTEORDER
     byteorder = byteorder if byteorder else _BYTEORDER
+    if size < 0:
+        size = 0
     if size < len(array):
         return array[len(array)-size:] if byteorder == 'big' else array[:size]
     if size > len(array):

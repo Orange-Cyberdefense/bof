@@ -25,7 +25,7 @@ OPCUASPECFILE = "opcua.json"
 
 class OpcuaSpec(spec.BOFSpec):
     """Singleton class for OPC UA specification content usage.
-    Inherits ``BOFSpec``, see `bof/frame.py`.
+    Inherits ``BOFSpec``, see `bof/spec.py`.
 
     The default specification is ``opcua.json`` however the end user is free
     to modify this file (add categories, contents and attributes) or create a
@@ -39,13 +39,13 @@ class OpcuaSpec(spec.BOFSpec):
         message_structure = spec.get_code_value("message_type", "HEL")
     """
 
-    def __init__(self):
+    def __init__(self, filepath:str=None):
         """Initialize the specification object with a JSON file.
         If `filepath` is not specified, we use a default one specified in 
         `OPCUASPECFILE`.
         """
-        #TODO: add support for custom file path (depends on BOFSpec)
-        filepath = path.join(path.dirname(path.realpath(__file__)), OPCUASPECFILE)
+        if not filepath:
+            filepath = path.join(path.dirname(path.realpath(__file__)), OPCUASPECFILE)
         super().__init__(filepath)
 
     #-------------------------------------------------------------------------#
@@ -92,6 +92,12 @@ class OpcuaSpec(spec.BOFSpec):
             for key in self.codes[code]:
                 if identifier == str.encode(key):
                     return self.codes[code][key]
+                else:
+                    try:
+                        if identifier == bytes.fromhex(key):
+                            return self.codes[code][key]
+                    except ValueError:
+                        pass
         elif isinstance(identifier, str) and code in self.codes:
             for key in self.codes[code]:
                 if identifier == key:
@@ -99,6 +105,9 @@ class OpcuaSpec(spec.BOFSpec):
         return None
 
     def get_code_key(self, dict_key:dict, name:str) -> bytes:
+        """TODO: see if could be done better, particulary concerning service
+        identifiers names.
+        """
         return name
 
 ###############################################################################
@@ -205,12 +214,16 @@ class OpcuaBlock(BOFBlock):
             if USER_VALUES in kwargs and item_template[spec.NAME] in kwargs[USER_VALUES]:
                 value = kwargs[USER_VALUES][item_template[spec.NAME]]
             elif VALUE in kwargs and kwargs[VALUE]:
+                if isinstance(item_template[spec.SIZE], bytes):
+                    #item_template[spec.SIZE] = byte.to_int(item_template[spec.SIZE])
+                    item_template[spec.SIZE] = int.from_bytes(item_template[spec.SIZE], byteorder='little', signed=True)
                 value = kwargs[VALUE][:item_template[spec.SIZE]]
             return OpcuaField(**item_template, value=value)
         # case where item template represents a sub-block (nested/recursive block)
         else:
             return cls(**item_template, **kwargs)
     
+
     def __init__(self, **kwargs):
         """Initialize the ``OpcuaBlock``.
 
@@ -264,6 +277,8 @@ class OpcuaFrame(BOFFrame):
     _user_args = {
         # {Argument name: field name} 
         "type": "message_type",
+        "encryption": "encryption_algorithm",
+        "service": "node_id_value"
     }
 
     def __init__(self, **kwargs):
@@ -276,6 +291,7 @@ class OpcuaFrame(BOFFrame):
                             at frame creation.
         """
         self._spec = OpcuaSpec()
+        byte.set_byteorder('little')
         super().__init__(OpcuaBlock, **kwargs)
         self.update()
 
