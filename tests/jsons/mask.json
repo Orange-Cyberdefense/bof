@@ -1,0 +1,79 @@
+{
+    "blocks": {
+        "EMPTY": [
+            {}
+        ],
+        "TEST_BLOCK": [
+            {"name": "test_field", "type": "field", "size": 3}
+        ],
+        "BLOCK": [
+            {"name": "has_opt_1, has_opt_2, has_opt_3, has_opt_4, has_opt_5, has_opt_6, has_opt_7, has_opt_8", "type": "field", "size": "1", "bitsizes": "1, 1, 1, 1, 1, 1, 1, 1"},
+            {"name": "optional_1_block", "type": "depends:has_opt_1", "size": 1},
+            {"name": "optional_2_block", "type": "depends:has_opt_2", "size": 1},
+            {"name": "optional_3_block", "type": "depends:has_opt_3", "size": 1},
+            {"name": "optional_4_block", "type": "depends:has_opt_4", "size": 1},
+            {"name": "optional_5_block", "type": "depends:has_opt_5", "size": 1},
+            {"name": "optional_6_block", "type": "depends:has_opt_6", "size": 1},
+            {"name": "optional_7_block", "type": "depends:has_opt_7", "size": 1},
+            {"name": "optional_8_block", "type": "depends:has_opt_8", "size": 1}
+        ],
+        "OPTIONAL_1": [
+            {"name": "optional_1_field", "type": "field", "size": 4}
+        ],
+        "OPTIONAL_2": [
+            {"name": "optional_2_field", "type": "field", "size": 4}
+        ],
+        "OPTIONAL_3": [
+            {"name": "optional_3_field", "type": "field", "size": 4}
+        ],
+        "OPTIONAL_4": [
+            {"name": "optional_4_field", "type": "field", "size": 4}
+        ],
+        "OPTIONAL_5": [
+            {"name": "optional_5_field", "type": "field", "size": 4}
+        ],
+        "OPTIONAL_6": [
+            {"name": "optional_6_field", "type": "field", "size": 4}
+        ],
+        "OPTIONAL_7": [
+            {"name": "optional_7_field", "type": "field", "size": 4}
+        ],
+        "OPTIONAL_8": [
+            {"name": "optional_8_field", "type": "field", "size": 4}
+        ]
+    },
+    "codes" : {
+        "has_opt_1": {
+            "0": "EMPTY",
+            "1": "OPTIONAL_1"
+        },
+        "has_opt_2": {
+            "0": "EMPTY",
+            "1": "OPTIONAL_2"
+        },
+        "has_opt_3": {
+            "0": "EMPTY",
+            "1": "OPTIONAL_3"
+        },
+        "has_opt_4": {
+            "0": "EMPTY",
+            "1": "OPTIONAL_4"
+        },
+        "has_opt_5": {
+            "0": "EMPTY",
+            "1": "OPTIONAL_5"
+        },
+        "has_opt_6": {
+            "0": "EMPTY",
+            "1": "OPTIONAL_6"
+        },
+        "has_opt_7": {
+            "0": "EMPTY",
+            "1": "OPTIONAL_7"
+        },
+        "has_opt_8": {
+            "0": "EMPTY",
+            "1": "OPTIONAL_8"
+        }
+    }
+}

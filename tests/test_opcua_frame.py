@@ -242,7 +242,18 @@ class Test04OpcuaBlockDepends(unittest.TestCase):
         block.append(opcua.OpcuaBlock(value=data1, parent=block, **{"name": "header", "type": "HEADER"}))
         with self.assertRaises(BOFProgrammingError):
             block.append(opcua.OpcuaBlock(value=data2, parent=block, **{"name": "body", "type": "depends:message_type"}))
-
+    def test_07_opcua_block_dependency_bitfield(self):
+        spec = opcua.OpcuaSpec()
+        spec.clear()
+        spec.load('tests/jsons/mask.json')
+        user_values={"has_opt_1, has_opt_2, has_opt_3, has_opt_4, has_opt_5, has_opt_6, has_opt_7, has_opt_8": b'\x94'}
+        block = opcua.OpcuaBlock(spec=spec, type='BLOCK', user_values=user_values)
+        sub_fields = []
+        for field in block:
+            if isinstance(field.name, str) and field.name.startswith('optional'):
+                sub_fields.append(field.name)
+        expected_fields = ['optional_3_field', 'optional_5_field', 'optional_8_field']
+        self.assertEqual(sub_fields, expected_fields)
 class Test05OpcuaFrameBase(unittest.TestCase):
     def test_01_opcua_frame_create_empty(self):
         """Test that because OPC UA has a dependency directly in its frame that
