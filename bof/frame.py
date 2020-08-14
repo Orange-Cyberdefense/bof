@@ -423,7 +423,7 @@ class BOFBlock(object):
         for item_template in block_template:
             # First we need to replace the "depends" part (dictionary must be copied)
             final_template = self._get_depends(item_template.copy(), user_values)
-            item = self.factory(final_template, value=value,
+            item = self.factory(final_template, spec=self._spec, value=value,
                                 user_values=user_values, parent=self)
             self.append(item)
             # If value, we extract part of it to fill the item

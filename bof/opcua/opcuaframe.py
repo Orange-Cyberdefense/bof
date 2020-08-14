@@ -244,7 +244,9 @@ class OpcuaBlock(BOFBlock):
             either with user_values or value parameter.
             
         """
-        self._spec = kwargs['spec'] if 'spec' in kwargs else OpcuaSpec()
+        if not 'spec' in kwargs:
+            kwargs['spec'] = OpcuaSpec()
+        self._spec = kwargs['spec']
         super().__init__(**kwargs)
 
 #-----------------------------------------------------------------------------#
