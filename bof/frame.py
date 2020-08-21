@@ -608,10 +608,10 @@ class BOFFrame(object):
     In this class, a frame is built according to a special part of a JSON
     specification file, which has the following name and format::
 
-    "frame": [
-        {"name": "header", "type": "HEADER"},
-        {"name": "body", "type": "depends:message_type"}
-    ]
+      "frame": [
+          {"name": "header", "type": "HEADER"},
+          {"name": "body", "type": "depends:message_type"}
+      ]
 
     Attributes:
 
