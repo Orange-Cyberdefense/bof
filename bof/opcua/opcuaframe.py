@@ -201,7 +201,7 @@ class OpcuaBlock(BOFBlock):
         template specified item type. That's why it's a factory as a class method.
 
         :param item_template: item template representing sub-block or field.
-        :returns: A new instance of an OpcuaBlock or an OpcuaField.
+        :returns: A news instance of an OpcuaBlock or an OpcuaField.
         
         Keyword arguments:
         
@@ -218,7 +218,8 @@ class OpcuaBlock(BOFBlock):
                     #item_template[spec.SIZE] = byte.to_int(item_template[spec.SIZE])
                     item_template[spec.SIZE] = int.from_bytes(item_template[spec.SIZE], byteorder='little', signed=True)
                 value = kwargs[VALUE][:item_template[spec.SIZE]]
-            return OpcuaField(**item_template, value=value)
+            kwargs[VALUE] = value
+            return OpcuaField(**item_template, **kwargs)
         # case where item template represents a sub-block (nested/recursive block)
         else:
             return cls(**item_template, **kwargs)
