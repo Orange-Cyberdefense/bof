@@ -306,7 +306,7 @@ class OpcuaFrame(BOFFrame):
         frame length.
         """
         #super().update()
-        if "message_size" in self._blocks[spec.HEADER].attributes:
+        if spec.HEADER in self._blocks and "message_size" in self._blocks[spec.HEADER].attributes:
             total = sum([len(block) for block in self._blocks.values()])
             self._blocks[spec.HEADER].message_size._update_value(byte.from_int(total))
 
