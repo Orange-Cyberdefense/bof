@@ -13,6 +13,7 @@ We assume that a frame has the following structure:
 """
 
 from textwrap import indent
+from pathlib import PurePosixPath
 
 from .base import BOFProgrammingError, to_property, log
 from . import byte, spec
@@ -128,6 +129,7 @@ class BOFField(object):
     _size:int
     _value:bytes
     _parent:object
+    _path:object
     _is_length:bool
     _fixed_size:bool
     _fixed_value:bool
@@ -147,6 +149,11 @@ class BOFField(object):
         self._fixed_size = kwargs[spec.F_SIZE] if spec.F_SIZE in kwargs else False
         self._fixed_value = kwargs[spec.F_VALUE] if spec.F_VALUE in kwargs else False
         self._set_bitfields(**kwargs)
+        # add path to parent's path if exists
+        if self._parent and hasattr(self._parent, '_path') and self._parent._path:
+            self._path = self._parent._path / str(self.name)
+        else:
+            self._path = PurePosixPath(str(self.name))
         # From now on, _update_value must be used to modify values within the code
         if spec.OPTIONAL in kwargs and kwargs[spec.OPTIONAL] and self._value == b'':
             self._size = 0 # We create the field byt don't use it.
@@ -311,6 +318,7 @@ class BOFBlock(object):
     _name:str
     _content:list
     _parent:object
+    _path:object
     _spec:object
 
     @classmethod
@@ -357,11 +365,18 @@ class BOFBlock(object):
         # Basic block information
         self.name = kwargs[spec.NAME] if spec.NAME in kwargs else ""
         self._content = []
-        # Create and fill the block
-        self.build(**kwargs)
         # If we still don't have a name, we try to set one
         if not len(self.name) and spec.TYPE in kwargs:
             self.name = kwargs[spec.TYPE]
+        # add path to parent's path if exists
+        if self._parent and hasattr(self._parent, '_path') and self._parent._path:
+            self._path = self._parent._path / self.name
+        else:
+            self._path = PurePosixPath(self.name)
+        # Create and fill the block
+        self.build(**kwargs)
+        
+
 
     def __bytes__(self):
         return b''.join(bytes(item) for item in self._content)
@@ -571,7 +586,7 @@ class BOFBlock(object):
             self._name = name.lower()
         else:
             raise BOFProgrammingError("Block name should be a string.")
-
+    
     @property
     def fields(self) -> list:
         self.update()

@@ -4,6 +4,7 @@
 
 import unittest
 from bof import opcua, byte, BOFLibraryError, BOFProgrammingError
+from pathlib import PurePosixPath
 
 class Test01OpcuaSpec(unittest.TestCase):
     """Test class for OpcuaSpec.
@@ -145,6 +146,10 @@ class Test02OpcuaField(unittest.TestCase):
         field = opcua.OpcuaField(name="message_type", size=3)
         field.value = b'\x01\x00\x00'
         self.assertEqual(field.value, b'\x01\x00\x00')
+    def test_04_opcua_field_orphan_path(self):
+        """Test that a field path is correctly set to self if no parent is specified"""
+        field = opcua.OpcuaField(name="message_type", size=3)
+        self.assertEqual(field._path, PurePosixPath('message_type'))
 
 class Test03OpcuaBlockBase(unittest.TestCase):
     """Test class for block crafting and access.
@@ -188,6 +193,16 @@ class Test03OpcuaBlockBase(unittest.TestCase):
         header_bytes = bytes.fromhex('48454c4638000000')
         block = opcua.OpcuaBlock(type="HEADER", value=header_bytes)
         self.assertEqual(block.message_type.value, b'HEL')
+    def test_08_opcua_block_orphan_path(self):
+        """Test that a block path is correctly set to self if no parent is specified"""
+        block = opcua.OpcuaBlock(type="HEADER")
+        self.assertEqual(block._path, PurePosixPath('header'))
+    def test_09_opcua_block_sub_block_path(self):
+        """TODO: add when use-case comes up"""
+    def test_10_opcua_block_sub_field_path(self):
+        """Test that a sub-block field is correctly set using its parent path"""
+        block = opcua.OpcuaBlock(type="HEADER")
+        self.assertEqual(block.message_size._path, PurePosixPath('header/message_size'))
 
 class Test04OpcuaBlockDepends(unittest.TestCase):
     """Test class for dependency-related block behavior.
@@ -254,6 +269,7 @@ class Test04OpcuaBlockDepends(unittest.TestCase):
                 sub_fields.append(field.name)
         expected_fields = ['optional_3_field', 'optional_5_field', 'optional_8_field']
         self.assertEqual(sub_fields, expected_fields)
+
 class Test05OpcuaFrameBase(unittest.TestCase):
     def test_01_opcua_frame_create_empty(self):
         """Test that because OPC UA has a dependency directly in its frame that
