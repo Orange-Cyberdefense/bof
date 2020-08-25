@@ -8,6 +8,19 @@
         "TEST_BLOCK_INVALID": [
             {"name": "test_field_1", "type": "field", "size": 1, "default": 2},
             {"name": "test_field_2", "type": "field", "size": 1, "default": "depends:test_field_1, key:invalid"}
+        ],
+        "PARENT_2": [
+            {"name": "test_field", "type": "field", "size": 1, "default": 2},
+            {"name": "parent_1", "type": "PARENT_1"}
+        ],
+        "PARENT_1": [
+            {"name": "test_field", "type": "field", "size": 1, "default": 1},
+            {"name": "parent_0", "type": "PARENT_0"}
+        ],
+        "PARENT_0": [
+            {"name": "test_field_grandparent", "type": "field", "size": 1, "default": "depends:test_field, level:2"},
+            {"name": "test_field_parent", "type": "field", "size": 1, "default": "depends:test_field, level:1"},
+            {"name": "test_field_parent_default", "type": "field", "size": 1, "default": "depends:test_field"}
         ]
     },
     "codes" : {

@@ -548,7 +548,7 @@ class BOFBlock(object):
         :raises BOFProgrammingError: If specified field was not found or no
                                      association was found.
         """
-        def get_depends_value(depends_value, user_values, depends_key):
+        def get_depends_value(depends_value, user_values, depends_key, level):
             ### Case when the searched value is user-specified
             if user_values:
                 for user_value_key in user_values:
@@ -556,7 +556,23 @@ class BOFBlock(object):
                         block = self._spec.get_code_value(user_value_key, user_values[user_value_key])
                         return block if block else user_values[user_value_key]
             ### Case when the searched value is to look in existing items attributes
-            field_list = list(self._parent) + list(self) if self._parent else list(self)
+            target_block = None
+            field_list = None
+            # if a level is specified, identifies a target block to look into
+            if isinstance(level, int) and level >= 0:
+                current_parent = self
+                for i in range (1, level+1):
+                    if hasattr(current_parent, '_parent') and current_parent._parent:
+                        current_parent = current_parent._parent
+                    else:
+                        raise BOFProgrammingError("Specified level '{0}' is too high, no parent found.".format(level))
+                target_block = current_parent
+            # if a target block is found look for dependencies in it only
+            if target_block:
+                field_list = list(target_block)
+            # otherwise do like it was doing before
+            else:
+                field_list = list(self._parent) + list(self) if self._parent else list(self)
             field_list.reverse()
             for field in field_list:
                 if hasattr(field, '_bitfields') and field._bitfields:
@@ -579,13 +595,16 @@ class BOFBlock(object):
                 parsed_dependency = [x.strip() for x in template[key].split(',')]
                 depends_value = None
                 depends_key = 'value'
+                level = -1
                 for keyword in parsed_dependency:
                     if(keyword.startswith(spec.DEPENDS_VALUE)):
                         depends_value = keyword.split(spec.DEPENDS_VALUE)[1]
                         depends_value = to_property(depends_value)
                     if(keyword.startswith(spec.DEPENDS_KEY)):
                         depends_key = keyword.split(spec.DEPENDS_KEY)[1]
-                template[key] = get_depends_value(depends_value, user_values, depends_key)
+                    if(keyword.startswith(spec.DEPENDS_LEVEL)):
+                        level = int(keyword.split(spec.DEPENDS_LEVEL)[1])
+                template[key] = get_depends_value(depends_value, user_values, depends_key, level)
         return template
 
     #-------------------------------------------------------------------------#

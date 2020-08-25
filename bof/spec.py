@@ -40,6 +40,7 @@ from .base import BOFLibraryError, to_property
 SEPARATOR = ","
 DEPENDS_VALUE = "depends:"
 DEPENDS_KEY = "key:"
+DEPENDS_LEVEL = "level:"
 
 # ITEMS (FIELDS AND BLOCKS)
 NAME = "name"

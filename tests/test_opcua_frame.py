@@ -270,27 +270,53 @@ class Test04OpcuaBlockDepends(unittest.TestCase):
                 sub_fields.append(field.name)
         expected_fields = ['optional_3_field', 'optional_5_field', 'optional_8_field']
         self.assertEqual(sub_fields, expected_fields)
-    def test_07_opcua_block_dependency_key(self):
+    def test_08_opcua_block_dependency_key(self):
         """Test that a dependency can be found in any field attribute (not only value)"""
         spec = opcua.OpcuaSpec()
         spec.clear()
         spec.load('tests/jsons/dependencies.json')
         block = opcua.OpcuaBlock(spec=spec, type='TEST_BLOCK')
         self.assertEqual(block.test_field_2.value, b'\x01')
-    def test_07_opcua_block_dependency_key_default(self):
+    def test_09_opcua_block_dependency_key_default(self):
         """Test that if not specified, dependency will look into the value"""
         spec = opcua.OpcuaSpec()
         spec.clear()
         spec.load('tests/jsons/dependencies.json')
         block = opcua.OpcuaBlock(spec=spec, type='TEST_BLOCK')
         self.assertEqual(block.test_field_3.value, b'\x02')
-    def test_07_opcua_block_dependency_key_invalid(self):
+    def test_10_opcua_block_dependency_key_invalid(self):
         """Test that a missing attribute will result in an error"""
         with self.assertRaises(BOFProgrammingError):
             spec = opcua.OpcuaSpec()
             spec.clear()
             spec.load('tests/jsons/dependencies.json')
             block = opcua.OpcuaBlock(spec=spec, type='TEST_BLOCK_INVALID')
+    def test_11_opcua_block_dependency_parent(self):
+        """Test that we can retrieve a specific field even if present multiple
+        times by specifying a parent level to look at.
+        """
+        spec = opcua.OpcuaSpec()
+        spec.clear()
+        spec.load('tests/jsons/dependencies.json')
+        block = opcua.OpcuaBlock(spec=spec, type='PARENT_2')
+        self.assertEqual(block.parent_1.parent_0.test_field_grandparent.value, b'\x02')
+        self.assertEqual(block.parent_1.parent_0.test_field_parent.value, b'\x01')
+    def test_12_opcua_block_dependency_parent_default(self):
+        """Test that if no parent level specified, will look for the closest one."""
+        spec = opcua.OpcuaSpec()
+        spec.clear()
+        spec.load('tests/jsons/dependencies.json')
+        block = opcua.OpcuaBlock(spec=spec, type='PARENT_2')
+        self.assertEqual(block.parent_1.parent_0.test_field_parent_default.value, b'\x01')
+    def test_13_opcua_block_dependency_parent_invalid(self):
+        """Test that specifying a too high level will result in an error"""
+        with self.assertRaises(BOFProgrammingError):
+            spec = opcua.OpcuaSpec()
+            spec.clear()
+            spec.load('tests/jsons/dependencies.json')
+            # block PARENT_0 should not (and cannot) be instanciated directly
+            # it needs parents to look for dependency in
+            block = opcua.OpcuaBlock(spec=spec, type='PARENT_0')
 
 class Test05OpcuaFrameBase(unittest.TestCase):
     def test_01_opcua_frame_create_empty(self):
