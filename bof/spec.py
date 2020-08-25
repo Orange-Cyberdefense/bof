@@ -38,7 +38,9 @@ from .base import BOFLibraryError, to_property
 
 # GENERAL SYNTAX
 SEPARATOR = ","
-DEPENDS = "depends:"
+DEPENDS_VALUE = "depends:"
+DEPENDS_KEY = "key:"
+
 # ITEMS (FIELDS AND BLOCKS)
 NAME = "name"
 TYPE = "type"

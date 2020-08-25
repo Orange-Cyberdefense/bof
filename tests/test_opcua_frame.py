@@ -258,6 +258,7 @@ class Test04OpcuaBlockDepends(unittest.TestCase):
         with self.assertRaises(BOFProgrammingError):
             block.append(opcua.OpcuaBlock(value=data2, parent=block, **{"name": "body", "type": "depends:message_type"}))
     def test_07_opcua_block_dependency_bitfield(self):
+        """Test that bit-field dependency works as expected"""
         spec = opcua.OpcuaSpec()
         spec.clear()
         spec.load('tests/jsons/mask.json')
@@ -265,10 +266,26 @@ class Test04OpcuaBlockDepends(unittest.TestCase):
         block = opcua.OpcuaBlock(spec=spec, type='BLOCK', user_values=user_values)
         sub_fields = []
         for field in block:
-            if isinstance(field.name, str) and field.name.startswith('optional'):
+            if isinstance(field.name, str) and field.name.startswith('optional') and field.name.endswith('field'):
                 sub_fields.append(field.name)
         expected_fields = ['optional_3_field', 'optional_5_field', 'optional_8_field']
         self.assertEqual(sub_fields, expected_fields)
+    def test_07_opcua_block_dependency_key(self):
+        """Test that a dependency can be found in any field attribute (not only value)"""
+        spec = opcua.OpcuaSpec()
+        spec.clear()
+        spec.load('tests/jsons/dependencies.json')
+        block = opcua.OpcuaBlock(spec=spec, type='TEST_BLOCK')
+        self.assertEqual(block.test_field_2.value, b'\x01')
+    def test_07_opcua_block_dependency_key_default(self):
+        """Test that if not specified, dependency will look into the value"""
+        spec = opcua.OpcuaSpec()
+        spec.clear()
+        spec.load('tests/jsons/dependencies.json')
+        block = opcua.OpcuaBlock(spec=spec, type='TEST_BLOCK')
+        self.assertEqual(block.test_field_3.value, b'\x02')
+    def test_07_opcua_block_dependency_key_invalid(self):
+        """Test that a missing attribute will result in an error"""
 
 class Test05OpcuaFrameBase(unittest.TestCase):
     def test_01_opcua_frame_create_empty(self):

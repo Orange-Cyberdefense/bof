@@ -548,29 +548,44 @@ class BOFBlock(object):
         :raises BOFProgrammingError: If specified field was not found or no
                                      association was found.
         """
-        def get_depends_value(value, user_values):
+        def get_depends_value(depends_value, user_values, depends_key):
+            ### Case when the searched value is user-specified
             if user_values:
-                for key in user_values:
-                    if value == to_property(key):
-                        block = self._spec.get_code_value(key, user_values[key])
-                        return block if block else user_values[key]
+                for user_value_key in user_values:
+                    if depends_value == to_property(user_value_key):
+                        block = self._spec.get_code_value(user_value_key, user_values[user_value_key])
+                        return block if block else user_values[user_value_key]
+            ### Case when the searched value is to look in existing items attributes
             field_list = list(self._parent) + list(self) if self._parent else list(self)
             field_list.reverse()
             for field in field_list:
-                if field._bitfields:
+                if hasattr(field, '_bitfields') and field._bitfields:
                     for bitfield in field._bitfields.values():
-                        if value == to_property(bitfield.name):
+                        if depends_value == to_property(bitfield.name):
+                            #TODO: add `key:` support for bitfields
                             bits = ''.join(map(str, bitfield.value)) # from list to str
                             block = self._spec.get_code_value(bitfield.name, bits)
                             return block if block else field.value
-                if value == to_property(field.name):
-                    block = self._spec.get_code_value(field.name, field.value)
-                    return block if block else field.value
-            raise BOFProgrammingError("Association not found for field {0}".format(value))
+                if depends_value == to_property(field.name):
+                    if(hasattr(field, depends_key)):
+                        block = self._spec.get_code_value(field.name, getattr(field, depends_key))
+                        return block if block else getattr(field, depends_key)
+            raise BOFProgrammingError("Association not found for key {0} in item {1}".format(depends_key, depends_value))
+        
         for key in template:
-            if isinstance(template[key], str) and template[key].startswith(spec.DEPENDS):
-                dependency = to_property(template[key].split(spec.DEPENDS)[1])
-                template[key] = get_depends_value(dependency, user_values)
+            if isinstance(template[key], str) and template[key].startswith(spec.DEPENDS_VALUE):
+                # we parse the dependency string for keyword and values
+                # (`depends:{depends_value}`, `key:{depends_key}`)
+                parsed_dependency = [x.strip() for x in template[key].split(',')]
+                depends_value = None
+                depends_key = 'value'
+                for keyword in parsed_dependency:
+                    if(keyword.startswith(spec.DEPENDS_VALUE)):
+                        depends_value = keyword.split(spec.DEPENDS_VALUE)[1]
+                        depends_value = to_property(depends_value)
+                    if(keyword.startswith(spec.DEPENDS_KEY)):
+                        depends_key = keyword.split(spec.DEPENDS_KEY)[1]
+                template[key] = get_depends_value(depends_value, user_values, depends_key)
         return template
 
     #-------------------------------------------------------------------------#
@@ -586,7 +601,7 @@ class BOFBlock(object):
             self._name = name.lower()
         else:
             raise BOFProgrammingError("Block name should be a string.")
-    
+
     @property
     def fields(self) -> list:
         self.update()
