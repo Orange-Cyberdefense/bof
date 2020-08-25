@@ -570,7 +570,7 @@ class BOFBlock(object):
                     if(hasattr(field, depends_key)):
                         block = self._spec.get_code_value(field.name, getattr(field, depends_key))
                         return block if block else getattr(field, depends_key)
-            raise BOFProgrammingError("Association not found for key {0} in item {1}".format(depends_key, depends_value))
+            raise BOFProgrammingError("Association not found for key '{0}' in item '{1}'".format(depends_key, depends_value))
         
         for key in template:
             if isinstance(template[key], str) and template[key].startswith(spec.DEPENDS_VALUE):

@@ -4,6 +4,10 @@
             {"name": "test_field_1", "type": "field", "size": 1, "default": 2},
             {"name": "test_field_2", "type": "field", "size": 1, "default": "depends:test_field_1, key:size"},
             {"name": "test_field_3", "type": "field", "size": 1, "default": "depends:test_field_1"}
+        ],
+        "TEST_BLOCK_INVALID": [
+            {"name": "test_field_1", "type": "field", "size": 1, "default": 2},
+            {"name": "test_field_2", "type": "field", "size": 1, "default": "depends:test_field_1, key:invalid"}
         ]
     },
     "codes" : {

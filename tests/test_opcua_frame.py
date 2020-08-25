@@ -286,6 +286,11 @@ class Test04OpcuaBlockDepends(unittest.TestCase):
         self.assertEqual(block.test_field_3.value, b'\x02')
     def test_07_opcua_block_dependency_key_invalid(self):
         """Test that a missing attribute will result in an error"""
+        with self.assertRaises(BOFProgrammingError):
+            spec = opcua.OpcuaSpec()
+            spec.clear()
+            spec.load('tests/jsons/dependencies.json')
+            block = opcua.OpcuaBlock(spec=spec, type='TEST_BLOCK_INVALID')
 
 class Test05OpcuaFrameBase(unittest.TestCase):
     def test_01_opcua_frame_create_empty(self):
@@ -295,7 +300,7 @@ class Test05OpcuaFrameBase(unittest.TestCase):
         with self.assertRaises(BOFProgrammingError):
             frame = opcua.OpcuaFrame()
         return
-    def test_01_opcua_frame_create_user_args_UACP(self):
+    def test_02_opcua_frame_create_user_args_UACP(self):
         """Test that an OPC UA simple frame from UACP can be created from user
         supplied parameter. Here with frame type HEL.
         """
@@ -306,7 +311,7 @@ class Test05OpcuaFrameBase(unittest.TestCase):
                                'max_chunk_count', 'endpoint_url_length', 
                                'endpoint_url']
         self.assertEqual(frame.attributes, expected_attributes)
-    def test_01_opcua_frame_create_bytes_UACP(self):
+    def test_03_opcua_frame_create_bytes_UACP(self):
         """Test that an OPC UA simple frame from UACP can be created from raw
         bytes values. Here with frame type HEL.
         """
