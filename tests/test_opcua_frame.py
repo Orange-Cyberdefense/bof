@@ -317,6 +317,24 @@ class Test04OpcuaBlockDepends(unittest.TestCase):
             # block PARENT_0 should not (and cannot) be instanciated directly
             # it needs parents to look for dependency in
             block = opcua.OpcuaBlock(spec=spec, type='PARENT_0')
+    def test_14_opcua_block_dependency_relative(self):
+        """Test that relative dependencies work as expected (use case described in issue #11"""
+        spec = opcua.OpcuaSpec()
+        spec.clear()
+        spec.load('tests/jsons/dependencies.json')
+        request_header = opcua.OpcuaBlock(spec=spec, type='REQUEST_HEADER')
+        opn_data = opcua.OpcuaBlock(spec=spec, type='OPN_DATA')
+        expected_request_header_fields = ['node_id_value']
+        expected_opn_data_fields = ['node_id_namespace', 'node_id_value']
+        self.assertEqual(request_header.authentication_token.node_id_data.attributes, expected_request_header_fields)
+        self.assertEqual(opn_data.type_id.node_id_data.attributes, expected_opn_data_fields)
+    def test_15_opcua_block_dependency_relative_invalid(self):
+        """Test that an unknown relative dependencies raises an exception"""
+        with self.assertRaises(BOFProgrammingError):
+            spec = opcua.OpcuaSpec()
+            spec.clear()
+            spec.load('tests/jsons/dependencies.json')
+            invalid_relative = opcua.OpcuaBlock(spec=spec, type='INVALID_RELATIVE')
 
 class Test05OpcuaFrameBase(unittest.TestCase):
     def test_01_opcua_frame_create_empty(self):

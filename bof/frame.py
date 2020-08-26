@@ -540,9 +540,23 @@ class BOFBlock(object):
     def _get_depends(self, template:dict, user_values:dict=None) -> None:
         """If a value or the format of a block depends on another field value 
         for a field set previously, we look for it and choose the appropriate
-        format. The closest field with such name is used. If the field name
-        is in the list of existing code, we match the value with a code, else
-        we return the value directly.
+        format.
+        
+        Depending on the keywords in use, various search methods are used to
+        identify the dependent field.
+
+        Keywords for the JSON file :
+
+            :depends = specify the targeted field to look for, if set to 
+            'relative', the targeted field will be a parent's block component
+            :level = the n-th block in parent hierarchy to look into, if not
+            specified will look for the closest field matching :depends
+            :key = the field's attribute to look for, if not specified is
+            defaulted to field.value
+
+
+        If the field name is in the list of existing code, we match the field
+        attribute with a code, else we return the attribute directly.
 
         :param template: Dictionary in which to look for values.
         :raises BOFProgrammingError: If specified field was not found or no
@@ -568,17 +582,22 @@ class BOFBlock(object):
                         raise BOFProgrammingError("Specified level '{0}' is too high, no parent found.".format(level))
                 target_block = current_parent
             # if a target block is found look for dependencies in it only
-            if target_block:
-                field_list = list(target_block)
+            if target_block != None:
+                if depends_value == spec.DEPENDS_RELATIVE and hasattr(target_block, depends_key):
+                    block = self._spec.get_code_value(template['name'] + spec.DEPENDS_RELATIVE_CODE_EXTENSION, getattr(target_block, depends_key))
+                    return block if block else getattr(target_block, depends_key)
+                else:
+                    field_list = list(target_block)
             # otherwise do like it was doing before
             else:
                 field_list = list(self._parent) + list(self) if self._parent else list(self)
             field_list.reverse()
+            # look for corresponding field in the constructed field list
             for field in field_list:
                 if hasattr(field, '_bitfields') and field._bitfields:
                     for bitfield in field._bitfields.values():
                         if depends_value == to_property(bitfield.name):
-                            #TODO: add `key:` support for bitfields
+                            #TODO: add `key:` keyword support for bitfields
                             bits = ''.join(map(str, bitfield.value)) # from list to str
                             block = self._spec.get_code_value(bitfield.name, bits)
                             return block if block else field.value
