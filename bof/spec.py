@@ -39,7 +39,7 @@ from .base import BOFLibraryError, to_property
 # GENERAL SYNTAX
 SEPARATOR = ","
 DEPENDS_VALUE = "depends:"
-DEPENDS_KEY = "key:"
+DEPENDS_ATTRIBUTE = "attribute:"
 DEPENDS_LEVEL = "level:"
 DEPENDS_RELATIVE = "relative"
 DEPENDS_RELATIVE_CODE_EXTENSION = "_relative"

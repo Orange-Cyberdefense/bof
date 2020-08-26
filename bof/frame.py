@@ -562,7 +562,7 @@ class BOFBlock(object):
         :raises BOFProgrammingError: If specified field was not found or no
                                      association was found.
         """
-        def get_depends_value(depends_value, user_values, depends_key, level):
+        def get_depends_value(depends_value, user_values, depends_attribute, level):
             ### Case when the searched value is user-specified
             if user_values:
                 for user_value_key in user_values:
@@ -583,9 +583,9 @@ class BOFBlock(object):
                 target_block = current_parent
             # if a target block is found look for dependencies in it only
             if target_block != None:
-                if depends_value == spec.DEPENDS_RELATIVE and hasattr(target_block, depends_key):
-                    block = self._spec.get_code_value(template['name'] + spec.DEPENDS_RELATIVE_CODE_EXTENSION, getattr(target_block, depends_key))
-                    return block if block else getattr(target_block, depends_key)
+                if depends_value == spec.DEPENDS_RELATIVE and hasattr(target_block, depends_attribute):
+                    block = self._spec.get_code_value(template['name'] + spec.DEPENDS_RELATIVE_CODE_EXTENSION, getattr(target_block, depends_attribute))
+                    return block if block else getattr(target_block, depends_attribute)
                 else:
                     field_list = list(target_block)
             # otherwise do like it was doing before
@@ -602,28 +602,28 @@ class BOFBlock(object):
                             block = self._spec.get_code_value(bitfield.name, bits)
                             return block if block else field.value
                 if depends_value == to_property(field.name):
-                    if(hasattr(field, depends_key)):
-                        block = self._spec.get_code_value(field.name, getattr(field, depends_key))
-                        return block if block else getattr(field, depends_key)
-            raise BOFProgrammingError("Association not found for key '{0}' in item '{1}'".format(depends_key, depends_value))
+                    if(hasattr(field, depends_attribute)):
+                        block = self._spec.get_code_value(field.name, getattr(field, depends_attribute))
+                        return block if block else getattr(field, depends_attribute)
+            raise BOFProgrammingError("Association not found for key '{0}' in item '{1}'".format(depends_attribute, depends_value))
         
         for key in template:
             if isinstance(template[key], str) and template[key].startswith(spec.DEPENDS_VALUE):
                 # we parse the dependency string for keyword and values
-                # (`depends:{depends_value}`, `key:{depends_key}`)
+                # (`depends:{depends_value}`, `key:{depends_attribute}`)
                 parsed_dependency = [x.strip() for x in template[key].split(',')]
                 depends_value = None
-                depends_key = 'value'
+                depends_attribute = 'value'
                 level = -1
                 for keyword in parsed_dependency:
                     if(keyword.startswith(spec.DEPENDS_VALUE)):
                         depends_value = keyword.split(spec.DEPENDS_VALUE)[1]
                         depends_value = to_property(depends_value)
-                    if(keyword.startswith(spec.DEPENDS_KEY)):
-                        depends_key = keyword.split(spec.DEPENDS_KEY)[1]
+                    if(keyword.startswith(spec.DEPENDS_ATTRIBUTE)):
+                        depends_attribute = keyword.split(spec.DEPENDS_ATTRIBUTE)[1]
                     if(keyword.startswith(spec.DEPENDS_LEVEL)):
                         level = int(keyword.split(spec.DEPENDS_LEVEL)[1])
-                template[key] = get_depends_value(depends_value, user_values, depends_key, level)
+                template[key] = get_depends_value(depends_value, user_values, depends_attribute, level)
         return template
 
     #-------------------------------------------------------------------------#
