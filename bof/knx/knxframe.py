@@ -249,7 +249,8 @@ class KnxFrame(BOFFrame):
         field in header, which requires an additional operation.
         """
         super().update()
-        if TOTAL_LENGTH in self._blocks[spec.HEADER].attributes:
+        if spec.HEADER in self._blocks.keys() and \
+           TOTAL_LENGTH in self._blocks[spec.HEADER].attributes:
             total = sum([len(block) for block in self._blocks.values()])
             self._blocks[spec.HEADER].total_length._update_value(byte.from_int(total))
 

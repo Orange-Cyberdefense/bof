@@ -55,21 +55,10 @@ def save(event, request, data, response=None):
             fd.write(response)
         print("X")
 
-def all_properties(propread_req:knx.KnxFrame) -> (knx.KnxFrame, tuple):
-    """Yields one frame for each property existing in all property type
-    written to the specification JSON file."""
-    specs = knx.KnxSpec()
-    propread_req.body.cemi.object_instance.value = 1
-    for prop_type in specs.object_types:
-        propread_req.body.cemi.object_type.value = specs.object_types[prop_type]
-        for prop in specs.properties[prop_type]:
-            propread_req.body.cemi.property_id.value = specs.properties[prop_type][prop]
-            yield propread_req, (prop_type, prop)
-
 def random_properties(propread_req:knx.KnxFrame) -> (knx.KnxFrame, str):
     """Yields a frame with properties replaced with random values a 
     random number of times."""
-    fields_with_exclusion = [x for x in propread_req.body.cemi.fields if x.name != "message code"]
+    fields_with_exclusion = [x for x in propread_req.body.cemi.fields if x.name != "message code" and x.name != "data"]
     # for _ in range(randint(1, 10000)):
     while 1:
         field = choice(fields_with_exclusion)
@@ -84,7 +73,8 @@ def fuzz(ip, generator, initial_frame):
         triggers = 0
         total = 0
         with open("fuzzing_results.txt", "a") as fd:
-            fd.write(datetime.now().strftime("%y-%m-%d-%H:%M:%S")+"\n")
+            pass
+            # fd.write(datetime.now().strftime("%y-%m-%d-%H:%M:%S")+"\n")
         while 1: # Each trigger resets the loop.
             knxnet, channel = connect(ip, 3671)
             if not knxnet:
@@ -121,8 +111,9 @@ def fuzz(ip, generator, initial_frame):
     finally:
         disconnect(knxnet, channel)
         with open("fuzzing_results.txt", "a") as fd:
+            fd.write("\n")
             fd.write("*** ENDED WITH {0} TRIGGERS (Total: {1}) ***\n".format(triggers, total))
-            fd.write(datetime.now().strftime("%y-%m-%d-%H:%M:%S")+"\n")
+            # fd.write(datetime.now().strftime("%y-%m-%d-%H:%M:%S")+"\n")
 
 if len(argv) < 2:
     print("Usage: python {0} IP_ADDRESS".format(argv[0]))

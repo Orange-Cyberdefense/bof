@@ -24,6 +24,7 @@ def tunnel_disconnect(knxnet, channel):
 def group_write(knxnet, channel, kga, value):
     """Write ``value`` to knx group address ``kga`` on ``knxnet``"""
     request = knx.KnxFrame(type="TUNNELING REQUEST", cemi="L_Data.req")
+    request.body.communication_channel_id.value = channel
     request.body.cemi.cemi_data.l_data_req.frame_type.value = 1
     request.body.cemi.cemi_data.l_data_req.repeat.value = 1
     request.body.cemi.cemi_data.l_data_req.broadcast_type.value = 1
@@ -33,6 +34,7 @@ def group_write(knxnet, channel, kga, value):
     request.body.cemi.cemi_data.l_data_req.destination_address.value = kga
     request.body.cemi.cemi_data.l_data_req.service.value = 2
     request.body.cemi.cemi_data.l_data_req.data.value = value
+    print(request)
     received_ack = knxnet.send_receive(request)
     response = knxnet.receive()
     if response.sid == "TUNNELING REQUEST":
