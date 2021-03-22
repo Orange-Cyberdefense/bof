@@ -21,8 +21,8 @@ There are three ways to use BOF:
   instead of using it (we fuzz devices with it). The end user should have
   started digging into the protocol's specifications.
 
-**Please note that targeting BMS systems can have a severe impact on buildings and
-people and that BOF must be used carefully.**
+**Please note that targeting industrial systems can have a severe impact on
+buildings and people and that BOF must be used carefully.**
 
 [![GitHub license](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://github.com/Orange-Cyberdefense/bof/blob/master/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Orange-Cyberdefense/bof.svg)](https://gitHub.com/Orange-Cyberdefense/bof/releases/)
@@ -46,49 +46,10 @@ import bof
 
 Now you can start using BOF!
 
-> The following code samples interact using the building management system
-  protocol KNXnet/IP (the framework supports only this one for now).
+TL;DR
+-----
 
-### Discover devices on a network
-
-```python
-from bof import knx
-
-devices = knx.discover("192.168.1.0/24")
-for device in devices:
-    print(device)
-```
-
-### Send and receive packets
-
-```python
-from bof import knx, BOFNetworkError
-
-knxnet = knx.KnxNet()
-try:
-    knxnet.connect("192.168.1.1", 3671)
-    frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
-    print(frame)
-    knxnet.send(frame)
-    response = knxnet.receive()
-    print(response)
-except BOFNetworkError as bne:
-    print(str(bne))
-finally:
-    knxnet.disconnect()
-```
-
-### Craft your own packets!
-
-```python
-from bof import knx
-
-frame = knx.KnxFrame()
-frame.header.service_identifier.value = b"\x02\x03"
-hpai = knx.KnxBlock(type="HPAI")
-frame.body.append(hpai)
-print(frame)
-```
+> TODO
 
 Complete documentation
 ----------------------
@@ -108,14 +69,13 @@ Example scripts are in folder `examples`.
 Contributing
 ------------
 
-Contributors are welcome! BOF is still an ongoing project and so far, we focused
-on the detailed implementation of the KNX specification. One can already do the
-main basic operations, but there are many types of frames and features in the
-KNX standard (without even mentioning the extensions) and not all of them have
-been implemented yet. Furthermore, there will still be room for higher-level
-functions that will make tests easier.  We also wrote BOF so that it can be
-extended to other field protocols (industrial, building management, etc.), so
-why not implement another one?
+Contributors are welcome! BOF is still an ongoing project, which relies on
+industrial network protocol implementations in Scapy format. You can first
+contribute by contributing to Scapy and adding new protocols ("layers"). Or, you
+can contribute by integrating a Scapy protocol to BOF. The documentation
+explains how to do it. Furthermore, there will still be room for higher-level
+functions that will make tests easier or implement known attack against
+protocols or protocol implementations.
 
 Here a few things to know beforehand:
 

@@ -44,53 +44,20 @@ project's folder. Then, inside your code (or interactively):
 
 Now you can start using BOF!
 
-The following code samples interact using the building management system
-protocol KNXnet/IP (the framework supports only this one for now).
-
 Discover devices on a network
 -----------------------------
 
->>> from bof import knx
->>> knx.search("192.168.1.0/24")
-['192.168.1.10']
-
->>> from bof import knx
->>> device = knx.discover("192.168.1.10")
->>> print(device)
-KnxDevice: Name=boiboite, MAC=00:00:54:ff:ff:ff, IP=192.168.1.10:3671 KNX=15.15.255
+> TODO
 
 Send and receive packets
 ------------------------
 
-.. code-block:: python
-
-   from bof import knx, BOFNetworkError
-
-   knxnet = knx.KnxNet()
-   try:
-       knxnet.connect("192.168.1.1", 3671)
-       frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
-       print(frame)
-       knxnet.send(frame)
-       response = knxnet.receive()
-       print(response)
-   except BOFNetworkError as bne:
-       print(str(bne))
-   finally:
-       knxnet.disconnect()
+> TODO
 
 Craft your own packets!
 -----------------------
 
-.. code-block:: python
-
-   from bof import knx
-
-   frame = knx.KnxFrame()
-   frame.header.service_identifier.value = b"\x02\x03"
-   hpai = knx.KnxBlock(type="HPAI")
-   frame.body.append(hpai)
-   print(frame)
+> TODO
 
 ----------------------
 
@@ -122,48 +89,7 @@ exchanges, that can vary depending on the protocol.
 Here is an example on how to establish connection using the ``knx`` submodule
 (``3671`` is the default port for KNXnet/IP).
 
-.. code-block:: python
-
-   knxnet = knx.KnxNet()
-   try:
-       knxnet.connect("192.168.1.1", 3671)
-       knxnet.send(knx.KnxFrame(type="DESCRIPTION REQUEST"))
-       response = knxnet.receive()
-   except BOFNetworkError as bne:
-       print(str(bne))
-   finally:
-       knxnet.disconnect()
-
-Frames in BOF
--------------
-
-Network frames are sent and received as byte arrays. They can be divided into a
-set of blocks, which contain a set of fields of varying sizes.
-
-In BOF, frames, blocks and fields are represented as objects (classes). A frame
-(``BOFFrame``) has a header and a body, both of them being blocks
-(``BOFBlock``).  A block contains a set of raw fields (``BOFField``) and/or
-nested ``BOFBlock`` objects with a special structure.
-
-Implementations inherit from these objects to build their own
-specification-defined frames. They are described in BOF in a JSON specification
-file, containing the definition of message codes, block types and frame
-structures. The JSON file can change from one protocol to another but we
-recommend that protocol use a basis (details are in the developer's manual).
-
-The class ``BOFSpec``, inherited in implementations, is a singleton class to
-parse and store specification JSON files. This class is used in
-protocol implementations, mainly to build frames, but one can also refer to
-it in scripts.
-
-Code sample using KnxSpec:
-
->>> knx.KnxSpec().codes["service identifier"]
-{'0000': 'EMPTY', '0201': 'SEARCH REQUEST', '0202': 'SEARCH RESPONSE', '0203':
-'DESCRIPTION REQUEST', '0204': 'DESCRIPTION RESPONSE', '0205': 'CONNECT
-REQUEST', '0206': 'CONNECT RESPONSE', '0207': 'CONNECTIONSTATE REQUEST', '0208':
-'CONNECTIONSTATE RESPONSE', '0209': 'DISCONNECT REQUEST', '020A': 'DISCONNECT
-RESPONSE', '0310': 'CONFIGURATION REQUEST', '0311': 'CONFIGURATION ACK'}
+> TODO
 
 Error handling and logging
 --------------------------

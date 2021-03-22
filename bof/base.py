@@ -2,7 +2,7 @@
 
 :Exceptions: BOF-specific exceptions raised by the module.
 :Logging:    Functions to enable or disable logging for the module.
-:JSON:       JSON files handling (JSON is used for protocols specification).
+:String manipulation: Functions to make basic changes on strings.
 """
 
 import logging

@@ -8,4 +8,3 @@
    :caption: Available submodules:
 
    base
-   knx
