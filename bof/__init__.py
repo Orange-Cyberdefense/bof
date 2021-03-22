@@ -1,6 +1,6 @@
 """
-Package overview
-================
+Boiboite Opener Framework
+=========================
 
 Boiboite Opener Framework / Ouvre-Boiboite Framework contains a set of features
 to write scripts using industrial network protocols for test and attack
@@ -17,9 +17,10 @@ The following submodules are available:
     The content of this class should not be used directly, unless writing a
     new protocol submodule. Available from direct bof import (``import bof``)
 
-:byte:
-    Set of functions for byte conversion and handling. Accessed via import of
-    the byte submodule (``from bof import byte``).
+:layers:
+    Protocol implementations to be imported in BOF. Importing ``layers`` gives
+    acces to BOF protocol implementations as well as raw Scapy implementations
+    (if any) in folder ``layers/scapy``.
 """
 
 ###############################################################################
@@ -29,3 +30,4 @@ The following submodules are available:
 from .base import *
 from .network import *
 # from .byte import * 
+from .layers import *
