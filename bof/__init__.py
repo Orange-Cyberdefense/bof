@@ -29,5 +29,5 @@ The following submodules are available:
 
 from .base import *
 from .network import *
-# from .byte import * 
+from .packet import *
 from .layers import *

@@ -1,4 +1,19 @@
-"""TODO
+"""A BOFPacket represents a complete frame or part of one (a block), as long
+as it contains either a set of packets, a set of fields, or both.
+
+It uses a Scapy-based Packet object, as protocol implementations
+are based on Scapy. The Scapy raw packet object is an attribute of a BOFPacket
+object, which uses it to manipulate the BOF usually manipulates packets.
+However, you can perform direct "Scapy" stuff on the packet by accessing directly
+BOFPacket.scapy_pkt attribute.
+
+Example (keep in mind that BOFPacket should not be instantiated directly :))::
+
+    pkt = BOFPacket()
+    pkt.scapy_pkt.show()
+
+BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
+"specialized" class, but a "translation" from BOF usage to Scapy objects.
 """
 
 from scapy.packet import Packet
@@ -9,26 +24,15 @@ class BOFPacket(object):
     A packet can be a complete frame or part of one (a block), as long as it contains
     either a set of packets, a set of fields, or both.
 
-    THis class should not be instantiated directly but Packet class in BOF layers
+    :param scapy_pkt: Scapy actual Packet object (inheriting from packet) and used by
+                      BOF for protocol implementation-related stuff.
+
+    This class should not be instantiated directly but Packet class in BOF layers
     shall inherit it.
 
     Example::
 
         class OtterPacket(BOFPacket)
-
-    A BOFPacket object uses a Scapy-based Packet object, as protocol implementations
-    are based on Scapy. The Scapy raw packet object is an attribute of a BOFPacket
-    object, which uses it to manipulate the BOF usually manipulates packets.
-    However, you can perform direct "Scapy" stuff on the packet by accessing directly
-    BOFPacket.scapy_pkt attribute.
-
-    Example (keep in mind that BOFPacket should not be instantiated directly :))::
-
-        pkt = BOFPacket()
-        pkt.scapy_pkt.show()
-
-    BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
-    "specialized" class, but a "translation" from BOF usage to Scapy objects.
     """
     scapy_pkt = None
 

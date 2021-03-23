@@ -1,3 +1,11 @@
+BOFPacket
+=========
+
+.. automodule:: bof.packet
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Layers
 ======
 
@@ -17,7 +25,7 @@ KNX
 Modbus
 ------
 
-.. automodule:: bof.modbus
+.. automodule:: bof.layers.modbus
    :members:
    :undoc-members:
    :show-inheritance:
