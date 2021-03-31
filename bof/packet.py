@@ -16,7 +16,7 @@ BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
 "specialized" class, but a "translation" from BOF usage to Scapy objects.
 """
 
-from scapy.packet import Packet
+from scapy.packet import Packet, bind_layers
 
 
 class BOFPacket(object):
@@ -56,7 +56,7 @@ class BOFPacket(object):
     def show(self):
         self.scapy_pkt.show()
 
-    def add_payload(self, other, automatic_binding=True):
+    def add_payload(self, other, automatic_binding=False):
         """Adds the `other` Scapy payload to the BOFPacket's scapy packet attribute.
 
         This method's behavior is similar to `self.scapy_pkt = self.scapy_pkt / other` but adds additional options including :
@@ -82,13 +82,14 @@ class BOFPacket(object):
             bof_pkt.add_payload(TCP())
             Because two TCP layers aren't supposed to be bound together, a binding is automatically added
 
+            # TODO: see if payload automatic binding option is actually necessary (to be understood in show2() the answer is yes, but do we really need it ?)
+            # TODO: test the method
             # TODO consider the following syntax rather that updating the packet itself in the method : `bof_pkt = bof_pkt.addlayer(TCP())`
             # TODO: add '/' syntax (problem is that it is called by the element on the right of the division sign, on which we have no control)
-            # TODO: test payload addition method
             # TODO: add setter for scapy_pkt
         """
         if isinstance(other, BOFPacket):
-            other = other.pkt
+            other = other.scapy_pkt
 
         # checks if a binding is found between `scapy_pkt` and `other class`
         # binding are defined as a list of tuples `self.scapy_pkt.payload_guess`
@@ -96,8 +97,10 @@ class BOFPacket(object):
 
         # if no binding found and that we want to automatically add one
         if isinstance(other, Packet) and automatic_binding and not other_in_payload_guess:
-            self.scapy_pkt.payload_guess.append(({}, other.__class__))  # we may use bind_layers function family instead of editing payload_guess directly
-
+            self.scapy_pkt.payload_guess.insert(0, ({}, other.__class__))
+            # we may use bind_layers function family instead of editing payload_guess directly, something like :
+            # bind_layers(self.scapy_pkt.__class__, other.__class__)
+            pass
         self.scapy_pkt = self.scapy_pkt / other
 
     @property

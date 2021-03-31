@@ -46,19 +46,40 @@ class Test02ScapyLayers(unittest.TestCase):
     def test_0203_bofpacket_scapylayer_addpayload_base_scapy(self):
         """Test that we can add a Scapy layer as a payload for a BOFPacket.
         """
-        pass  # TODO
+        from scapy.layers.inet import TCP
+        from scapy.contrib.modbus import ModbusADURequest
+        # we want ModbusADURequest as payload for TCP, which are bound by default in Scapy
+        pkt = BOFPacket()
+        pkt.scapy_pkt = TCP()
+        pkt.add_payload(ModbusADURequest())
+        # TODO: see how to check for correct packet construction (ie : show2..)
     def test_0204_bofpacket_scapylayer_addpayload_base_bof(self):
         """Test that we can add a BOFPacket as payload for another BOFPacket.
         """
-        pass  # TODO
+        from scapy.layers.inet import TCP
+        from scapy.contrib.modbus import ModbusADURequest
+        # we want ModbusADURequest as payload for TCP, which are bound by default in Scapy
+        pkt = BOFPacket()
+        pkt.scapy_pkt = TCP()
+        pkt.add_payload(ModbusADURequest())
+        # TODO: see how to check for correct packet construction (ie : show2..)
     def test_0205_bofpacket_scapylayer_addpayload_automatic_scapy(self):
         """Test that we can add an unbound Scapy packet as payload and automatically perform the binding.
         """
-        pass  # TODO
-    def test_0206_bofpacket_scapylayer_addlayer_no_automatic_scapy(self):
+        from scapy.layers.inet import TCP
+        from scapy.contrib.modbus import ModbusADURequest
+        # we want TCP as payload for ModbusADURequest, which are not bound by default in Scapy
+        pkt = BOFPacket()
+        pkt.scapy_pkt = ModbusADURequest()
+        pkt.add_payload(TCP(), automatic_binding=True)
+        # TODO: see how to check for correct packet construction (ie : show2..)
+        def test_0206_bofpacket_scapylayer_addlayer_no_automatic_scapy(self):
         """Test that we can add an unbound Scapy packet as payload on purpose.
         """
-        pass  # TODO
+        pkt = BOFPacket()
+        pkt.scapy_pkt = ModbusADURequest()
+        pkt.add_payload(TCP(), automatic_binding=False)
+        # TODO: see how to check for correct packet construction (ie : show2..)
 
 
 class Test02PacketBuiltins(unittest.TestCase):
