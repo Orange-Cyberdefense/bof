@@ -3,7 +3,7 @@ as it contains either a set of packets, a set of fields, or both.
 
 It uses a Scapy-based Packet object, as protocol implementations
 are based on Scapy. The Scapy raw packet object is an attribute of a BOFPacket
-object, which uses it to manipulate the BOF usually manipulates packets.
+object, which uses it to manipulate the way BOF usually manipulates packets.
 However, you can perform direct "Scapy" stuff on the packet by accessing directly
 BOFPacket.scapy_pkt attribute.
 
@@ -17,6 +17,7 @@ BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
 """
 
 from scapy.packet import Packet
+
 
 class BOFPacket(object):
     """Representation of a network packet in BOF. Base class for BOF "layers".
@@ -58,6 +59,7 @@ class BOFPacket(object):
     @property
     def name(self) -> str:
         return self.scapy_pkt.name
+
     @name.setter
-    def name(self, name:str) -> None:
+    def name(self, name: str) -> None:
         self.scapy_pkt.name = name
