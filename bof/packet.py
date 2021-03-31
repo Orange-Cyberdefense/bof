@@ -56,6 +56,9 @@ class BOFPacket(object):
     def show(self):
         self.scapy_pkt.show()
 
+    def show2(self):
+        self.scapy_pkt.show2()
+
     def add_payload(self, other, automatic_binding=False):
         """Adds the `other` Scapy payload to the BOFPacket's scapy packet attribute.
 
