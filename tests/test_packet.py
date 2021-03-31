@@ -43,6 +43,23 @@ class Test02ScapyLayers(unittest.TestCase):
                 self.scapy_pkt = knx.KNXnetIP()
         knx_pkt = KNX()
         self.assertEqual(knx_pkt.scapy_pkt.name, "KNXnet/IP")
+    def test_0203_bofpacket_scapylayer_addpayload_base_scapy(self):
+        """Test that we can add a Scapy layer as a payload for a BOFPacket.
+        """
+        pass  # TODO
+    def test_0204_bofpacket_scapylayer_addpayload_base_bof(self):
+        """Test that we can add a BOFPacket as payload for another BOFPacket.
+        """
+        pass  # TODO
+    def test_0205_bofpacket_scapylayer_addpayload_automatic_scapy(self):
+        """Test that we can add an unbound Scapy packet as payload and automatically perform the binding.
+        """
+        pass  # TODO
+    def test_0206_bofpacket_scapylayer_addlayer_no_automatic_scapy(self):
+        """Test that we can add an unbound Scapy packet as payload on purpose.
+        """
+        pass  # TODO
+
 
 class Test02PacketBuiltins(unittest.TestCase):
     """Test class for raw BOFPacket builtin function overload."""
