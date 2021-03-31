@@ -70,16 +70,16 @@ class BOFPacket(object):
 
             Adding a Scapy packet as payload to the current scapy_pkt :
             bof_pkt.scapy_pkt = TCP()
-            bof_pkt.addlayer(ModbusADURequest())
+            bof_pkt.add_payload(ModbusADURequest())
 
             Adding a BOF packet as payload to the current scapy_pkt :
             bof_pkt1.scapy_pkt = TCP()
             bof_pkt2.scapy_pkt = ModbusADURequest()
-            bof_pkt1.addlayer(bof_pkt2)
+            bof_pkt1.add_payload(bof_pkt2)
 
             Adding a unexpected payload, performing the binding automatically
-            bof_pkt.addlayer(TCP())
-            bof_pkt.addlayer(TCP())
+            bof_pkt.add_payload(TCP())
+            bof_pkt.add_payload(TCP())
             Because two TCP layers aren't supposed to be bound together, a binding is automatically added
 
             # TODO consider the following syntax rather that updating the packet itself in the method : `bof_pkt = bof_pkt.addlayer(TCP())`
