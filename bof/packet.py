@@ -129,6 +129,7 @@ class BOFPacket(object):
         TODO: option to add a field wherever we want in the packet (=> insert at the right place)
         TODO: test, including complex fields like PacketField or MultipleTypeField
         TODO: automatically replace duplicated field names to access the right member as property
+        TODO: add guess_payload overrdide to handle specific case ? (=> in BOF protocol implementations ?)
         """
 
         # we reproduce the task performed during a Packet's fields init, but adapt them to a single field addition

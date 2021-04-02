@@ -9,7 +9,7 @@ import unittest
 
 from scapy.contrib.modbus import ModbusADURequest
 from scapy.fields import ByteField, PacketField
-from scapy.layers.inet import TCP
+from scapy.layers.inet import TCP, UDP
 
 from bof.packet import *
 
@@ -68,7 +68,9 @@ class Test02ScapyLayers(unittest.TestCase):
         pkt = BOFPacket()
         pkt.scapy_pkt = TCP()
         pkt.add_payload(ModbusADURequest())
-        # TODO: see how to check for correct packet construction (ie : show2..)
+        # see if there is a better way to test than existence in show2..
+        show = pkt.scapy_pkt.show2(dump=True)
+        self.assertEqual("transId   = 0x0" in show, True)  # could be done with regex..
 
     def test_0204_bofpacket_scapylayer_addpayload_base_bof(self):
         """Test that we can add a BOFPacket as payload for another BOFPacket.
@@ -79,7 +81,9 @@ class Test02ScapyLayers(unittest.TestCase):
         pkt = BOFPacket()
         pkt.scapy_pkt = TCP()
         pkt.add_payload(ModbusADURequest())
-        # TODO: see how to check for correct packet construction (ie : show2..)
+        # see if there is a better way to test than existence in show2..
+        show = pkt.show2(dump=True)
+        self.assertEqual("transId   = 0x0" in show, True)  # could be done with regex..
 
     def test_0205_bofpacket_scapylayer_addpayload_automatic_scapy(self):
         """Test that we can add an unbound Scapy packet as payload and automatically perform the binding.
@@ -88,16 +92,25 @@ class Test02ScapyLayers(unittest.TestCase):
         from scapy.contrib.modbus import ModbusADURequest
         # we want TCP as payload for ModbusADURequest, which are not bound by default in Scapy
         pkt = BOFPacket()
-        pkt.scapy_pkt = ModbusADURequest()
+        pkt.scapy_pkt = UDP()
         pkt.add_payload(TCP(), automatic_binding=True)
-        # TODO: see how to check for correct packet construction (ie : show2..)
+        # see if there is a better way to test than existence in show2..
+        show = pkt.show2(dump=True)
+        self.assertEqual("ack       = 0" in show, True)  # could be done with regex..
 
-    def test_0206_bofpacket_scapylayer_addlayer_no_automatic_scapy(self):
-        """Test that we can add an unbound Scapy packet as payload on purpose."""
+    def test_0206_bofpacket_scapylayer_addpayload_automatic_guess_scapy(self):
+        """Test that we can add an unbound Scapy packet as payload and automatically perform the binding.
+        In this specific case guess_payload_class is redefined in ModbusADURequest so won't work by default.
+        """
+        from scapy.layers.inet import TCP
+        from scapy.contrib.modbus import ModbusADURequest
+        # we want TCP as payload for ModbusADURequest, which are not bound by default in Scapy
         pkt = BOFPacket()
         pkt.scapy_pkt = ModbusADURequest()
-        pkt.add_payload(TCP(), automatic_binding=False)
-        # TODO: see how to check for correct packet construction (ie : show2..)
+        pkt.add_payload(TCP(sport=12345), automatic_binding=True)
+        # see if there is a better way to test than existence in show2..
+        show = pkt.show2(dump=True)
+        self.assertIn("sport   = 12345", show)
 
 
 class Test03PacketBuiltins(unittest.TestCase):
