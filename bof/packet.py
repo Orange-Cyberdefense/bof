@@ -54,11 +54,11 @@ class BOFPacket(object):
     def __iter__(self):
         yield from self.scapy_pkt
 
-    def show(self):
-        self.scapy_pkt.show()
+    def show(self, dump=False, indent=3, lvl="", label_lvl=""):
+        return self.scapy_pkt.show(dump=False, indent=3, lvl="", label_lvl="")
 
-    def show2(self):
-        self.scapy_pkt.show2()
+    def show2(self, dump=False, indent=3, lvl="", label_lvl=""):
+        return self.scapy_pkt.show2(dump=False, indent=3, lvl="", label_lvl="")
 
     def add_payload(self, other, automatic_binding=False):
         """Adds the `other` Scapy payload to the BOFPacket's scapy packet attribute.
