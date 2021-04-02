@@ -18,6 +18,7 @@ BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
 
 from scapy.packet import Packet, bind_layers
 
+import copy
 
 class BOFPacket(object):
     """Representation of a network packet in BOF. Base class for BOF "layers".
@@ -105,6 +106,57 @@ class BOFPacket(object):
             # bind_layers(self.scapy_pkt.__class__, other.__class__)
             pass
         self.scapy_pkt = self.scapy_pkt / other
+
+    def add_field(self, new_field, value=None):
+        """Adds the `new_field` at the end of the current Scapy packet.
+
+        :param new_field: Scapy Field to add at the end of the packet
+        :param value: an optional value to set for the packet (!= its default value)
+
+        Example::
+
+            With the default value kept
+            bof_pkt.add_field(ByteField("new_field", 0x01))
+
+            With a specified value
+            bof_pkt.add_field(ByteField(("new_field", 0x01), 0x02))
+
+            With a PacketField
+            bof_pkt = BOFPacket()
+            bof_pkt.add_field(PacketField("test_packet_field", TCP(), TCP))
+
+        TODO: option to add a field in the packet of our choice (=> overload this method ? add parameters ?)
+        TODO: option to add a field wherever we want in the packet (=> insert at the right place)
+        TODO: test, including complex fields like PacketField or MultipleTypeField
+        TODO: automatically replace duplicated field names to access the right member as property
+        """
+
+        # we reproduce the task performed during a Packet's fields init, but adapt them to a single field addition
+        # to make things simpler and straightforward, we started with no cache, but we might implement it later
+
+        self.scapy_pkt.fields_desc.append(new_field)
+
+        # similar to Packet's do_init_fields() but for a single field
+        self.scapy_pkt.fieldtype[new_field.name] = new_field
+        if new_field.holds_packets:
+            self.scapy_pkt.packetfields.append(new_field)
+        self.scapy_pkt.default_fields[new_field.name] = copy.deepcopy(new_field.default)
+
+        # similar to the "strange initialization" (lines 164-179 of the constructor) but for a single field
+        fname = new_field.name
+        try:
+            value = self.scapy_pkt.fields.pop(fname)
+            self.scapy_pkt.fields[fname] = self.scapy_pkt.get_field(fname).any2i(self.scapy_pkt, value)
+        except KeyError:
+            pass
+
+        if fname in self.scapy_pkt.fields and fname in self.scapy_pkt.deprecated_fields:
+            value = self.scapy_pkt.fields[fname]
+            fname = self.scapy_pkt._resolve_alias(fname)
+            self.scapy_pkt.fields[fname] = self.scapy_pkt.get_field(fname).any2i(self.scapy_pkt, value)
+
+        if value != None:
+            self.scapy_pkt.new_field = value
 
     @property
     def name(self) -> str:
