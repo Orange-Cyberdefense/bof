@@ -6,11 +6,6 @@
 """
 
 import unittest
-
-from scapy.contrib.modbus import ModbusADURequest
-from scapy.fields import ByteField, PacketField
-from scapy.layers.inet import TCP, UDP
-
 from bof.packet import *
 
 
@@ -89,7 +84,7 @@ class Test02ScapyLayers(unittest.TestCase):
         """Test that we can add an unbound Scapy packet as payload and automatically perform the binding.
         """
         from scapy.layers.inet import TCP
-        from scapy.contrib.modbus import ModbusADURequest
+        from scapy.layers.inet import UDP
         # we want TCP as payload for ModbusADURequest, which are not bound by default in Scapy
         pkt = BOFPacket()
         pkt.scapy_pkt = UDP()
@@ -146,15 +141,19 @@ class Test04PacketManipulations(unittest.TestCase):
 
     def test_0401_bofpacket_scapylayer_addfield(self):
         """Test that we can add a new field at the end of an existing BOFPacket's scapy_pkt."""
+        from scapy.fields import ByteField
         self.bof_pkt.add_field(ByteField("new_field", 0x01))
         self.assertEqual(self.bof_pkt.scapy_pkt.new_field, 0x01)
 
     def test_0402_bofpacket_scapylayer_addfield_value(self):
         """Test that we can add a new field at the end of an existing BOFPacket's scapy_pkt with a specified value."""
+        from scapy.fields import ByteField
         self.bof_pkt.add_field(ByteField("new_field", 0x01), 0x02)
         self.assertEqual(self.bof_pkt.scapy_pkt.new_field, 0x02)
 
     def test_0403_bofpacket_scapylayer_addfield_packet(self):
         """Test that we can add a Packet Field at the end of an existing BOFPacket's scapy_pkt."""
+        from scapy.fields import PacketField
+        from scapy.layers.inet import TCP
         self.bof_pkt.add_field(PacketField("new_packet_field", TCP(sport=12345), TCP))
         self.assertEqual(self.bof_pkt.scapy_pkt.new_packet_field.sport, 12345)
