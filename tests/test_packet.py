@@ -6,6 +6,11 @@
 """
 
 import unittest
+
+from scapy.layers.inet import TCP
+from scapy.fields import PacketField, ByteField
+from scapy.contrib.modbus import ModbusADURequest
+
 from bof.packet import *
 
 
@@ -34,10 +39,9 @@ class Test02ScapyLayers(unittest.TestCase):
 
     def test_0201_bofpacket_scapylayer_integrated(self):
         """Test that we can build BOFPacket from layer in scapy library."""
-        from scapy.contrib import modbus
         class Modbus(BOFPacket):
             def __init__(self):
-                self.scapy_pkt = modbus.ModbusADURequest()
+                self.scapy_pkt = ModbusADURequest()
 
         modbus_pkt = Modbus()
         self.assertEqual(modbus_pkt.name, "ModbusADU")
@@ -55,24 +59,20 @@ class Test02ScapyLayers(unittest.TestCase):
         self.assertEqual(knx_pkt.scapy_pkt.name, "KNXnet/IP")
 
     def test_0203_bofpacket_scapylayer_addpayload_base_scapy(self):
-        """Test that we can add a Scapy layer as a payload for a BOFPacket.
-        """
-        from scapy.layers.inet import TCP
-        from scapy.contrib.modbus import ModbusADURequest
-        # we want ModbusADURequest as payload for TCP, which are bound by default in Scapy
+        """Test that we can add a Scapy layer as a payload for a BOFPacket."""
+        # We want ModbusADURequest as payload for TCP, which are bound by
+        # default in Scapy
         pkt = BOFPacket()
         pkt.scapy_pkt = TCP()
         pkt.add_payload(ModbusADURequest())
-        # see if there is a better way to test than existence in show2..
+        # See if there is a better way to test than existence in show2..
         show = pkt.scapy_pkt.show2(dump=True)
         self.assertEqual("transId   = 0x0" in show, True)  # could be done with regex..
 
     def test_0204_bofpacket_scapylayer_addpayload_base_bof(self):
-        """Test that we can add a BOFPacket as payload for another BOFPacket.
-        """
-        from scapy.layers.inet import TCP
-        from scapy.contrib.modbus import ModbusADURequest
-        # we want ModbusADURequest as payload for TCP, which are bound by default in Scapy
+        """Test that we can add a BOFPacket as payload for another BOFPacket."""
+        # we want ModbusADURequest as payload for TCP, which are bound by
+        # default in Scapy
         pkt = BOFPacket()
         pkt.scapy_pkt = TCP()
         pkt.add_payload(ModbusADURequest())
@@ -81,11 +81,10 @@ class Test02ScapyLayers(unittest.TestCase):
         self.assertEqual("transId   = 0x0" in show, True)  # could be done with regex..
 
     def test_0205_bofpacket_scapylayer_addpayload_automatic_scapy(self):
-        """Test that we can add an unbound Scapy packet as payload and automatically perform the binding.
-        """
-        from scapy.layers.inet import TCP
+        """Test that we can bind an unbound Scapy packet as payload."""
         from scapy.layers.inet import UDP
-        # we want TCP as payload for ModbusADURequest, which are not bound by default in Scapy
+        # we want TCP as payload for ModbusADURequest, which are not bound by
+        # default in Scapy
         pkt = BOFPacket()
         pkt.scapy_pkt = UDP()
         pkt.add_payload(TCP(), automatic_binding=True)
@@ -94,12 +93,12 @@ class Test02ScapyLayers(unittest.TestCase):
         self.assertEqual("ack       = 0" in show, True)  # could be done with regex..
 
     def test_0206_bofpacket_scapylayer_addpayload_automatic_guess_scapy(self):
-        """Test that we can add an unbound Scapy packet as payload and automatically perform the binding.
-        In this specific case guess_payload_class is redefined in ModbusADURequest so won't work by default.
+        """Test that we can bind an unbound Modbus Scapy packet as payload.
+        In this specific case guess_payload_class is redefined in
+        ModbusADURequest so won't work by default.
         """
-        from scapy.layers.inet import TCP
-        from scapy.contrib.modbus import ModbusADURequest
-        # we want TCP as payload for ModbusADURequest, which are not bound by default in Scapy
+        # we want TCP as payload for ModbusADURequest, which are not bound by
+        # default in Scapy
         pkt = BOFPacket()
         pkt.scapy_pkt = ModbusADURequest()
         pkt.add_payload(TCP(sport=12345), automatic_binding=True)
@@ -133,27 +132,25 @@ class Test03PacketBuiltins(unittest.TestCase):
 
 
 class Test04PacketManipulations(unittest.TestCase):
-    """Test class to make sure that we can dynamically manipulate packet content (ex : add fields)."""
+    """Test class for dynamically manipulate packet content.
+    (ex : add fields).
+    """
 
     @classmethod
     def setUpClass(self):
         self.bof_pkt = BOFPacket()
 
     def test_0401_bofpacket_scapylayer_addfield(self):
-        """Test that we can add a new field at the end of an existing BOFPacket's scapy_pkt."""
-        from scapy.fields import ByteField
+        """Test that we can add a new field at the end of existing BOFPacket."""
         self.bof_pkt.add_field(ByteField("new_field", 0x01))
         self.assertEqual(self.bof_pkt.scapy_pkt.new_field, 0x01)
 
     def test_0402_bofpacket_scapylayer_addfield_value(self):
-        """Test that we can add a new field at the end of an existing BOFPacket's scapy_pkt with a specified value."""
-        from scapy.fields import ByteField
+        """Test that we can add a new field to BOFPacket with a specified value."""
         self.bof_pkt.add_field(ByteField("new_field", 0x01), 0x02)
         self.assertEqual(self.bof_pkt.scapy_pkt.new_field, 0x02)
 
     def test_0403_bofpacket_scapylayer_addfield_packet(self):
-        """Test that we can add a Packet Field at the end of an existing BOFPacket's scapy_pkt."""
-        from scapy.fields import PacketField
-        from scapy.layers.inet import TCP
+        """Test that we can add a Packet Field at the end of existing BOFPacket."""
         self.bof_pkt.add_field(PacketField("new_packet_field", TCP(sport=12345), TCP))
         self.assertEqual(self.bof_pkt.scapy_pkt.new_packet_field.sport, 12345)

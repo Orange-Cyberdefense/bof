@@ -55,95 +55,113 @@ class BOFPacket(object):
         yield from self.scapy_pkt
 
     def show(self, dump=False, indent=3, lvl="", label_lvl=""):
-        return self.scapy_pkt.show(dump=dump, indent=indent, lvl=lvl, label_lvl=label_lvl)
+        return self.scapy_pkt.show(dump=dump, indent=indent, lvl=lvl,
+                                   label_lvl=label_lvl)
 
     def show2(self, dump=False, indent=3, lvl="", label_lvl=""):
-        return self.scapy_pkt.show2(dump=dump, indent=indent, lvl=lvl, label_lvl=label_lvl)
+        return self.scapy_pkt.show2(dump=dump, indent=indent, lvl=lvl,
+                                    label_lvl=label_lvl)
 
     def add_payload(self, other, automatic_binding=False):
-        """Adds the `other` Scapy payload to the BOFPacket's scapy packet attribute.
+        """Adds the ``other`` Scapy payload to the ``BOFPacket``'s scapy
+        packet attribute.
 
-        This method's behavior is similar to `self.scapy_pkt = self.scapy_pkt / other` but adds additional options including :
-            - the possibility to bind the BOFPacket either to a Scapy Packet or to an other BOFPacket
-            - the possibility to create a binding "on the fly" if it was not defined in Scapy implementation
+        This method's behavior is similar to the following code::
 
-        :param other: Scapy or BOF packet to add as payload
-        :param automatic_binding: Whether or not unspecified binding found in Scapy implementation are automatically added
+            self.scapy_pkt = self.scapy_pkt / other
+
+        Additional features:
+
+        - Bind the ``BOFPacket`` to a Scapy Packet or to an other ``BOFPacket``
+        - Create a binding "on the fly" if it was not defined in Scapy's implementation
+
+        :param other: Scapy or BOF packet to add as payload.
+        :param automatic_binding: Whether or not unspecified binding found in Scapy
+                                  implementation are automatically added.
 
         Example::
 
-            Adding a Scapy packet as payload to the current scapy_pkt :
+            # Adding a Scapy packet as payload to the current scapy_pkt :
             bof_pkt.scapy_pkt = TCP()
             bof_pkt.add_payload(ModbusADURequest())
 
-            Adding a BOF packet as payload to the current scapy_pkt :
+            # Adding a BOF packet as payload to the current scapy_pkt :
             bof_pkt1.scapy_pkt = TCP()
             bof_pkt2.scapy_pkt = ModbusADURequest()
             bof_pkt1.add_payload(bof_pkt2)
 
-            Adding a unexpected payload, performing the binding automatically
+            # Adding a unexpected payload, performing the binding automatically
             bof_pkt.add_payload(TCP())
             bof_pkt.add_payload(TCP())
-            Because two TCP layers aren't supposed to be bound together, a binding is automatically added
+            # Because two TCP layers aren't supposed to be bound together,
+            # a binding is automatically added
 
-            # TODO: see if payload automatic binding option is actually necessary (to be understood in show2() the answer is yes, but do we really need it ?)
-            # TODO: test the method
-            # TODO consider the following syntax rather that updating the packet itself in the method : `bof_pkt = bof_pkt.addlayer(TCP())`
-            # TODO: add '/' syntax (problem is that it is called by the element on the right of the division sign, on which we have no control)
-            # TODO: add setter for scapy_pkt
+        :TODO: see if payload automatic binding option is actually necessary (to be
+               understood in show2() the answer is yes, but do we really need it ?)
+        :TODO: test the method
+        :TODO: consider the following syntax rather that updating the packet itself
+               in the method : ``bof_pkt = bof_pkt.addlayer(TCP())``
+        :TODO: add `'/`' syntax (problem is that it is called by the element on the
+               right of the division sign, on which we have no control)
+        :TODO: add setter for ``scapy_pkt``
         """
         if isinstance(other, BOFPacket):
             other = other.scapy_pkt
 
-        # checks if a binding is found between `scapy_pkt` and `other class`
-        # binding are defined as a list of tuples `self.scapy_pkt.payload_guess`
+        # Checks if a binding is found between `scapy_pkt` and `other class`
+        # Bindings are defined as a list of tuples `self.scapy_pkt.payload_guess`
         other_in_payload_guess = any(other.__class__ in binding for binding in self.scapy_pkt.payload_guess)
 
-        # if no binding found and that we want to automatically add one
+        # If no binding found and that we want to automatically add one
         if isinstance(other, Packet) and automatic_binding and not other_in_payload_guess:
             self.scapy_pkt.payload_guess.insert(0, ({}, other.__class__))
-            # we may use bind_layers function family instead of editing payload_guess directly, something like :
-            # bind_layers(self.scapy_pkt.__class__, other.__class__)
+            # We may use bind_layers function family instead of editing payload_guess
+            # directly, something like : bind_layers(self.scapy_pkt.__class__, other.__class__)
             pass
         self.scapy_pkt = self.scapy_pkt / other
 
     def add_field(self, new_field, value=None):
-        """Adds the `new_field` at the end of the current Scapy packet.
+        """Adds the ``new_field`` at the end of the current Scapy packet.
 
-        :param new_field: Scapy Field to add at the end of the packet
+        :param new_field: Scapy field to add at the end of the packet
         :param value: an optional value to set for the packet (!= its default value)
 
         Example::
 
-            With the default value kept
+            # With the default value kept
             bof_pkt.add_field(ByteField("new_field", 0x01))
 
-            With a specified value
+            # With a specified value
             bof_pkt.add_field(ByteField(("new_field", 0x01), 0x02))
 
-            With a PacketField
+            # With a PacketField
             bof_pkt = BOFPacket()
             bof_pkt.add_field(PacketField("test_packet_field", TCP(), TCP))
 
-        TODO: option to add a field in the packet of our choice (=> overload this method ? add parameters ?)
-        TODO: option to add a field wherever we want in the packet (=> insert at the right place)
-        TODO: test, including complex fields like PacketField or MultipleTypeField
-        TODO: automatically replace duplicated field names to access the right member as property
-        TODO: add guess_payload overrdide to handle specific case ? (=> in BOF protocol implementations ?)
+        :TODO: Option to add a field in the packet of our choice (=> overload
+               this method ? add parameters ?)
+        :TODO: Option to add a field wherever we want in the packet (=> insert
+               at the right place)
+        :TODO: Test, including complex fields like PacketField or MultipleTypeField
+        :TODO: Automatically replace duplicated field names to access the right
+               member as property
+        :TODO: Add guess_payload overrdide to handle specific case ? (=> in BOF
+               protocol implementations ?)
         """
-
-        # we reproduce the task performed during a Packet's fields init, but adapt them to a single field addition
-        # to make things simpler and straightforward, we started with no cache, but we might implement it later
-
+        # We reproduce the task performed during a Packet's fields init, but
+        # adapt them to a single field addition
+        # To make things simpler and straightforward, we started with no cache,
+        # but we might implement it later
         self.scapy_pkt.fields_desc.append(new_field)
 
-        # similar to Packet's do_init_fields() but for a single field
+        # Similar to Packet's do_init_fields() but for a single field
         self.scapy_pkt.fieldtype[new_field.name] = new_field
         if new_field.holds_packets:
             self.scapy_pkt.packetfields.append(new_field)
         self.scapy_pkt.default_fields[new_field.name] = copy.deepcopy(new_field.default)
 
-        # similar to the "strange initialization" (lines 164-179 of the constructor) but for a single field
+        # Similar to the "strange initialization" (lines 164-179 of the
+        # constructor) but for a single field
         fname = new_field.name
         try:
             value = self.scapy_pkt.fields.pop(fname)
