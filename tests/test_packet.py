@@ -87,7 +87,7 @@ class Test02ScapyLayers(unittest.TestCase):
         # default in Scapy
         pkt = BOFPacket()
         pkt.scapy_pkt = UDP()
-        pkt.add_payload(TCP(), automatic_binding=True)
+        pkt.add_payload(TCP(), autobind=True)
         # see if there is a better way to test than existence in show2..
         show = pkt.show2(dump=True)
         self.assertEqual("ack       = 0" in show, True)  # could be done with regex..
@@ -101,10 +101,37 @@ class Test02ScapyLayers(unittest.TestCase):
         # default in Scapy
         pkt = BOFPacket()
         pkt.scapy_pkt = ModbusADURequest()
-        pkt.add_payload(TCP(sport=12345), automatic_binding=True)
+        pkt.add_payload(TCP(sport=12345), autobind=True)
         # see if there is a better way to test than existence in show2..
         show = pkt.show2(dump=True)
         self.assertIn("sport   = 12345", show)
+
+    def test_0207_bofpacket_scapylayer_divpayload_base(self):
+        """Test that we can add a BOFPacket as payload for another BOFPacket."""
+        # we want ModbusADURequest as payload for TCP, which are bound by
+        # default in Scapy
+        pkt1 = BOFPacket()
+        pkt1.scapy_pkt = TCP()
+        pkt2 = BOFPacket()
+        pkt2.scapy_pkt = ModbusADURequest()
+        pkt3 = pkt1 / pkt2
+        # see if there is a better way to test than existence in show2..
+        show = pkt3.show2(dump=True)
+        self.assertEqual("transId   = 0x0" in show, True)  # could be done with regex..
+
+    def test_0208_bofpacket_scapylayer_divpayload_automatic(self):
+        """Test that we can bind an unbound BOFPacket scapy_pkt as payload."""
+        from scapy.layers.inet import UDP
+        # we want TCP as payload for ModbusADURequest, which are not bound by
+        # default in Scapy
+        pkt1 = BOFPacket()
+        pkt1.scapy_pkt = UDP()
+        pkt2 = BOFPacket()
+        pkt2.scapy_pkt = TCP()
+        pkt3 = pkt1 / pkt2
+        # see if there is a better way to test than existence in show2..
+        show = pkt3.show2(dump=True)
+        self.assertEqual("ack       = 0" in show, True)  # could be done with regex..
 
 
 class Test03PacketBuiltins(unittest.TestCase):
