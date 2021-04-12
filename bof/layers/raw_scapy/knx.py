@@ -1,7 +1,7 @@
 from scapy.fields import PacketField, MultipleTypeField, ByteField, XByteField, ShortEnumField, ShortField, \
     ByteEnumField, IPField, StrFixedLenField, MACField, XBitField, PacketListField, IntField, FieldLenField, \
     StrLenField, BitEnumField, BitField, ConditionalField
-from scapy.packet import Packet, bind_layers, bind_bottom_up, Padding
+from scapy.packet import Packet, bind_layers, bind_top_down, Padding
 from scapy.layers.inet import UDP
 
 ### KNX CODES
@@ -505,6 +505,7 @@ class KNXHeader(KNX):
 
 bind_layers(UDP, KNX, dport=3671)
 bind_layers(UDP, KNX, sport=3671)
+bind_top_down(UDP, KNX, dport=3671, sport=43671)
 
 bind_layers(KNX, KNXSearchRequest, service_identifier=0x0201)
 bind_layers(KNX, KNXSearchResponse, service_identifier=0x0202)

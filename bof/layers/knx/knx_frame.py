@@ -1,8 +1,10 @@
-# TODO: class documentation
-from bof.layers.raw_scapy.knx import KNXHeader
+"""TODO
+"""
+
+from bof.layers.raw_scapy.knx import KNX as ScapyKNX
 from bof.packet import BOFPacket
 
 
-class KNXBOFPacket(BOFPacket):
-    def __init__(self):
-        self.scapy_pkt = KNXHeader()
+class KNX(BOFPacket):
+    def __init__(self, _pkt:bytes=None):
+        self.scapy_pkt = ScapyKNX(_pkt=_pkt)
