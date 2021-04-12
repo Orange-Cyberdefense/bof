@@ -478,8 +478,8 @@ class KNXTunnelingACK(Packet):
 
 ### KNX FRAME
 
-class KNXHeader(Packet):
-    name = "Header"
+class KNX(Packet):
+    name = "KNX"
     fields_desc = [
         ByteField("header_length", None),
         XByteField("protocol_version", 0x10),
@@ -491,24 +491,26 @@ class KNXHeader(Packet):
         return p + pay
     # possible to do this with a dedicated field instead of a post_build ??
 
+class KNXHeader(KNX):
+    name = "KNXHeader"
 
 ### LAYERS BINDING
 
 
-bind_layers(KNXHeader, KNXSearchRequest, service_identifier=0x0201)
-bind_layers(KNXHeader, KNXSearchResponse, service_identifier=0x0202)
-bind_layers(KNXHeader, KNXDescriptionRequest, service_identifier=0x0203)
-bind_layers(KNXHeader, KNXDescriptionResponse, service_identifier=0x0204)
-bind_layers(KNXHeader, KNXConnectRequest, service_identifier=0x0205)
-bind_layers(KNXHeader, KNXConnectResponse, service_identifier=0x0206)
-bind_layers(KNXHeader, KNXConnectionstateRequest, service_identifier=0x0207)
-bind_layers(KNXHeader, KNXConnectionstateResponse, service_identifier=0x0208)
-bind_layers(KNXHeader, KNXDisconnectResponse, service_identifier=0x020A)
-bind_layers(KNXHeader, KNXDisconnectRequest, service_identifier=0x0209)
-bind_layers(KNXHeader, KNXConfigurationRequest, service_identifier=0x0310)
-bind_layers(KNXHeader, KNXConfigurationACK, service_identifier=0x0311)
-bind_layers(KNXHeader, KNXTunnelingRequest, service_identifier=0x0420)
-bind_layers(KNXHeader, KNXTunnelingACK, service_identifier=0x0421)
+bind_layers(KNX, KNXSearchRequest, service_identifier=0x0201)
+bind_layers(KNX, KNXSearchResponse, service_identifier=0x0202)
+bind_layers(KNX, KNXDescriptionRequest, service_identifier=0x0203)
+bind_layers(KNX, KNXDescriptionResponse, service_identifier=0x0204)
+bind_layers(KNX, KNXConnectRequest, service_identifier=0x0205)
+bind_layers(KNX, KNXConnectResponse, service_identifier=0x0206)
+bind_layers(KNX, KNXConnectionstateRequest, service_identifier=0x0207)
+bind_layers(KNX, KNXConnectionstateResponse, service_identifier=0x0208)
+bind_layers(KNX, KNXDisconnectResponse, service_identifier=0x020A)
+bind_layers(KNX, KNXDisconnectRequest, service_identifier=0x0209)
+bind_layers(KNX, KNXConfigurationRequest, service_identifier=0x0310)
+bind_layers(KNX, KNXConfigurationACK, service_identifier=0x0311)
+bind_layers(KNX, KNXTunnelingRequest, service_identifier=0x0420)
+bind_layers(KNX, KNXTunnelingACK, service_identifier=0x0421)
 
 # for now we bind every layer used as PacketField to Padding in order to delete its payload
 # (solution inspired by https://github.com/secdev/scapy/issues/360)
