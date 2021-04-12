@@ -2,6 +2,7 @@ from scapy.fields import PacketField, MultipleTypeField, ByteField, XByteField, 
     ByteEnumField, IPField, StrFixedLenField, MACField, XBitField, PacketListField, IntField, FieldLenField, \
     StrLenField, BitEnumField, BitField, ConditionalField
 from scapy.packet import Packet, bind_layers, Padding
+from scapy.layers.inet import UDP
 
 ### KNX CODES
 
@@ -49,6 +50,7 @@ MESSAGE_CODES = {
 KNX_MEDIUM_CODES = {
     0x02: "KNX_TP"
 }
+
 
 ### KNX SPECIFIC FIELDS
 
@@ -253,7 +255,7 @@ class LcEMI(Packet):
             2: "GroupValueWrite"
         }),
         BitField("reserved3", 0, 6),
-        StrLenField("data", None, length_from=lambda pkt: pkt.npdu_length) # to be tested
+        StrLenField("data", None, length_from=lambda pkt: pkt.npdu_length)  # to be tested
 
     ]
 
@@ -486,16 +488,23 @@ class KNX(Packet):
         ShortEnumField("service_identifier", None, SERVICE_IDENTIFIER_CODES),
         ShortField("total_length", None)
     ]
+
     def post_build(self, p, pay):
+        # computes header_length
         p = (len(p)).to_bytes(1, byteorder='big') + p[1:]
+        # computes total_length
+        p = p[:-2] + (len(p) + len(pay)).to_bytes(2, byteorder='big')  # TODO: get the whole frame instead of payload
         return p + pay
-    # possible to do this with a dedicated field instead of a post_build ??
+
 
 class KNXHeader(KNX):
     name = "KNXHeader"
 
+
 ### LAYERS BINDING
 
+bind_layers(UDP, KNX, dport=3671)
+bind_bottom_up(UDP, KNX, sport=3671)
 
 bind_layers(KNX, KNXSearchRequest, service_identifier=0x0201)
 bind_layers(KNX, KNXSearchResponse, service_identifier=0x0202)
@@ -555,4 +564,3 @@ bind_layers(KNXHeader, Padding)
 # TODO: add ByteEnumField with status list (see KNX specifications)
 # TODO: replace MultipleTypeField in CEMI with Scapy bindings
 # TODO: compute length, see if could be done with dedicated field
-
