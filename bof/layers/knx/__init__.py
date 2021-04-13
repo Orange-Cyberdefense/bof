@@ -2,4 +2,4 @@
 """
 
 from .knx_network import *
-from .knx_frame import *
+from .knx_packet import *

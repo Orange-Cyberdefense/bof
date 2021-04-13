@@ -29,7 +29,7 @@ the appropriate sequence of frames) based on predefined exchange sequences.
 from scapy.packet import Packet
 
 from bof.network import UDP
-from .knx_frame import KNX
+from .knx_packet import KNX
 
 class KNXnet(UDP):
     """KNXnet/IP communication over UDP with protocol KNX.

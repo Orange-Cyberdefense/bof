@@ -17,6 +17,7 @@ BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
 """
 
 from scapy.packet import Packet, bind_layers
+from scapy.fields import Field
 
 import copy
 
@@ -48,11 +49,14 @@ class BOFPacket(object):
     def __len__(self):
         return len(self.scapy_pkt)
 
-    def __str__(self):
-        return "{0}: {1}".format(self.__class__.__name__, self.name)
+    # def __str__(self):
+    #     return "{0}: {1}".format(self.__class__.__name__, self.name)
+
+    def __getattr__(self, attr):
+        return self.scapy_pkt.__getattr__(attr)
 
     def __iter__(self):
-        yield from self.scapy_pkt
+        yield from self.scapy_pkt.fields_desc
 
     def __div__(self, other):
         """Adds the ``other`` ``BOFPacket``'s Scapy payload to the current``BOFPacket``.
@@ -219,3 +223,14 @@ class BOFPacket(object):
     @name.setter
     def name(self, name: str) -> None:
         self.scapy_pkt.name = name
+
+    @property
+    def fields(self):
+        """Returns the list of fields in packet and subpackets."""
+        fieldlist = []
+        for item in self:
+            if isinstance(item, BOFPacket):
+                fieldlist += item.fields
+            elif isinstance(item, Field):
+                fieldlist.append(item)
+        return fieldlist

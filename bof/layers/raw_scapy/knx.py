@@ -95,7 +95,7 @@ class HPAI(Packet):
         ByteField("structure_length", None),
         ByteEnumField("host_protocol", 0x01, HOST_PROTOCOL_CODES),
         IPField("ip_address", None),
-        ShortField("ip_port", None)
+        ShortField("port", None)
     ]
 
     def post_build(self, p, pay):
