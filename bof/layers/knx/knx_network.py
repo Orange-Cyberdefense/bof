@@ -29,7 +29,7 @@ the appropriate sequence of frames) based on predefined exchange sequences.
 from scapy.packet import Packet
 
 from bof.network import UDP
-from .knx_packet import KNX
+from .knx_packet import KNXPacket
 
 class KNXnet(UDP):
     """KNXnet/IP communication over UDP with protocol KNX.
@@ -59,7 +59,7 @@ class KNXnet(UDP):
                         `` connect``.
         :returns: The number of bytes sent, as an integer.
         """
-        if isinstance(data, KNX):
+        if isinstance(data, KNXPacket):
             data = bytes(data)
         elif isinstance(data, Packet):
             data = raw(data)
@@ -72,4 +72,4 @@ class KNXnet(UDP):
         :returns; A ``KNX`` object.
         """
         data, address = super().receive(timeout)
-        return KNX(data), address
+        return KNXPacket(data), address

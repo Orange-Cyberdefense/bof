@@ -482,7 +482,7 @@ class KNXTunnelingACK(Packet):
 ### KNX FRAME
 
 class KNX(Packet):
-    name = "KNX"
+    name = "KNXnet/IP"
     fields_desc = [
         ByteField("header_length", None),
         XByteField("protocol_version", 0x10),
