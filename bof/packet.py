@@ -15,6 +15,7 @@ Example (keep in mind that BOFPacket should not be instantiated directly :))::
 BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
 "specialized" class, but a "translation" from BOF usage to Scapy objects.
 """
+from random import randint
 
 from scapy.packet import Packet, bind_layers
 from scapy.fields import Field
@@ -163,63 +164,6 @@ class BOFPacket(object):
             pass
         self.scapy_pkt = self.scapy_pkt / other
 
-    def add_field(self, new_field, value=None):
-        """Adds the ``new_field`` at the end of the current Scapy packet.
-
-        :param new_field: Scapy field to add at the end of the packet
-        :param value: an optional value to set for the packet (!= its default value)
-
-        Example::
-
-            # With the default value kept
-            bof_pkt.add_field(ByteField("new_field", 0x01))
-
-            # With a specified value
-            bof_pkt.add_field(ByteField(("new_field", 0x01), 0x02))
-
-            # With a PacketField
-            bof_pkt = BOFPacket()
-            bof_pkt.add_field(PacketField("test_packet_field", TCP(), TCP))
-
-        :TODO: Option to add a field in the packet of our choice (=> overload
-               this method ? add parameters ?)
-        :TODO: Option to add a field wherever we want in the packet (=> insert
-               at the right place)
-        :TODO: Test, including complex fields like PacketField or MultipleTypeField
-        :TODO: Automatically replace duplicated field names to access the right
-               member as property
-        :TODO: Add guess_payload overrdide to handle specific case ? (=> in BOF
-               protocol implementations ?)
-        """
-        # We reproduce the task performed during a Packet's fields init, but
-        # adapt them to a single field addition
-        # To make things simpler and straightforward, we started with no cache,
-        # but we might implement it later
-        self.scapy_pkt.fields_desc.append(new_field)
-
-        # Similar to Packet's do_init_fields() but for a single field
-        self.scapy_pkt.fieldtype[new_field.name] = new_field
-        if new_field.holds_packets:
-            self.scapy_pkt.packetfields.append(new_field)
-        self.scapy_pkt.default_fields[new_field.name] = copy.deepcopy(new_field.default)
-
-        # Similar to the "strange initialization" (lines 164-179 of the
-        # constructor) but for a single field
-        fname = new_field.name
-        try:
-            value = self.scapy_pkt.fields.pop(fname)
-            self.scapy_pkt.fields[fname] = self.scapy_pkt.get_field(fname).any2i(self.scapy_pkt, value)
-        except KeyError:
-            pass
-
-        if fname in self.scapy_pkt.fields and fname in self.scapy_pkt.deprecated_fields:
-            value = self.scapy_pkt.fields[fname]
-            fname = self.scapy_pkt._resolve_alias(fname)
-            self.scapy_pkt.fields[fname] = self.scapy_pkt.get_field(fname).any2i(self.scapy_pkt, value)
-
-        if value != None:
-            self.scapy_pkt.new_field = value
-
     @property
     def name(self) -> str:
         return self.scapy_pkt.name
@@ -240,9 +184,55 @@ class BOFPacket(object):
         return fieldlist
 
 
-def _replace_pkt_class(pkt, new_class_name):
-    in_payload_guess = any(pkt.__class__ in binding for binding in pkt.underlayer.payload_guess)
-    new_class = type(new_class_name, (pkt.__class__,), {})
-    pkt.__class__ = new_class
+def _replace_pkt_class(packet, new_class_name):
+    """:TODO:"""
+    in_payload_guess = any(packet.__class__ in binding for binding in packet.underlayer.payload_guess)
+    new_class = type(new_class_name, (packet.__class__,), {})
+    packet.__class__ = new_class
     if in_payload_guess:
-        pkt.underlayer.payload_guess.insert(0, ({}, pkt.__class__))
+        packet.underlayer.payload_guess.insert(0, ({}, packet.__class__))
+
+
+def _add_field(packet, new_field, value=None):
+    """
+    :TODO: docstring
+    :TODO: Option to add a field wherever we want in the packet (=> insert
+           at the right place)
+    :TODO: Test, including complex fields like PacketField or MultipleTypeField
+    :TODO: Automatically replace duplicated field names to access the right
+           member as property
+    :TODO: Add guess_payload override to handle specific case ? (=> in BOF
+           protocol implementations ?)
+    """
+    # Because we are going to edit packet's class fields, we first need to replace the class by a new one
+    # For now we use a random name just to check it works but we should just increment it
+    _replace_pkt_class(packet, packet.__class__.__name__ + str(randint(1000000, 9999999)))
+
+    # We reproduce the task performed during a Packet's fields init, but
+    # adapt them to a single field addition
+    # To make things simpler and straightforward, we started with no cache,
+    # but we might implement it later
+    packet.fields_desc.append(new_field)
+
+    # Similar to Packet's do_init_fields() but for a single field
+    packet.fieldtype[new_field.name] = new_field
+    if new_field.holds_packets:
+        packet.packetfields.append(new_field)
+    packet.default_fields[new_field.name] = copy.deepcopy(new_field.default)
+
+    # Similar to the "strange initialization" (lines 164-179 of the
+    # constructor) but for a single field
+    fname = new_field.name
+    try:
+        value = packet.fields.pop(fname)
+        packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
+    except KeyError:
+        pass
+
+    if fname in packet.fields and fname in packet.deprecated_fields:
+        value = packet.fields[fname]
+        fname = packet._resolve_alias(fname)
+        packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
+
+    if value != None:
+        packet.new_field = value
