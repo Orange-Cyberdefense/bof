@@ -21,6 +21,7 @@ from scapy.fields import Field
 
 import copy
 
+
 class BOFPacket(object):
     """Representation of a network packet in BOF. Base class for BOF "layers".
 
@@ -97,6 +98,7 @@ class BOFPacket(object):
             # directly, something like : bind_layers(self.scapy_pkt.__class__, other.__class__)
             pass
         return self.scapy_pkt / other
+
     __truediv__ = __div__
 
     def show(self, dump=False, indent=3, lvl="", label_lvl=""):
@@ -147,15 +149,17 @@ class BOFPacket(object):
         if isinstance(other, BOFPacket):
             other = other.scapy_pkt
 
-        # Checks if a binding is found between `scapy_pkt` and `other class`
-        # Bindings are defined as a list of tuples `self.scapy_pkt.payload_guess`
-        other_in_payload_guess = any(other.__class__ in binding for binding in self.scapy_pkt.payload_guess)
+        # Gets the last payload of our packet, because this is the one we want to bind to the next payload
+        last_layer = self.scapy_pkt.lastlayer()
+
+        # Checks if a binding is found between our last layer and `other class`
+        # Bindings are defined as a list of tuples `layer.payload_guess`
+        other_in_payload_guess = any(other.__class__ in binding for binding in last_layer.payload_guess)
 
         # If no binding found and that we want to automatically add one
         if isinstance(other, Packet) and autobind and not other_in_payload_guess:
-            self.scapy_pkt.payload_guess.insert(0, ({}, other.__class__))
-            # We may use bind_layers function family instead of editing payload_guess
-            # directly, something like : bind_layers(self.scapy_pkt.__class__, other.__class__)
+            last_layer.payload_guess.insert(0, ({}, other.__class__))
+            # We may also use bind_layers function family instead of editing payload_guess
             pass
         self.scapy_pkt = self.scapy_pkt / other
 
