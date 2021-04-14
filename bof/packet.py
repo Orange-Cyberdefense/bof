@@ -238,3 +238,11 @@ class BOFPacket(object):
             elif isinstance(item, Field):
                 fieldlist.append(item)
         return fieldlist
+
+
+def _replace_pkt_class(pkt, new_class_name):
+    in_payload_guess = any(pkt.__class__ in binding for binding in pkt.underlayer.payload_guess)
+    new_class = type(new_class_name, (pkt.__class__,), {})
+    pkt.__class__ = new_class
+    if in_payload_guess:
+        pkt.underlayer.payload_guess.insert(0, ({}, pkt.__class__))
