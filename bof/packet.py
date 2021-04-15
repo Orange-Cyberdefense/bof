@@ -136,16 +136,36 @@ class BOFPacket(object):
         return fieldlist
 
 
-def _replace_pkt_class(packet, new_class_name):
-    """:TODO:"""
+def clone_pkt_class(packet, name):
+    """Replaces the Scapy `packet` class by a new class being the exact copy
+    of itself. This is a trick used when we need to modify a Packet class
+    attribute without affecting all object instance (eg: fields_desc to
+    dynamically add a new field).
+
+    :param packet: the Scapy Packet to update
+    :param name: the new class name for packet
+
+    Example::
+
+        scapy_pkt1 = SNMP()
+        scapy_pkt2 = SNMP()
+        clone_pkt_class(scapy_pkt1, "SNMP2")
+        scapy_pkt1.fields_desc.append(new_field)
+
+        As a result, scapy_pkt2 won't contain the new field.
+    """
+    # Checks if a binding is found between our packet and its preceding layer for later use
+    # (bindings are defined as a list of tuples `layer.payload_guess`)
     in_payload_guess = any(packet.__class__ in binding for binding in packet.underlayer.payload_guess)
-    new_class = type(new_class_name, (packet.__class__,), {})
-    packet.__class__ = new_class
+    # Duplicates our packet class and replaces it by the clone
+    class_copy = type(name, (packet.__class__,), {})
+    packet.__class__ = class_copy
+    # Bindings with the preceding layer must be done again
     if in_payload_guess:
         packet.underlayer.payload_guess.insert(0, ({}, packet.__class__))
 
 
-def _add_field(packet, new_field, value=None):
+def add_field(packet, new_field, value=None):
     """
     :TODO: docstring
     :TODO: Option to add a field wherever we want in the packet (=> insert
