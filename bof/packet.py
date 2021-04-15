@@ -162,23 +162,33 @@ def clone_pkt_class(packet, name):
     packet.__class__ = class_copy
     # Bindings with the preceding layer must be done again
     if in_payload_guess:
+        # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
         packet.underlayer.payload_guess.insert(0, ({}, packet.__class__))
 
 
 def add_field(packet, new_field, value=None):
+    """Adds a new Scapy field at the end of the specified ``packet``.
+
+    :param packet: the Scapy packet/layer to update with a new field
+    :param new_field: the Scapy Field to add at the end of the packet
+    :param value: a value assigned to the new field
+
+    Example::
+
+        # Basic
+        scapy_pkt = SNMP()
+        new_field = ByteField("new_field", 0x42)
+        add_field(scapy_pkt, new_field, 0x43)
+
+        # With multiple layers
+        scapy_pkt = TCP()/HTTP()
+        new_field = ByteField("new_field", 0x42)
+        add_field(scapy_pkt.getlayer(HTTP), new_field)
     """
-    :TODO: docstring
-    :TODO: Option to add a field wherever we want in the packet (=> insert
-           at the right place)
-    :TODO: Test, including complex fields like PacketField or MultipleTypeField
-    :TODO: Automatically replace duplicated field names to access the right
-           member as property
-    :TODO: Add guess_payload override to handle specific case ? (=> in BOF
-           protocol implementations ?)
-    """
-    # Because we are going to edit packet's class fields, we first need to replace the class by a new one
-    # For now we use a random name just to check it works but we should just increment it
-    _replace_pkt_class(packet, packet.__class__.__name__ + str(randint(1000000, 9999999)))
+    # Because we are going to edit `packet`'s class fields, we first need
+    # to replace the class by a new one
+    # (for now we use a random name to avoid duplicates but we may just increment it somehow ?)
+    clone_pkt_class(packet, packet.__class__.__name__ + str(randint(1000000, 9999999)))
 
     # We reproduce the task performed during a Packet's fields init, but
     # adapt them to a single field addition
@@ -192,8 +202,8 @@ def add_field(packet, new_field, value=None):
         packet.packetfields.append(new_field)
     packet.default_fields[new_field.name] = deepcopy(new_field.default)
 
-    # Similar to the "strange initialization" (lines 164-179 of the
-    # constructor) but for a single field
+    # Similar to the "strange initialization" (lines 164-179 of Scapy
+    # Packet constructor) but for a single field
     fname = new_field.name
     try:
         value = packet.fields.pop(fname)
@@ -206,5 +216,5 @@ def add_field(packet, new_field, value=None):
         fname = packet._resolve_alias(fname)
         packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
 
-    if value != None:
+    if value is not None:
         packet.new_field = value
