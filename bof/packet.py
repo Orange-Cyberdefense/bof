@@ -1,39 +1,37 @@
-"""A BOFPacket represents a complete frame or part of one (a block), as long
-as it contains either a set of packets, a set of fields, or both.
+"""A BOFPacket represents a frame or part of one (a block), that contains
+ packets and fields.
 
-It uses a Scapy-based Packet object, as protocol implementations
-are based on Scapy. The Scapy raw packet object is an attribute of a BOFPacket
-object, which uses it to manipulate the way BOF usually manipulates packets.
-However, you can perform direct "Scapy" stuff on the packet by accessing directly
-BOFPacket.scapy_pkt attribute.
+A BOFPacket uses a Scapy Packet object as attribute, as BOF protocol
+implementations are based on Scapy.
+
+The Scapy Packet is used as a basis for BOF to manipulate frames with its
+own syntax. However, you can still perform "Scapy stuff" on the packet by
+directly accessing BOFPacket.scapy_pkt attribute.
+
+Note that BOFPacket DOES NOT inherit from Scapy packet, because we don't need
+a "specialized" class, but a "translation" from BOF usage to Scapy objects.
 
 Example (keep in mind that BOFPacket should not be instantiated directly :))::
 
-    pkt = BOFPacket()
-    pkt.scapy_pkt.show()
+    TODO:: add example of BOF final syntax + Scapy usage
 
-BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
-"specialized" class, but a "translation" from BOF usage to Scapy objects.
 """
 from random import randint
 
-from scapy.packet import Packet, bind_layers
+from scapy.packet import Packet
 from scapy.fields import Field
 
-import copy
+from copy import deepcopy
 
 
 class BOFPacket(object):
-    """Representation of a network packet in BOF. Base class for BOF "layers".
+    """Representation of a network packet in BOF.
 
-    A packet can be a complete frame or part of one (a block), as long as it contains
-    either a set of packets, a set of fields, or both.
+    A BOFPacket represents a frame or part of one (a block), that contains
+    packets and fields.
 
-    :param scapy_pkt: Scapy actual Packet object (inheriting from packet) and used by
-                      BOF for protocol implementation-related stuff.
-
-    This class should not be instantiated directly but Packet class in BOF layers
-    shall inherit it.
+    This class should not be instantiated directly but protocol-specific
+    Packet class in BOF shall inherit it.
 
     Example::
 
@@ -60,68 +58,26 @@ class BOFPacket(object):
     def __iter__(self):
         yield from self.scapy_pkt.fields_desc
 
-    def __div__(self, other):
-        """Adds the ``other`` ``BOFPacket``'s Scapy payload to the current``BOFPacket``.
-        Note that contrary to ``add_payload``, this works only with ``BOFPacket``, with
-        an automatic binding by default too.
-
-        This method's behavior is similar to the following code::
-
-            self.scapy_pkt = self.scapy_pkt / other_bof_pkt.scapy_pkt
-
-        Additional features::
-
-        - Create a binding "on the fly" if it was not defined in Scapy's implementation
-
-        :param other: BOF packet to add as payload.
-
-        Example::
-
-            # Adding a BOF packet as payload to the current scapy_pkt :
-            bof_pkt1.scapy_pkt = TCP()
-            bof_pkt2.scapy_pkt = ModbusADURequest()
-            bof_pkt3 = bof_pkt1 / bof_pkt2
-
-        :TODO: better test extreme cases for the method (same as add_payload)
-        :TODO: see if adding scapy_pkt to each other is enough ? (loss of bof_pkt attributes)
-        """
-
-        other = other.scapy_pkt
-
-        # Checks if a binding is found between `scapy_pkt` and `other class`
-        # Bindings are defined as a list of tuples `self.scapy_pkt.payload_guess`
-        other_in_payload_guess = any(other.__class__ in binding for binding in self.scapy_pkt.payload_guess)
-
-        # If no binding found and that we want to automatically add one (for now : yes by default)
-        if isinstance(other, Packet) and not other_in_payload_guess:
-            self.scapy_pkt.payload_guess.insert(0, ({}, other.__class__))
-            # We may use bind_layers function family instead of editing payload_guess
-            # directly, something like : bind_layers(self.scapy_pkt.__class__, other.__class__)
-            pass
-        return self.scapy_pkt / other
-
-    __truediv__ = __div__
-
     def show(self, dump=False, indent=3, lvl="", label_lvl=""):
-        return self.scapy_pkt.show(dump=dump, indent=indent, lvl=lvl,
-                                   label_lvl=label_lvl)
+        return self.scapy_pkt.show(dump=dump, indent=indent, lvl=lvl, label_lvl=label_lvl)
 
     def show2(self, dump=False, indent=3, lvl="", label_lvl=""):
-        return self.scapy_pkt.show2(dump=dump, indent=indent, lvl=lvl,
-                                    label_lvl=label_lvl)
+        return self.scapy_pkt.show2(dump=dump, indent=indent, lvl=lvl, label_lvl=label_lvl)
 
     def add_payload(self, other, autobind=False):
-        """Adds the ``other`` Scapy payload to the ``BOFPacket``'s scapy
-        packet attribute.
+        """Adds the ``other`` Scapy payload to the ``BOFPacket``'s scapt_pkt
+         attribute.
 
         This method's behavior is similar to the following code::
 
             self.scapy_pkt = self.scapy_pkt / other
 
-        Additional features::
+        It adds the following features::
 
-        - Bind the ``BOFPacket`` to a Scapy Packet or to an other ``BOFPacket``
-        - Create a binding "on the fly" if it was not defined in Scapy's implementation
+        - Independently add a ``BOFPacket`` or Scapy ``Packet`` as payload of the
+        current ``BOFPacket``
+        - Create a binding "on the fly" between the packet and it's payload if it
+        was not defined in Scapy's implementation
 
         :param other: Scapy or BOF packet to add as payload.
         :param autobind: Whether or not unspecified binding found in Scapy
@@ -138,30 +94,26 @@ class BOFPacket(object):
             bof_pkt2.scapy_pkt = ModbusADURequest()
             bof_pkt1.add_payload(bof_pkt2)
 
-            # Adding a unexpected payload, performing the binding automatically
+            # Adding an "unexpected" payload (here TCP after HTTP)
+            # with automatic rebinding :
+            bof_pkt.add_payload(HTTP())
             bof_pkt.add_payload(TCP(), automatic_binding=True)
-            bof_pkt.add_payload(TCP())
-            # Because two TCP layers aren't supposed to be bound together,
-            # a binding is automatically added
-
-        :TODO: better test extreme cases for the method
-        :TODO: see if adding scapy_pkt to each other is enough ? (loss of bof_pkt attributes)
         """
         if isinstance(other, BOFPacket):
             other = other.scapy_pkt
 
-        # Gets the last payload of our packet, because this is the one we want to bind to the next payload
+        # Gets the last payload of our packet because this is the one we want to bind to the next payload
         last_layer = self.scapy_pkt.lastlayer()
 
-        # Checks if a binding is found between our last layer and `other class`
-        # Bindings are defined as a list of tuples `layer.payload_guess`
+        # Checks if a binding is found between our last layer and the `other` class
+        # (bindings are defined as a list of tuples `layer.payload_guess`)
         other_in_payload_guess = any(other.__class__ in binding for binding in last_layer.payload_guess)
 
         # If no binding found and that we want to automatically add one
         if isinstance(other, Packet) and autobind and not other_in_payload_guess:
+            # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
             last_layer.payload_guess.insert(0, ({}, other.__class__))
-            # We may also use bind_layers function family instead of editing payload_guess
-            pass
+
         self.scapy_pkt = self.scapy_pkt / other
 
     @property
@@ -218,7 +170,7 @@ def _add_field(packet, new_field, value=None):
     packet.fieldtype[new_field.name] = new_field
     if new_field.holds_packets:
         packet.packetfields.append(new_field)
-    packet.default_fields[new_field.name] = copy.deepcopy(new_field.default)
+    packet.default_fields[new_field.name] = deepcopy(new_field.default)
 
     # Similar to the "strange initialization" (lines 164-179 of the
     # constructor) but for a single field
