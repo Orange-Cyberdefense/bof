@@ -39,8 +39,8 @@ class BOFPacket(object):
     """
     scapy_pkt = None
 
-    def __init__(self):
-        self.scapy_pkt = Packet()
+    def __init__(self, scapy_pkt=Packet()):
+        self.scapy_pkt = scapy_pkt
         self.scapy_pkt.name = self.__class__.__name__
 
     def __bytes__(self):
