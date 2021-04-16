@@ -64,6 +64,22 @@ class BOFPacket(object):
     def show2(self, dump=False, indent=3, lvl="", label_lvl=""):
         return self.scapy_pkt.show2(dump=dump, indent=indent, lvl=lvl, label_lvl=label_lvl)
 
+    def set_scapy_pkt(self, packet:Packet) -> None:
+        """Set a content to a Packet directly with Scapy format.
+        Format is from the protocol's implementation in Scapy.
+
+        :param packet: Instantiated Scapy packet.
+        :raises BOFProgrammingError: if packet is not a recognized Scapy Packet
+
+        Example::
+
+            descr_req = BOFPacket(scapy_pkt=KNX()/KNXDescriptionRequest())
+        """
+        if isinstance(packet, Packet):
+            self.scapy_pkt = packet
+        else:
+            raise BOFProgrammingError("Invalid Scapy Packet ({0})".format(packet))
+
     def add_payload(self, other, autobind=False):
         """Adds the ``other`` Scapy payload to the ``BOFPacket``'s scapt_pkt
          attribute.

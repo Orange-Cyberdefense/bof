@@ -96,14 +96,9 @@ class Test03KNXFrameConstructor(unittest.TestCase):
     def test0305_knx_req_type_from_construct_scapy(self):
         """Test that we can create a KNX packet with its type in scapy."""
         from bof.layers.raw_scapy.knx import KNX, KNXDescriptionRequest
-        frame = knx.KNXPacket(type=KNX()/KNXDescriptionRequest())
+        frame = knx.KNXPacket(scapy_pkt=KNX()/KNXDescriptionRequest())
         self.assertEqual(bytes(frame),
                          b'\x06\x10\x02\x03\x00\x0e\x08\x01\x00\x00\x00\x00\x00\x00')
-    def test0305_knx_req_type_from_construct_scapy_meta(self):
-        """Test that we can create a KNX packet with its type <ith scapy object."""
-        from bof.layers.raw_scapy.knx import KNX
-        frame = knx.KNXPacket(type=KNX)
-        self.assertEqual(bytes(frame), b'\x06\x10\x00\x00\x00\x06')
     def test0306_knx_req_type_from_construct_invalid_str(self):
         """Test that we cannot create a KNX packet with invalid type as string."""
         with self.assertRaises(BOFProgrammingError):
