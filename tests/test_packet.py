@@ -14,24 +14,33 @@ from scapy.contrib.modbus import ModbusADURequest
 from bof.packet import *
 
 
+
 class Test01PacketConstruct(unittest.TestCase):
     """Test class for raw BOFPacket initialization.
-    BOFPacket are not supposed to be instantiated directly.
+    Note that BOFPacket are not supposed to be instantiated directly.
     """
 
     def test_0101_bofpacket_construct(self):
         """Test empty constructor."""
-        pkt = BOFPacket()
-        self.assertEqual(pkt.name, "BOFPacket")
+        bof_pkt = BOFPacket()
+        # we check that it correctly initializes its attributes
+        self.assertEqual(bof_pkt.name, "BOFPacket")
+        self.assertEqual(bof_pkt.scapy_pkt.__class__, Packet().__class__)
 
     def test_0102_bofpacket_child_construct(self):
         """Test that we can build an object inheriting from BOFPacket."""
+        from tests.test_layers.otter.otter_packet import BOFBasicOtterPacket1
+        from tests.test_layers.raw_scapy.otter import ScapyBasicOtterPacket1
+        bof_pkt = BOFBasicOtterPacket1()
+        # we check that it correctly initializes its attributes
+        self.assertEqual(bof_pkt.name, "BOFBasicOtterPacket1")
+        self.assertEqual(bof_pkt.scapy_pkt.__class__, ScapyBasicOtterPacket1().__class__)
 
-        class OtterPacket(BOFPacket):
-            pass
-
-        pkt = OtterPacket()
-        self.assertEqual(pkt.name, "OtterPacket")
+    def test_0103_bofpacket_scapy_param_construct(self):
+        from tests.test_layers.raw_scapy.otter import ScapyBasicOtterPacket1
+        """Test scapy_pkt parameter in constructor"""
+        bof_pkt = BOFPacket(scapy_pkt=ScapyBasicOtterPacket1())
+        self.assertEqual(bof_pkt.scapy_pkt.__class__, ScapyBasicOtterPacket1().__class__)
 
 
 class Test02ScapyLayers(unittest.TestCase):
@@ -170,15 +179,15 @@ class Test04PacketManipulations(unittest.TestCase):
 
     def test_0401_bofpacket_scapylayer_addfield(self):
         """Test that we can add a new field at the end of existing BOFPacket."""
-        self.bof_pkt.add_field(ByteField("new_field", 0x01))
+        add_field(ByteField("new_field", 0x01))
         self.assertEqual(self.bof_pkt.scapy_pkt.new_field, 0x01)
 
     def test_0402_bofpacket_scapylayer_addfield_value(self):
         """Test that we can add a new field to BOFPacket with a specified value."""
-        self.bof_pkt.add_field(ByteField("new_field", 0x01), 0x02)
+        add_field(ByteField("new_field", 0x01), 0x02)
         self.assertEqual(self.bof_pkt.scapy_pkt.new_field, 0x02)
 
     def test_0403_bofpacket_scapylayer_addfield_packet(self):
         """Test that we can add a Packet Field at the end of existing BOFPacket."""
-        self.bof_pkt.add_field(PacketField("new_packet_field", TCP(sport=12345), TCP))
+        add_field(PacketField("new_packet_field", TCP(sport=12345), TCP))
         self.assertEqual(self.bof_pkt.scapy_pkt.new_packet_field.sport, 12345)
