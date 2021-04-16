@@ -23,6 +23,7 @@ from scapy.fields import Field
 
 from copy import deepcopy
 
+from .base import BOFProgrammingError
 
 class BOFPacket(object):
     """Representation of a network packet in BOF.
@@ -39,9 +40,8 @@ class BOFPacket(object):
     """
     scapy_pkt = None
 
-    def __init__(self, scapy_pkt=Packet()):
+    def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=None):
         self.scapy_pkt = scapy_pkt
-        self.scapy_pkt.name = self.__class__.__name__
 
     def __bytes__(self):
         return bytes(self.scapy_pkt)
@@ -49,20 +49,28 @@ class BOFPacket(object):
     def __len__(self):
         return len(self.scapy_pkt)
 
-    # def __str__(self):
-    #     return "{0}: {1}".format(self.__class__.__name__, self.name)
+    def __str__(self):
+        return str(self.scapy_pkt)
 
     def __getattr__(self, attr):
-        return self.scapy_pkt.__getattr__(attr)
+        if self.scapy_pkt and hasattr(self.scapy_pkt, attr):
+            return getattr(self.scapy_pkt, attr)
+        return object.__getattribute__(self, attr)
 
     def __iter__(self):
-        yield from self.scapy_pkt.fields_desc
+        if self.scapy_pkt:
+            yield from self.scapy_pkt.fields_desc
+        else:
+            raise BOFProgrammingError("BOFPacket object is empty!")
 
     def show(self, dump=False, indent=3, lvl="", label_lvl=""):
         return self.scapy_pkt.show(dump=dump, indent=indent, lvl=lvl, label_lvl=label_lvl)
 
     def show2(self, dump=False, indent=3, lvl="", label_lvl=""):
         return self.scapy_pkt.show2(dump=dump, indent=indent, lvl=lvl, label_lvl=label_lvl)
+
+    def get_field(self, field) -> object:
+        return self.scapy_pkt.get_field(field)
 
     def set_scapy_pkt(self, packet:Packet) -> None:
         """Set a content to a Packet directly with Scapy format.
@@ -133,12 +141,8 @@ class BOFPacket(object):
         self.scapy_pkt = self.scapy_pkt / other
 
     @property
-    def name(self) -> str:
-        return self.scapy_pkt.name
-
-    @name.setter
-    def name(self, name: str) -> None:
-        self.scapy_pkt.name = name
+    def type(self) -> str:
+        return self.__class__.__name__
 
     @property
     def fields(self):

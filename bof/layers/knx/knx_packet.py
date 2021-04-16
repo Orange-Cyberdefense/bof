@@ -18,6 +18,8 @@ SID = type('SID', (object,),
            {to_property(v):k.to_bytes(2, byteorder='big') \
             for k,v in scapy_knx.SERVICE_IDENTIFIER_CODES.items()})()
 
+TYPE_FIELD = "service_identifier"
+
 #-----------------------------------------------------------------------------#
 # KNXPacket class                                                             #
 #-----------------------------------------------------------------------------#
@@ -60,16 +62,28 @@ class KNXPacket(BOFPacket):
         :param ptype: Type of frame to build. Ignored if ``_pkt`` set.
                       Should be a value from ``SID`` dict imported from KNX Scapy
                       implementation as a dict key, a string or as bytes.
-        :raises BOFProgrammingError: if type is unknown.
+        :raises BOFProgrammingError: if type is unknown or invalid.
         """
+        # If type given as a string, we get the corresponding value
         if isinstance(ptype, str):
             for key, value in scapy_knx.SERVICE_IDENTIFIER_CODES.items():
                 if to_property(ptype) == to_property(value):
                     ptype = key.to_bytes(2, byteorder='big')
                     break
-        if isinstance(ptype, bytes):
-            self.scapy_pkt = scapy_knx.KNX()
-        elif isinstance(ptype, Packet):
-            self.scapy_pkt = ptype
-        else:
-            raise BOFProgrammingError("Unknown type for KNXPacket ({0})".format(ptype))
+        # Now, let's guess Packet class from received bytes.
+        if not isinstance(ptype, bytes):
+            raise BOFProgrammingError("Invalid type for KNXPacket ({0})".format(ptype))
+        itype = int.from_bytes(ptype, byteorder="big")
+        try:
+            packet, = [p for f, p in scapy_knx.KNX.payload_guess if f[TYPE_FIELD] == itype]
+        except ValueError:
+            raise BOFProgrammingError("Unknown type for KNXPacket({0})".format(ptype))
+        self.scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet()
+
+    @property
+    def type(self) -> str:
+        if self.scapy_pkt.payload:
+            return self.scapy_pkt.payload.name
+        if self.scapy_pkt:
+            return self.scapy_pkt.name
+        return self.__class__.__name__

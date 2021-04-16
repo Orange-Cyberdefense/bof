@@ -84,15 +84,15 @@ class Test03KNXFrameConstructor(unittest.TestCase):
     def test0302_knx_req_type_from_construct_dict(self):
         """Test that we can create a KNX packet with its type from a dict."""
         frame = knx.KNXPacket(type=knx.SID.description_request)
-        self.assertEqual(frame.service_identifier, b"\x02\x03")
+        self.assertEqual(frame.service_identifier, 0x0203)
     def test0303_knx_req_type_from_construct_str(self):
         """Test that we can create a KNX packet with its type as a string."""
         frame = knx.KNXPacket(type="DESCRIPTION REQUEST")
-        self.assertEqual(frame.service_identifier, b"\x02\x03")
+        self.assertEqual(frame.service_identifier, 0x0203)
     def test0304_knx_req_type_from_construct_bytes(self):
         """Test that we can create a KNX packet with its type as value in bytes."""
         frame = knx.KNXPacket(type=b"\x02\x03")
-        self.assertEqual(frame.scapy_pkt, "KNXDescriptionRequest")
+        self.assertEqual(frame.type, "DESCRIPTION_REQUEST")
     def test0305_knx_req_type_from_construct_scapy(self):
         """Test that we can create a KNX packet with its type in scapy."""
         from bof.layers.raw_scapy.knx import KNX, KNXDescriptionRequest
@@ -109,13 +109,13 @@ class Test03KNXFrameConstructor(unittest.TestCase):
             frame = knx.KNXPacket(type=b"\x00\x01")
     def test0308_knx_req_type_from_construct_empty(self):
         """Test that we cannot create a KNX packet with empty type."""
-        with self.assertRaises(BOFProgrammingError):
-            frame = knx.KNXPacket(type="")
+        frame = knx.KNXPacket(type="")
+        self.assertEqual(frame.service_identifier, None)
     @unittest.skip("Not implemented yet")
     def test_0309_knx_packet_header_attribute(self):
         """Test that we can create KNX packet and set value to a reachable field."""
         frame = knx.KNXPacket(type=knx.SID.description_request, service_identifier=b"\x02\x01")
-        self.assertEqual(frame.service_identifier, b"\x02\x03")
+        self.assertEqual(frame.service_identifier, 0x0203)
     @unittest.skip("Not implemented yet")
     def test_0310_knx_packet_deeper_attribute(self):
         """Test that we can create KNX packet and set value to any field."""
@@ -135,8 +135,8 @@ class Test04FrameAttributes(unittest.TestCase):
     """Test class for KNX objects acess to subpackets a fields with attributes."""
     def test_0401_knx_attr_direct_read(self):
         """Test that we can directly access the attribute of a packet."""
-        frame = knx.KNXPacket()
-        self.assertEqual(frame.service_identifier, b"\x00\x00")
+        frame = knx.KNXPacket(type=knx.SID.search_request)
+        self.assertEqual(frame.service_identifier, 0x0201)
     @unittest.skip("Not implemented yet")
     def test_0402_knx_attr_direct_read(self):
         """Test that we can directly change the attribute of a packet."""

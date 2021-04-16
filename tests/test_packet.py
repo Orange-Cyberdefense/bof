@@ -22,7 +22,7 @@ class Test01PacketConstruct(unittest.TestCase):
     def test_0101_bofpacket_construct(self):
         """Test empty constructor."""
         pkt = BOFPacket()
-        self.assertEqual(pkt.name, "BOFPacket")
+        self.assertEqual(pkt.type, "BOFPacket")
 
     def test_0102_bofpacket_child_construct(self):
         """Test that we can build an object inheriting from BOFPacket."""
@@ -31,7 +31,7 @@ class Test01PacketConstruct(unittest.TestCase):
             pass
 
         pkt = OtterPacket()
-        self.assertEqual(pkt.name, "OtterPacket")
+        self.assertEqual(pkt.type, "OtterPacket")
 
 
 class Test02ScapyLayers(unittest.TestCase):
@@ -44,6 +44,7 @@ class Test02ScapyLayers(unittest.TestCase):
                 self.scapy_pkt = ModbusADURequest()
 
         modbus_pkt = Modbus()
+        print(modbus_pkt.scapy_pkt.name)
         self.assertEqual(modbus_pkt.name, "ModbusADU")
 
     def test_0202_bofpacket_scapylayer_standalone(self):
@@ -139,25 +140,19 @@ class Test03PacketBuiltins(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.pkt = BOFPacket()
+        self.pkt = BOFPacket(scapy_pkt=ModbusADURequest())
 
     def test_0301_bofpacket_bytes(self):
         """Test that bytes() prints Scapy packet bytes."""
-        self.assertEqual(bytes(self.pkt), b"")  # TODO
+        self.assertEqual(bytes(self.pkt)[0:2], b"\x00\x00")
 
     def test_0302_bofpacket_len(self):
         """Test that len() prints Scapy packet length."""
-        self.assertEqual(len(self.pkt), 0)  # TODO
+        self.assertEqual(len(self.pkt), 7)
 
-    @unittest.skip("We don't know what output we want for str()")
-    def test_0302_bofpacket_str(self):
-        """Test that str() prints Scapy packet string."""
-        self.assertEqual(str(self.pkt), "") # TODO
-
-    def test_0302_bofpacket_iter(self):
+    def test_0303_bofpacket_iter(self):
         """Test that str() prints Scapy packet fields."""
-        self.assertEqual([x.name for x in self.pkt], [])  # TODO
-
+        self.assertEqual([x.name for x in self.pkt], ["transId", "protoId", "len", "unitId"])
 
 class Test04PacketManipulations(unittest.TestCase):
     """Test class for dynamically manipulate packet content.
