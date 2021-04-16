@@ -78,9 +78,7 @@ class Test03PacketBuiltins(unittest.TestCase):
 
 
 class Test04PayloadAddition(unittest.TestCase):
-    """Test class for raw BOFPacket initialization.
-    Note that BOFPacket are not supposed to be instantiated directly.
-    """
+    """Test for BOFPacket's payload addition functionality (add_payload())"""
 
     def test_0401_bofpacket_addpayload_base_scapy(self):
         """Test that we can add a Scapy layer as a payload for a BOFPacket's scapy_pkt."""
@@ -137,9 +135,35 @@ class Test04PayloadAddition(unittest.TestCase):
         self.assertEqual(bytes(bof_pkt1), bytes(ScapyBasicOtterPacket1()) + bytes(ScapyBasicOtterPacket2()) + bytes(ScapyBasicOtterPacket3()))
         # effectively tests for "logical" payload binding (in addition to the correct frame bytes)
         self.assertEqual(bof_pkt1.scapy_pkt.__class__(raw(bof_pkt1.scapy_pkt)).payload.payload.name, "basic_otter_packet_3")
-        pass
 
     def test_0405_bofpacket_addpayload_automatic_guess(self): # TODO
         """Test dynamic payload binding when specific conditions are used
          via guess_payload in Scapy implementation"""
         pass
+
+
+class Test05PacketClassClone(unittest.TestCase):
+    """Test for Scapy packet/layer duplication (clone_pkt_class())"""
+
+    def test_0501_packet_clone_edit_classattr(self):
+        """Test that packet cloning effectively creates a separate instance of the object."""
+        from tests.test_layers.raw_scapy.otter import ScapyBasicOtterPacket1
+        from scapy.compat import raw
+        from scapy.fields import ByteField
+        scapy_pkt1 = ScapyBasicOtterPacket1()
+        scapy_pkt2 = ScapyBasicOtterPacket1()
+        # we clone scapy_pkt1 in order to add a field to the mutable class variable fields_desc
+        clone_pkt_class(scapy_pkt1, "basic_otter_packet_1_clone")
+        new_field = ByteField("new_field", 0x42)
+        scapy_pkt1.fields_desc.append(new_field)
+        # we make sure that scapy_pkt1.fields_desc is not edited
+        self.assertTrue(new_field in scapy_pkt1.fields_desc and new_field not in scapy_pkt2.fields_desc)
+
+    def test_0502_packet_clone_layers(self):
+        """Test that packet cloning preserves layers organization and bindings."""
+        from tests.test_layers.raw_scapy.otter import ScapyBasicOtterPacket1, ScapyBasicOtterPacket2, ScapyBasicOtterPacket4
+        from scapy.compat import raw
+        scapy_pkt = ScapyBasicOtterPacket1()/ScapyBasicOtterPacket2()/ScapyBasicOtterPacket4()
+        clone_pkt_class(scapy_pkt.getlayer("basic_otter_packet_2"), "basic_otter_packet_2_clone")
+        self.assertEqual(bytes(scapy_pkt), bytes(ScapyBasicOtterPacket1()) + bytes(ScapyBasicOtterPacket2()) + bytes(ScapyBasicOtterPacket4()))
+        self.assertEqual(scapy_pkt.__class__(raw(scapy_pkt)).getlayer("basic_otter_packet_2").name, "basic_otter_packet_2")

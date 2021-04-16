@@ -134,6 +134,8 @@ class BOFPacket(object):
         # Gets the last payload of our packet because this is the one we want to bind to the next payload
         last_layer = self.scapy_pkt.lastlayer()
 
+        clone_pkt_class(last_layer, last_layer.__class__.__name__ + str(randint(1000000, 9999999)))
+
         # Checks if a binding is found between our last layer and the `other` class
         # (bindings are defined as a list of tuples `layer.payload_guess`)
         other_in_payload_guess = any(other.__class__ in binding for binding in last_layer.payload_guess)
@@ -181,7 +183,9 @@ def clone_pkt_class(packet, name):
     """
     # Checks if a binding is found between our packet and its preceding layer for later use
     # (bindings are defined as a list of tuples `layer.payload_guess`)
-    in_payload_guess = any(packet.__class__ in binding for binding in packet.underlayer.payload_guess)
+    in_payload_guess = False
+    if packet.underlayer is not None:
+        in_payload_guess = any(packet.__class__ in binding for binding in packet.underlayer.payload_guess)
     # Duplicates our packet class and replaces it by the clone
     class_copy = type(name, (packet.__class__,), {})
     packet.__class__ = class_copy
