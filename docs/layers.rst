@@ -21,6 +21,14 @@ KNX
    :members:
    :undoc-members:
    :show-inheritance:
+.. automodule:: bof.layers.knx_network
+   :members:
+   :undoc-members:
+   :show-inheritance:
+.. automodule:: bof.layers.knx_packet
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Modbus
 ------

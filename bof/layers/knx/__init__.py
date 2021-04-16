@@ -1,4 +1,8 @@
-"""TODO
+"""
+KNX and KNXnet/IP
+-----------------
+
+TODO
 """
 
 from .knx_network import *

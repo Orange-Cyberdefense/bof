@@ -1,15 +1,35 @@
-"""TODO
+"""
+KNXPacket
+---------
+
+This class inheriting from ``BOFPacket`` is the interface between BOF's usage
+of KNX by the end user and an actual Scapy packet built using KNX's
+implementation in Scapy format.
+
+In BOFPacket and KNXPacket, several builtin methods and attributes are just
+relayed to the Scapy Packet underneath. We also want to let the user interact
+directly with the Scapy packet if she wants, using ``scapy_pkt`` attribute.
+
+Example::
+
+    >>> from bof.layers.knx import *
+    >>> packet = KNXPacket(type=SID.description_request)
+    >>> packet
+    <bof.layers.knx.knx_packet.KNXPacket object at 0x7ff74224add8>
+    >>> packet.scapy_pkt
+    <KNX  service_identifier=DESCRIPTION_REQUEST |<KNXDescriptionRequest  \
+    control_endpoint=<HPAI  |> |>>
 """
 
+from scapy.packet import Packet
+# Internal
 from bof.layers.raw_scapy import knx as scapy_knx
 from bof.packet import BOFPacket
 from bof.base import BOFProgrammingError, to_property
 
-from scapy.packet import Packet
-
-#-----------------------------------------------------------------------------#
+###############################################################################
 # CONSTANTS                                                                   #
-#-----------------------------------------------------------------------------#
+###############################################################################
 
 # Converts Scapy KNX's SERVICE_IDENTIFIER_CODES dict with format
 # {byte value: service name} to the opposite, so that the end user can call
@@ -20,31 +40,30 @@ SID = type('SID', (object,),
 
 TYPE_FIELD = "service_identifier"
 
-#-----------------------------------------------------------------------------#
+###############################################################################
 # KNXPacket class                                                             #
-#-----------------------------------------------------------------------------#
+###############################################################################
 
 class KNXPacket(BOFPacket):
-    """TODO"""
+    """Builds a KNXPacket packet from a byte array or from attributes.
+
+    :param _pkt: KNX frame as byte array to build KNXPacket from.
+    :param scapy_pkt: Instantiated Scapy Packet to use as a KNXPacket.
+    :param type: Type of frame to build. Ignored if ``_pkt`` set.
+                 Should be a value from ``SID`` dict imported from KNX Scapy
+                 implementation as a dict key, a string or as bytes.
+
+    Example of initialization::
+
+        pkt = KNXPacket(b"\x06\x10[...]") # From frame as a byte array
+        pkt = KNXPacket(type=SID.description_request) # From service id dict
+        pkt = KNXPacket(type="DESCRIPTION REQUEST") # From service id name
+        pkt = KNXPacket(type=b"\x02\x03") # From service id value
+        pkt = KNXPacket(scapy_pkt=KNX()/KNXDescriptionRequest()) # With Scapy Packet
+        pkt = KNXPacket() # Empty packet (just a KNX header)
+    """
 
     def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=None, type:object=None, **kwargs) -> None:
-        """Builds a KNXPacket packet from a byte array or from attributes.
-
-        :param _pkt: KNX frame as byte array to build KNXPacket from.
-        :param scapy_pkt: Instantiated Scapy Packet to use as a KNXPacket.
-        :param type: Type of frame to build. Ignored if ``_pkt`` set.
-                     Should be a value from ``SID`` dict imported from KNX Scapy
-                     implementation as a dict key, a string or as bytes.
-
-        Example of initialization::
-
-            pkt = KNXPacket(b"\x06\x10[...]") # From frame as a byte array
-            pkt = KNXPacket(type=SID.description_request) # From service id dict
-            pkt = KNXPacket(type="DESCRIPTION REQUEST") # From service id name
-            pkt = KNXPacket(type=b"\x02\x03") # From service id value
-            pkt = KNXPacket(scapy_pkt=KNX()/KNXDescriptionRequest()) # With Scapy Packet
-            pkt = KNXPacket() # Empty packet (just a KNX header)
-        """
         # Initialize Scapy object from bytes or as an empty KNX packet
         if _pkt or (not type and not scapy_pkt):
             self.scapy_pkt = scapy_knx.KNX(_pkt=_pkt)
@@ -52,7 +71,7 @@ class KNXPacket(BOFPacket):
             self.set_scapy_pkt(scapy_pkt)
         else:
             self.set_type(type)
-        # Handle keyword arguments
+        # TODO: Handle keyword arguments
         if kwargs:
             print(kwargs)
 

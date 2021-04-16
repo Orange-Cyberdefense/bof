@@ -19,16 +19,13 @@ class Test01PacketConstruct(unittest.TestCase):
     def test_0101_bofpacket_construct(self):
         """Test empty constructor."""
         bof_pkt = BOFPacket()
-        # we check that it correctly initializes its attributes
         self.assertEqual(bof_pkt.type, "BOFPacket")
-        self.assertEqual(bof_pkt.scapy_pkt.__class__, Packet().__class__)
 
     def test_0102_bofpacket_child_construct(self):
         """Test that we can build an object inheriting from BOFPacket."""
         from tests.test_layers.otter.otter_packet import BOFBasicOtterPacket1
         from tests.test_layers.raw_scapy.otter import ScapyBasicOtterPacket1
         bof_pkt = BOFBasicOtterPacket1()
-        # we check that it correctly initializes its attributes
         self.assertEqual(bof_pkt.name, "BOFBasicOtterPacket1")
         self.assertEqual(bof_pkt.scapy_pkt.__class__, ScapyBasicOtterPacket1().__class__)
 

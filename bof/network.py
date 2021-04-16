@@ -20,11 +20,9 @@ Network connection and example with raw UDP::
 
 Usage is the same with raw TCP.
 
-.. warning:: Direct initialization of TCP/UDP object is not recommended. The user
-             should use classes inherited from TCP/UDP, such as the KNX protocol
-             implementation class (``bof.knx.KnxNet``). Regular network usage
-             is the same except for protocol-specific actions and attributes.
-             Details are given in the chapter dedicated to the chosen protocol.
+.. warning:: Direct initialization of TCP/UDP object is not recommended.
+             The user should use BOF network classes inherited from
+             TCP/UDP (e.g. ``KnxNet`` for the ``KNX`` protocol).
 """
 
 import asyncio
@@ -110,9 +108,10 @@ class _Transport(object):
     #-------------------------------------------------------------------------#
 
     def connect(self, ip:str, port:int) -> object:
-        """Connect to a server at address ``ip``:``port``. As asyncio classes
-        have different methods to initialize a connection depending on the
-        protocol, this method should be implemented in subclasses.
+        """Connect to a server at address ``ip``:``port``. (ABSTRACT)
+        As asyncio classes have different methods to initialize a connection
+        depending on the protocol, this method should be always implemented
+        in subclasses.
         """
         raise NotImplementedError("Method must be implemented in subclasses")
 
@@ -124,15 +123,14 @@ class _Transport(object):
             log("Disconnected.")
 
     def send(self, data:bytes, address:tuple=None) -> int:
-        """Sends ``data`` to ``address``. As asyncio classes have different
-        methods to send data depending on the protocol, this method should be
-        implemented in subclasses.
+        """Sends ``data`` to ``address``. (ABSTRACT)
+        As asyncio classes have different methods to send data depending on
+        the protocol, this method should always be implemented in subclasses.
         """
         raise NotImplementedError("Method must be implemented in subclasses")
 
     def receive(self, timeout:float=1.0) -> (bytes, tuple):
-        """Listen on the network until receiving a packet on the socket or until
-        ``timeout``.
+        """Listen on the network until receiving a packet or until ``timeout``.
 
         :param timeout: Time out value in seconds,  as a float (default is 1.0s).
         :returns: A tuple ``(data:bytes, address:tuple)`` where address is the
@@ -150,7 +148,7 @@ class _Transport(object):
         return data, address
 
     def send_receive(self, data:bytes, address:tuple=None, timeout:float=1.0) -> (bytes, tuple):
-        """sends a packet to ``address``, wait for a response until ``timeout``.
+        """Sends a packet to ``address``, wait for a response until ``timeout``.
 
         :param data: Raw byte array or string to send.
         :param address: Remote network address with format tuple ``(ip, port)``.
@@ -187,7 +185,7 @@ class _Transport(object):
         raise BOFNetworkError(message) from None
 
     def _receive(self, data:bytes, address:tuple) -> None:
-        """Receives raw datagram and adds it to queue for processing.
+        """Receives a raw datagram and adds it to queue for processing.
         
         .. warning:: Should not be called directly.
         """
@@ -202,9 +200,7 @@ class _Transport(object):
     #-------------------------------------------------------------------------#
 
     async def __listen_once(self, timeout:float=1.0) -> (bytes, tuple):
-        """Listen until a packet is received from the connection or until
-        ``timeout`` (default: 1 second).
-        """
+        """Listen until a packet is received or until ``timeout``."""
         if not isinstance(timeout, float) and not isinstance(timeout, int):
             raise BOFProgrammingError("Timeout expects a float (seconds)")
         try:
@@ -264,6 +260,8 @@ class UDP(_Transport):
     This is the parent class to higher-lever network protocol implementation.
     It can be instantiated as is, however this is not the expected behavior.
     Uses protected ``_UDP`` classes implementing ``asyncio`` UDP handler.
+
+    .. warning:: Should not be instantiated directly.
     """
 
     #-------------------------------------------------------------------------#
@@ -271,8 +269,7 @@ class UDP(_Transport):
     #-------------------------------------------------------------------------#
 
     def connect(self, ip:str, port:int) -> object:
-        """Initialize asynchronous connection using UDP transport on remote
-        address specified with `ip` and `port`.
+        """Initialize asynchronous connection using UDP on ``ip``:``port``.
 
         :param ip: IPv4 address as a string with format ``A.B.C.D``.
         :param port: Port number as an integer.
@@ -342,6 +339,8 @@ class TCP(_Transport):
     This is the parent class to higher-lever network protocol implementation.
     It can be instantiated as is, however this is not the expected behavior.
     Uses protected ``_TCP`` classes implementing ``asyncio`` TCP handler.
+
+    .. warning:: Should not be instantiated directly.
     """
 
     #-------------------------------------------------------------------------#
@@ -349,8 +348,7 @@ class TCP(_Transport):
     #-------------------------------------------------------------------------#
 
     def connect(self, ip:str, port:int) -> object:
-        """Initialize asynchronous connection using TCP transport on remote
-        address specified with `ip` and `port`.
+        """Initialize asynchronous connection using TCP on ``ip``:``port``.
 
         :param ip: IPv4 address as a string with format ``A.B.C.D``.
         :param port: Port number as an integer.

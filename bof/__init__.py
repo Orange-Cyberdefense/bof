@@ -17,6 +17,12 @@ The following submodules are available:
     The content of this class should not be used directly, unless writing a
     new protocol submodule. Available from direct bof import (``import bof``)
 
+:packet:
+    Base classe for specialized BOF packets in layers. Such classes link BOF
+    content and usage to protocol implementations in Scapy. Technically
+    speaking, they are the interface between BOF's end user and Scapy Packet
+    and Field objects.
+
 :layers:
     Protocol implementations to be imported in BOF. Importing ``layers`` gives
     acces to BOF protocol implementations as well as raw Scapy implementations
@@ -24,7 +30,7 @@ The following submodules are available:
 """
 
 ###############################################################################
-# Include content to be imported by module users                              #
+# Include content to be imported by module users when importing "bof"         #
 ###############################################################################
 
 from .base import *
