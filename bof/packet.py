@@ -23,7 +23,8 @@ from scapy.fields import Field
 
 from copy import deepcopy
 
-from .base import BOFProgrammingError
+from bof import BOFProgrammingError
+
 
 class BOFPacket(object):
     """Representation of a network packet in BOF.
@@ -34,13 +35,17 @@ class BOFPacket(object):
     This class should not be instantiated directly but protocol-specific
     Packet class in BOF shall inherit it.
 
+    :param _pkt: Raw Packet bytes used to build a frame (mostly done at reception)
+    :param scapy_pkt: Scapy actual Packet object (inheriting from packet) and used by
+                      BOF for protocol implementation-related stuff.
+
     Example::
 
         class OtterPacket(BOFPacket)
     """
     scapy_pkt = None
 
-    def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=None):
+    def __init__(self, _pkt: bytes = None, scapy_pkt: Packet = Packet()):
         self.scapy_pkt = scapy_pkt
 
     def __bytes__(self):
@@ -72,7 +77,7 @@ class BOFPacket(object):
     def get_field(self, field) -> object:
         return self.scapy_pkt.get_field(field)
 
-    def set_scapy_pkt(self, packet:Packet) -> None:
+    def set_scapy_pkt(self, packet: Packet) -> None:
         """Set a content to a Packet directly with Scapy format.
         Format is from the protocol's implementation in Scapy.
 
