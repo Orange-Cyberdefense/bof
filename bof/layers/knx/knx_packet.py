@@ -21,6 +21,7 @@ Example::
     control_endpoint=<HPAI  |> |>>
 """
 
+# Scapy
 from scapy.packet import Packet
 # Internal
 from bof.layers.raw_scapy import knx as scapy_knx
@@ -66,9 +67,9 @@ class KNXPacket(BOFPacket):
     def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=None, type:object=None, **kwargs) -> None:
         # Initialize Scapy object from bytes or as an empty KNX packet
         if _pkt or (not type and not scapy_pkt):
-            self.scapy_pkt = scapy_knx.KNX(_pkt=_pkt)
+            self._scapy_pkt = scapy_knx.KNX(_pkt=_pkt)
         elif scapy_pkt:
-            self.set_scapy_pkt(scapy_pkt)
+            self.scapy_pkt = scapy_pkt
         else:
             self.set_type(type)
         # TODO: Handle keyword arguments
@@ -97,12 +98,12 @@ class KNXPacket(BOFPacket):
             packet, = [p for f, p in scapy_knx.KNX.payload_guess if f[TYPE_FIELD] == itype]
         except ValueError:
             raise BOFProgrammingError("Unknown type for KNXPacket({0})".format(ptype))
-        self.scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet()
+        self._scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet()
 
     @property
     def type(self) -> str:
-        if self.scapy_pkt.payload:
-            return self.scapy_pkt.payload.name
-        if self.scapy_pkt:
-            return self.scapy_pkt.name
+        if self._scapy_pkt.payload:
+            return self._scapy_pkt.payload.name
+        if self._scapy_pkt:
+            return self._scapy_pkt.name
         return self.__class__.__name__
