@@ -96,24 +96,51 @@ class BOFPacket(object):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def append(self, other:object, autobind:bool=False) -> None:
+    def append(self, other:object, autobind:bool=False, packet=None, value=None) -> None:
         """Adds either a BOFPacket, Scapy Packet or Field to current packet.
 
         :param other: BOFPacket or Scapy Packet or field to append as payload.
         :param autobind: Whether or not unspecified binding found in Scapy
                          implementation are automatically added.
+        :param packet: Packet at to append ``other`` to.
+        :param value: Value to set to a newly-created field.
         :raises BOFProgrammingError: if type is not supported.
         """
         if isinstance(other, BOFPacket) or isinstance(other, Packet):
             self._add_payload(other, autobind=autobind)
         elif isinstance(other, Field): # TODO
-            raise NotImplementedError("Don't know how to append a field yet.")
+            self._add_field(other, packet=packet, value=value)
         else:
             raise BOFProgrammingError("Unknown type to append ({0})".format(type(other)))
 
     #-------------------------------------------------------------------------#
     # Protected                                                               #
     #-------------------------------------------------------------------------#
+
+    @staticmethod
+    def _clone(packet:Packet, name:str):
+        """Replaces the Scapy ``packet`` class by an exact copy.
+        This is a trick used when we need to modify a ``Packet`` class attribute
+        without affecting all instances of an object.
+        For instance, if we change ``fields_desc`` to add a field, all new
+        instances will be changed as this is a class attribute.
+        
+        :param packet: the Scapy Packet to update
+        :param name: the new class name for packet
+        """
+        # Checks if a binding exists between packet and its preceding layer
+        # (bindings are defined as a list of tuples `layer.payload_guess`)
+        in_payload_guess = False
+        if packet.underlayer is not None:
+            in_payload_guess = any(packet.__class__ in binding \
+                                   for binding in packet.underlayer.payload_guess)
+        # Duplicates our packet class and replaces it by the clone
+        class_copy = type(name, (packet.__class__,), {})
+        packet.__class__ = class_copy
+        # Bindings with the preceding layer must be done again
+        if in_payload_guess:
+            packet.underlayer.payload_guess.insert(0, ({}, packet.__class__))
+            # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
 
     def _add_payload(self, other:object, autobind:bool=False) -> None:
         """Adds ``other`` Scapy payload to ``scapy_pkt`` attribute.
@@ -154,7 +181,7 @@ class BOFPacket(object):
         # Gets the last payload of our packet (will be bound to next payload)
         lastlayer = self._scapy_pkt.lastlayer()
         # TODO: Rewrite + Refactor + Test for existing class name
-        clone_pkt_class(lastlayer, lastlayer.__class__.__name__
+        BOFPacket._clone(lastlayer, lastlayer.__class__.__name__
                         + str(randint(1000000, 9999999)))
         # Checks if binding exists between last layer and the other class
         is_binding = any(other.__class__ in b for b in lastlayer.payload_guess)
@@ -162,6 +189,19 @@ class BOFPacket(object):
             lastlayer.payload_guess.insert(0, ({}, other.__class__))
             # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
         self._scapy_pkt = self._scapy_pkt / other
+
+    def _add_field(self, new_field:Field, packet=None, value=None) -> None:
+        """Adds ``new_field`` at the end of current packet or to ``packet``.
+        As this may change the behavior for all instances of the same object,
+        we first replace the class with a new one.
+
+        :param new_field: The Scapy Field to add to current packet's or
+                          ``packet``'s list of fields.
+        :param packet: Packet to change. If not set, default higher level
+                       packet is used.
+        :param value: A value assigned to the new field.
+        """
+        raise NotImplementedError("Don't know how to append a field yet.")
 
     #-------------------------------------------------------------------------#
     # Builtins                                                                #
@@ -190,45 +230,8 @@ class BOFPacket(object):
         else:
             raise BOFProgrammingError("BOFPacket object is empty!")
 
-###############################################################################
-# To refactor (use as classmethod or within class)                            #
-###############################################################################
 
-# As classmethod or protected
-def clone_pkt_class(packet:Packet, name:str):
-    """Replaces the Scapy ``packet`` class by an exact copy.
-    This is a trick used when we need to modify a ``Packet`` class attribute
-    without affecting all instances of an object.
-    For instance, if we change ``fields_desc`` to add a field, all new
-    instances will be changed as this is a class attribute.
-
-    :param packet: the Scapy Packet to update
-    :param name: the new class name for packet
-
-    Example::
-
-        scapy_pkt1 = SNMP()
-        scapy_pkt2 = SNMP()
-        clone_pkt_class(scapy_pkt1, "SNMP2")
-        scapy_pkt1.fields_desc.append(new_field)
-
-        As a result, scapy_pkt2 won't contain the new field.
-    """
-    # Checks if a binding exists between packet and its preceding layer
-    # (bindings are defined as a list of tuples `layer.payload_guess`)
-    in_payload_guess = False
-    if packet.underlayer is not None:
-        in_payload_guess = any(packet.__class__ in binding \
-                               for binding in packet.underlayer.payload_guess)
-    # Duplicates our packet class and replaces it by the clone
-    class_copy = type(name, (packet.__class__,), {})
-    packet.__class__ = class_copy
-    # Bindings with the preceding layer must be done again
-    if in_payload_guess:
-        packet.underlayer.payload_guess.insert(0, ({}, packet.__class__))
-        # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
-
-# TODO: Move to BOFPacket, replace packet with layer name
+# TODO: Move to BOFPacket (_add_field method)
 def add_field(packet:Packet, new_field:Field, value=None) -> None:
     """Adds a new Scapy field at the end of the specified ``packet``.
     As this may change the behavior for all instances of the same object,
@@ -251,7 +254,7 @@ def add_field(packet:Packet, new_field:Field, value=None) -> None:
         add_field(scapy_pkt.getlayer(HTTP), new_field)
     """
     # Replace the class with a new one (with a random name)
-    clone_pkt_class(packet, packet.__class__.__name__ + str(randint(1000000, 9999999)))
+    BOFPacket._clone(packet, packet.__class__.__name__ + str(randint(1000000, 9999999)))
 
     # We reproduce the task performed during a Packet's fields init, but
     # adapt them to a single field addition

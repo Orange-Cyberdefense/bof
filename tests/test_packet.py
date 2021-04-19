@@ -154,7 +154,7 @@ class Test05PacketClassClone(unittest.TestCase):
         scapy_pkt1 = ScapyBasicOtterPacket1()
         scapy_pkt2 = ScapyBasicOtterPacket1()
         # we clone scapy_pkt1 in order to add a field to the mutable class variable fields_desc
-        clone_pkt_class(scapy_pkt1, "basic_otter_packet_1_clone")
+        BOFPacket._clone(scapy_pkt1, "basic_otter_packet_1_clone")
         new_field = ByteField("new_field", 0x42)
         scapy_pkt1.fields_desc.append(new_field)
         # We make sure that scapy_pkt1.fields_desc is not edited
@@ -164,7 +164,7 @@ class Test05PacketClassClone(unittest.TestCase):
     def test_0502_packet_clone_layers(self):
         """Test that packet cloning preserves layers contents and bindings."""
         scapy_pkt = ScapyBasicOtterPacket1()/ScapyBasicOtterPacket2()/ScapyBasicOtterPacket4()
-        clone_pkt_class(scapy_pkt.getlayer("basic_otter_packet_2"), "basic_otter_packet_2_clone")
+        BOFPacket._clone(scapy_pkt.getlayer("basic_otter_packet_2"), "basic_otter_packet_2_clone")
         self.assertEqual(bytes(scapy_pkt), bytes(ScapyBasicOtterPacket1())
                          + bytes(ScapyBasicOtterPacket2())
                          + bytes(ScapyBasicOtterPacket4()))
