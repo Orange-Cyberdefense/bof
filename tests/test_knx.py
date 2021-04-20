@@ -111,23 +111,21 @@ class Test03KNXFrameConstructor(unittest.TestCase):
         """Test that we cannot create a KNX packet with empty type."""
         frame = knx.KNXPacket(type="")
         self.assertEqual(frame.service_identifier, None)
-    @unittest.skip("Not implemented yet")
     def test_0309_knx_packet_header_attribute(self):
         """Test that we can create KNX packet and set value to a reachable field."""
-        frame = knx.KNXPacket(type=knx.SID.description_request, service_identifier=b"\x02\x01")
-        self.assertEqual(frame.service_identifier, 0x0203)
-    @unittest.skip("Not implemented yet")
+        frame = knx.KNXPacket(type=knx.SID.description_request, service_identifier=0x0201)
+        self.assertEqual(frame.service_identifier, 0x0201)
     def test_0310_knx_packet_deeper_attribute(self):
         """Test that we can create KNX packet and set value to any field."""
         frame = knx.KNXPacket(type=knx.SID.description_request, ip_address="192.168.1.1")
+        self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.1")
         self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.1")
-        self.assertEqual(frame.ip_address, "192.168.1.1")
     @unittest.skip("Not implemented yet")
     def test_0311_knx_packet_scapy_attribute(self):
         """Test that we can create KNX packet and set a Scapy packet as attr."""
         from bof.layers.raw_scapy.knx import HPAI
-        scapy_pkt = HPAI(ip_address="192.168.1.2")
-        frame = knx.KNXPacket(type=knx.SID.description_request, control_endpoint=scapy_pkt)
+        my_hpai = HPAI(ip_address="192.168.1.2")
+        frame = knx.KNXPacket(type=knx.SID.description_request, control_endpoint=my_hpai)
         self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.2")
         self.assertEqual(frame.ip_address, "192.168.1.2")
 
@@ -147,15 +145,15 @@ class Test04FrameAttributes(unittest.TestCase):
     def test_0403_knx_attr_deeper_read(self):
         """Test that we can directly access the attribute of a packet."""
         frame = knx.KNXPacket(type=knx.SID.description_request)
-        self.assertEqual(frame.port, b"\x00\x00")
+        self.assertEqual(frame.scapy_pkt.control_endpoint.port, b"\x00\x00")
         self.assertEqual(frame.control_endpoint.port, b"\x00\x00")
-    @unittest.skip("Not implemented yet")
     def test_0404_knx_attr_deeper_write(self):
         """Test that we can directly change the attribute of a packet."""
         frame = knx.KNXPacket(type=knx.SID.description_request)
-        frame.ip_address = "192.168.1.1"
+        frame.control_endpoint.ip_address = "192.168.1.1"
         self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.1")
-        self.assertEqual(frame.ip_address, "192.168.1.1")
+        self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.1")
+        self.assertEqual(frame["ip_address"], b'\xc0\xa8\x01\x01')
     @unittest.skip("Not implemented yet")
     def test_0405_knx_attr_deeper_write_scapyrejected(self):
         """Test that we can directly change the attribute of a packet."""

@@ -72,9 +72,7 @@ class KNXPacket(BOFPacket):
             self.scapy_pkt = scapy_pkt
         else:
             self.set_type(type)
-        # TODO: Handle keyword arguments
-        if kwargs:
-            print(kwargs)
+        self._set_fields(**kwargs)
 
     def set_type(self, ptype:object) -> None:
         """Format packet according to the specified type (service identifier).
@@ -97,7 +95,7 @@ class KNXPacket(BOFPacket):
         try:
             packet, = [p for f, p in scapy_knx.KNX.payload_guess if f[TYPE_FIELD] == itype]
         except ValueError:
-            raise BOFProgrammingError("Unknown type for KNXPacket({0})".format(ptype))
+            raise BOFProgrammingError("Unknown type for KNXPacket ({0})".format(ptype))
         self._scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet()
 
     @property
