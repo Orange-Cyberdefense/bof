@@ -7,10 +7,11 @@
 """
 
 import unittest
+# Scapy
 from scapy.contrib.modbus import ModbusADURequest
 from scapy.compat import raw
 #Internal
-from bof.packet import *
+from bof import BOFProgrammingError, BOFPacket
 from tests.test_layers.otter.otter_packet import BOFBasicOtterPacket1
 from tests.test_layers.raw_scapy.otter import *
 
@@ -34,7 +35,24 @@ class Test01PacketConstruct(unittest.TestCase):
         """Test scapy_pkt parameter in constructor"""
         bof_pkt = BOFPacket(scapy_pkt=ScapyBasicOtterPacket1())
         self.assertEqual(bof_pkt.scapy_pkt.__class__, ScapyBasicOtterPacket1().__class__)
+        self.assertEqual(bof_pkt.basic_otter_1_2, 0x02)
 
+    def test_0104_bofpacket_scapy_attr_init(self):
+        """Test that we can set values to fields in constructor (same type)."""
+        bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2=0x03)
+        self.assertEqual(bof_pkt.basic_otter_1_2, 0x03)
+
+    def test_0105_bofpacket_scapy_attr_init_othertype(self):
+        """Test that we can set values to fields in constructor (any type)."""
+        bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2=b"\x02")
+        self.assertEqual(bof_pkt.basic_otter_1_2, b"\x02")
+        self.assertEqual(bof_pkt["basic_otter_1_2"], b"\x02")
+        # TODO: Make it work with raw() or bytes(bof_pkt)
+
+    def test_0106_bofpacket_scapy_attr_init_invalid(self):
+        """Test that settings values to unknown fields raises exceptions."""
+        with self.assertRaises(BOFProgrammingError):
+            bof_pkt = BOFBasicOtterPacket1(basic_otter_unknown=0x03)
 
 class Test02ScapyLayersAccess(unittest.TestCase):
     """Test class to make sure that we access Scapy layer content."""

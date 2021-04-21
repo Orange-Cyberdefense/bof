@@ -50,6 +50,40 @@ class BOFPacket(object):
     _scapy_pkt = None
 
     #-------------------------------------------------------------------------#
+    # Builtins                                                                #
+    #-------------------------------------------------------------------------#
+
+    def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=Packet(), **kwargs):
+        self.scapy_pkt = scapy_pkt
+        self._set_fields(**kwargs)
+
+    def __bytes__(self):
+        return bytes(self._scapy_pkt)
+
+    def __len__(self):
+        return len(self._scapy_pkt)
+
+    def __str__(self):
+        return str(self._scapy_pkt)
+
+    def __getattr__(self, attr):
+        """Return attr corresponding to fields in the Scapy packet first."""
+        if self._scapy_pkt and hasattr(self._scapy_pkt, attr):
+            return getattr(self._scapy_pkt, attr)
+        return object.__getattribute__(self, attr)
+
+    def __iter__(self):
+        yield from self.fields
+
+    def __getitem__(self, key:str) -> bytes:
+        """Access a field as bytes using syntax ``bof_pkt["fieldname"]``."""
+        for field, parent in self._field_generator():
+            if field.name == key:
+                bfield, value = parent.getfield_and_val(field.name)
+                return bfield.i2m(bfield, value)
+        raise BOFImplementedError("Field does not exist. ({0})".format(key))
+
+    #-------------------------------------------------------------------------#
     # Scapy methods to relay                                                  #
     #-------------------------------------------------------------------------#
 
@@ -91,25 +125,6 @@ class BOFPacket(object):
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
-
-    def any2m(self, value, size:int) -> bytes:
-        """Converts the ``value`` of a field to bytes.
-        This method is a DRAFT, we WILL have to rewrite or replace it.
-        TODO: Size is not always considered
-        TODO: Only a few types are handled, it may raise exceptions.
-        """
-        if isinstance(value, bytes):
-            return value
-        if isinstance(value, int):
-            return value.to_bytes(size, byteorder="big")
-        if isinstance(value, str):
-            try:
-                ip_address(value)
-                return bytes(map(int, value.split('.')))
-            except ValueError:
-                pass
-            return value.encode('utf-8')
-        raise BOFProgrammingError("Unsupported type ({0})".format(type(value)))
 
     def append(self, other:object, autobind:bool=False, packet=None, value=None) -> None:
         """Adds either a BOFPacket, Scapy Packet or Field to current packet.
@@ -179,6 +194,9 @@ class BOFPacket(object):
         for field, parent in self._field_generator():
             if field.name in attrs.keys():
                 setattr(parent, field.name, attrs[field.name])
+                attrs.pop(field.name)
+        if len(attrs):
+            raise BOFProgrammingError("Field does not exist. ({0})".format(list(attrs.keys())[0]))
 
     def _add_field(self, new_field:Field, packet=None, value=None) -> None:
         """Adds ``new_field`` at the end of current packet or to ``packet``.
@@ -240,39 +258,6 @@ class BOFPacket(object):
             lastlayer.payload_guess.insert(0, ({}, other.__class__))
             # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
         self._scapy_pkt = self._scapy_pkt / other
-
-    #-------------------------------------------------------------------------#
-    # Builtins                                                                #
-    #-------------------------------------------------------------------------#
-
-    def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=Packet(), **kwargs):
-        self.scapy_pkt = scapy_pkt
-        self._set_fields(**kwargs)
-
-    def __bytes__(self):
-        return bytes(self._scapy_pkt)
-
-    def __len__(self):
-        return len(self._scapy_pkt)
-
-    def __str__(self):
-        return str(self._scapy_pkt)
-
-    def __getattr__(self, attr):
-        """Return attr corresponding to fields in the Scapy packet first."""
-        if self._scapy_pkt and hasattr(self._scapy_pkt, attr):
-            return getattr(self._scapy_pkt, attr)
-        return object.__getattribute__(self, attr)
-
-    def __iter__(self):
-        yield from self.fields
-
-    def __getitem__(self, key:str) -> bytes:
-        """Access a field as bytes using syntax ``bof_pkt["fieldname"]``."""
-        for field, parent in self._field_generator():
-            if field.name == key:
-                bfield = getattr(parent, field.name)
-        return self.any2m(bfield, getsizeof(type(bfield)))
 
 # TODO: Move to BOFPacket (_add_field method)
 def add_field(packet:Packet, new_field:Field, value=None) -> None:
