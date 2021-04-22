@@ -44,10 +44,10 @@ class Test01PacketConstruct(unittest.TestCase):
 
     def test_0105_bofpacket_scapy_attr_init_othertype(self):
         """Test that we can set values to fields in constructor (any type)."""
-        bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2=b"\x02")
-        self.assertEqual(bof_pkt.basic_otter_1_2, b"\x02")
-        self.assertEqual(bof_pkt["basic_otter_1_2"], b"\x02")
-        # TODO: Make it work with raw() or bytes(bof_pkt)
+        bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2="test")
+        self.assertEqual(bof_pkt.basic_otter_1_2, "test")
+        self.assertEqual(bof_pkt["basic_otter_1_2"], b"test")
+        print(raw(bof_pkt)) # Does not work
 
     def test_0106_bofpacket_scapy_attr_init_invalid(self):
         """Test that settings values to unknown fields raises exceptions."""
@@ -96,6 +96,27 @@ class Test03PacketBuiltins(unittest.TestCase):
         self.assertEqual([x.name for x in self.bof_pkt],
                          [x.name for x in self.scapy_pkt.fields_desc])
 
+class Test04Fields(unittest.TestCase):
+    """Test class for Scapy Fields' management from ``BOFPacket``."""
+    @classmethod
+    def setUp(self):
+        self.bof_pkt = BOFBasicOtterPacket1()
+
+    def test_0401_field_readvalue(self):
+        """Test that we can get the value of a field directly."""
+        self.bof_pkt.show2()
+        self.assertEqual(self.bof_pkt.basic_otter_1_1, 0x01)
+        self.assertEqual(self.bof_pkt.scapy_pkt.basic_otter_1_1, 0x01)
+
+    @unittest.skip("Not implemented yet.")
+    def test_0402_field_readbytes(self):
+        """Test that we can get the value of a field directly."""
+        self.assertEqual(bytes(self.bof_pkt.basic_otter_1_1), b"\x01")
+
+    def test_0403_field_writevalue_sametype(self):
+        self.bof_pkt.basic_otter_1_2 = 42
+        self.assertEqual(self.bof_pkt.basic_otter_1_2, 42)
+        raw(self.bof_pkt) # If assignation went wrong, will raise exception
 
 class Test04PayloadAddition(unittest.TestCase):
     """Test for BOFPacket's payload addition functionality (append())"""

@@ -6,5 +6,5 @@ class BOFBasicOtterPacket1(BOFPacket):
     name = "BOFBasicOtterPacket1"
 
     def __init__(self, _pkt:bytes=None,
-                 scapy_pkt:Packet=ScapyBasicOtterPacket1(), **kwargs):
-        super().__init__(_pkt, scapy_pkt, **kwargs)
+                 scapy_pkt:Packet=None, **kwargs):
+        super().__init__(_pkt, scapy_pkt if scapy_pkt else ScapyBasicOtterPacket1(), **kwargs)

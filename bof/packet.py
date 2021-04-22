@@ -53,8 +53,8 @@ class BOFPacket(object):
     # Builtins                                                                #
     #-------------------------------------------------------------------------#
 
-    def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=Packet(), **kwargs):
-        self.scapy_pkt = scapy_pkt
+    def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=None, **kwargs):
+        self.scapy_pkt = scapy_pkt if scapy_pkt else Packet()
         self._set_fields(**kwargs)
 
     def __bytes__(self):
@@ -66,22 +66,44 @@ class BOFPacket(object):
     def __str__(self):
         return str(self._scapy_pkt)
 
+    def __iter__(self):
+        yield from self.fields
+
     def __getattr__(self, attr):
         """Return attr corresponding to fields in the Scapy packet first."""
         if self._scapy_pkt and hasattr(self._scapy_pkt, attr):
             return getattr(self._scapy_pkt, attr)
         return object.__getattribute__(self, attr)
 
-    def __iter__(self):
-        yield from self.fields
+    def __setattr__(self, attr, value):
+        """If attribute is a field, set it to the Scapy object with changes.
+        Scapy Fields only accept values with the appropriate format, but
+        BOF does not care, the end user should be able to set values from
+        the type she wants. Therefore, if the type is not matching, we replace
+        the field with a RawVal field.
+        """
+        if self._scapy_pkt and hasattr(self._scapy_pkt, attr):
+            _, value = self._get_field(attr)
+            print(type(value))
+            setattr(self._scapy_pkt, attr, value)
+        return object.__setattr__(self, attr, value)
 
     def __getitem__(self, key:str) -> bytes:
         """Access a field as bytes using syntax ``bof_pkt["fieldname"]``."""
+        field, value = self._get_field(key)
+        return field.i2m(field, value)
+
+    def _get_field(self, name:str) -> tuple:
+        """Extract a field from its name anywhere in a Scapy packet.
+
+        :param name: Name of the field to retrieve.
+        :returns: A tuple ``field_object, field_value``.
+        :raises BOFProgrammingError: if field does not exist.
+        """
         for field, parent in self._field_generator():
-            if field.name == key:
-                bfield, value = parent.getfield_and_val(field.name)
-                return bfield.i2m(bfield, value)
-        raise BOFImplementedError("Field does not exist. ({0})".format(key))
+            if field.name == name:
+                return parent.getfield_and_val(name)
+        raise BOFImplementedError("Field does not exist. ({0})".format(name))
 
     #-------------------------------------------------------------------------#
     # Scapy methods to relay                                                  #
