@@ -19,12 +19,29 @@ Example (keep in mind that BOFPacket should not be instantiated directly :))::
 from random import randint
 from copy import deepcopy
 from sys import getsizeof
+from struct import error as struct_error
 from ipaddress import ip_address
 # Scapy
 from scapy.packet import Packet, RawVal
-from scapy.fields import Field, PacketField, StrField
+from scapy.fields import * #Field, PacketField, StrField
 # Internal
 from bof import BOFProgrammingError
+
+###############################################################################
+# Constants                                                             #
+###############################################################################
+
+### TMP
+def TYPEFIELD(name, value, size=0):
+    """Create appropriate Field according to the type of ``value``."""
+    try:
+        ip_address(value)
+        return IPField(name, value)
+    except ValueError:
+        pass
+    # Set default type
+    size = max(size, len(value))
+    return Field(name, value, fmt="{0}s".format(size))
 
 ###############################################################################
 # BOFPacket class                                                             #
@@ -102,7 +119,7 @@ class BOFPacket(object):
         for field, parent in self._field_generator():
             if field.name == name:
                 return parent.getfield_and_val(name)
-        raise BOFImplementedError("Field does not exist. ({0})".format(name))
+        raise BOFProgrammingError("Field does not exist. ({0})".format(name))
 
     #-------------------------------------------------------------------------#
     # Scapy methods to relay                                                  #
@@ -215,12 +232,14 @@ class BOFPacket(object):
         for field, parent in self._field_generator():
             if field.name in attrs.keys():
                 _, old_value = parent.getfield_and_val(field.name)
-                # If type does not match the Field type, we replace the Field
-                if type(old_value) != type(attrs[field.name]):
-                    # TODO: Select the appropriate type
-                    new_field = StrField(field.name, attrs[field.name])
+                try:
+                    setattr(parent, field.name, attrs[field.name])
+                    raw(parent) # Checks if current Field accepts this value
+                except struct_error:
+                    # # If type does not match the Field type, we replace the Field
+                    new_field = TYPEFIELD(field.name, attrs[field.name], field.sz)
                     self._replace_field_type(parent, field, new_field)
-                setattr(parent, field.name, attrs[field.name])
+                    setattr(parent, field.name, attrs[field.name])
                 attrs.pop(field.name)
         if len(attrs):
             raise BOFProgrammingError("Field does not exist. ({0})".format(list(attrs.keys())[0]))
