@@ -20,6 +20,7 @@ from random import randint
 from copy import deepcopy
 from sys import getsizeof
 from struct import error as struct_error
+from socket import gaierror as socket_gaierror
 from ipaddress import ip_address
 # Scapy
 from scapy.packet import Packet, RawVal
@@ -31,17 +32,6 @@ from bof import BOFProgrammingError
 # Constants                                                             #
 ###############################################################################
 
-### TMP
-def TYPEFIELD(name, value, size=0):
-    """Create appropriate Field according to the type of ``value``."""
-    try:
-        ip_address(value)
-        return IPField(name, value)
-    except ValueError:
-        pass
-    # Set default type
-    size = max(size, len(value))
-    return Field(name, value, fmt="{0}s".format(size))
 
 ###############################################################################
 # BOFPacket class                                                             #
@@ -107,19 +97,11 @@ class BOFPacket(object):
     def __getitem__(self, key:str) -> bytes:
         """Access a field as bytes using syntax ``bof_pkt["fieldname"]``."""
         field, value = self._get_field(key)
-        return field.i2m(field, value)
-
-    def _get_field(self, name:str) -> tuple:
-        """Extract a field from its name anywhere in a Scapy packet.
-
-        :param name: Name of the field to retrieve.
-        :returns: A tuple ``field_object, field_value``.
-        :raises BOFProgrammingError: if field does not exist.
-        """
-        for field, parent in self._field_generator():
-            if field.name == name:
-                return parent.getfield_and_val(name)
-        raise BOFProgrammingError("Field does not exist. ({0})".format(name))
+        item = field.i2m(field, value)
+        # We want bytes but i2m might return something else
+        if isinstance(item, int):
+            item = item.to_bytes(field.sz, byteorder="big")
+        return item
 
     #-------------------------------------------------------------------------#
     # Scapy methods to relay                                                  #
@@ -210,6 +192,21 @@ class BOFPacket(object):
             packet.underlayer.payload_guess.insert(0, ({}, packet.__class__))
             # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
 
+    #--- Field management ----------------------------------------------------#
+
+    @staticmethod
+    def _create_field(name, value, size=0):
+        """Create appropriate Field according to the type of ``value``."""
+        try:
+            ip_address(value)
+            return IPField(name, value)
+        except ValueError:
+            pass
+        # Set default type
+        size = max(size, len(value))
+        return Field(name, value, fmt="{0}s".format(size))
+
+
     def _field_generator(self, start_packet:object=None) -> tuple:
         """Yields fields in packet/subpackets with their closest parent."""
         start_packet = self.scapy_pkt if not start_packet else start_packet
@@ -221,6 +218,18 @@ class BOFPacket(object):
                     yield from self._field_generator(getattr(packet, field.name))
                 elif isinstance(field, Field):
                     yield field, start_packet
+
+    def _get_field(self, name:str) -> tuple:
+        """Extract a field from its name anywhere in a Scapy packet.
+
+        :param name: Name of the field to retrieve.
+        :returns: A tuple ``field_object, field_value``.
+        :raises BOFProgrammingError: if field does not exist.
+        """
+        for field, parent in self._field_generator():
+            if field.name == name:
+                return parent.getfield_and_val(name)
+        raise BOFProgrammingError("Field does not exist. ({0})".format(name))
 
     def _set_fields(self, **attrs):
         """Set values to fields using a list of dict ``{field: value, ...}``.
@@ -235,9 +244,9 @@ class BOFPacket(object):
                 try:
                     setattr(parent, field.name, attrs[field.name])
                     raw(parent) # Checks if current Field accepts this value
-                except struct_error:
+                except (struct_error, socket_gaierror):
                     # # If type does not match the Field type, we replace the Field
-                    new_field = TYPEFIELD(field.name, attrs[field.name], field.sz)
+                    new_field = self._create_field(field.name, attrs[field.name], field.sz)
                     self._replace_field_type(parent, field, new_field)
                     setattr(parent, field.name, attrs[field.name])
                 attrs.pop(field.name)
@@ -258,7 +267,9 @@ class BOFPacket(object):
         BOFPacket._clone(packet, new_packet_name)
         for index, field in enumerate(packet.fields_desc):
             if field == old_field:
+                new_field.owners = deepcopy(old_field.owners)
                 packet.fields_desc[index] = new_field
+                packet.fieldtype[old_field.name] = new_field
                 return
         raise BOFProgrammingError("No field to replace. ({0})".format(old_field.name))
 
@@ -274,6 +285,8 @@ class BOFPacket(object):
         :param value: A value assigned to the new field.
         """
         raise NotImplementedError("Don't know how to append a field yet.")
+
+    #--- Payload management --------------------------------------------------#
 
     def _add_payload(self, other:object, autobind:bool=False) -> None:
         """Adds ``other`` Scapy payload to ``scapy_pkt`` attribute.
@@ -322,6 +335,7 @@ class BOFPacket(object):
             lastlayer.payload_guess.insert(0, ({}, other.__class__))
             # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
         self._scapy_pkt = self._scapy_pkt / other
+
 
 # TODO: Move to BOFPacket (_add_field method)
 def add_field(packet:Packet, new_field:Field, value=None) -> None:

@@ -30,17 +30,20 @@ class Test01PacketConstruct(unittest.TestCase):
         bof_pkt = BOFBasicOtterPacket1()
         self.assertEqual(bof_pkt.name, "BOFBasicOtterPacket1")
         self.assertEqual(bof_pkt.scapy_pkt.__class__, ScapyBasicOtterPacket1().__class__)
+        raw(bof_pkt) # Should raise Exception if wrong
 
     def test_0103_bofpacket_scapy_param_construct(self):
         """Test scapy_pkt parameter in constructor"""
         bof_pkt = BOFPacket(scapy_pkt=ScapyBasicOtterPacket1())
         self.assertEqual(bof_pkt.scapy_pkt.__class__, ScapyBasicOtterPacket1().__class__)
         self.assertEqual(bof_pkt.basic_otter_1_2, 0x02)
+        raw(bof_pkt) # Should raise Exception if wrong
 
     def test_0104_bofpacket_scapy_attr_init(self):
         """Test that we can set values to fields in constructor (same type)."""
         bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2=0x03)
         self.assertEqual(bof_pkt.basic_otter_1_2, 0x03)
+        raw(bof_pkt) # Should raise Exception if wrong
 
     def test_0105_bofpacket_scapy_attr_init_othertype(self):
         """Test that we can set values to fields in constructor (any type: str)."""
@@ -114,15 +117,28 @@ class Test04Fields(unittest.TestCase):
         self.assertEqual(self.bof_pkt.basic_otter_1_1, 0x01)
         self.assertEqual(self.bof_pkt.scapy_pkt.basic_otter_1_1, 0x01)
 
-    @unittest.skip("Not implemented yet.")
     def test_0402_field_readbytes(self):
         """Test that we can get the value of a field directly."""
-        self.assertEqual(bytes(self.bof_pkt.basic_otter_1_1), b"\x01")
+        self.assertEqual(self.bof_pkt["basic_otter_1_1"], b"\x01")
 
     def test_0403_field_writevalue_sametype(self):
+        """Test that we can change the value of a field directly."""
         self.bof_pkt.basic_otter_1_2 = 42
         self.assertEqual(self.bof_pkt.basic_otter_1_2, 42)
-        raw(self.bof_pkt) # If assignation went wrong, will raise exception
+        raw(self.bof_pkt) # Should raise Exception if wrong
+
+    def test_0404_field_writevalue_othertype_bytes(self):
+        """Test that we can change the value of a field with different type."""
+        self.bof_pkt.basic_otter_1_2 = b"\x42\x42"
+        self.assertEqual(self.bof_pkt.basic_otter_1_2, b"\x42\x42")
+        raw(self.bof_pkt) # Should raise Exception if wrong
+
+    def test_0405_field_writevalue_othertype_special(self):
+        """Test that we can change the value of a field with special type."""
+        self.bof_pkt.basic_otter_1_2 = "192.168.1.2"
+        self.assertEqual(self.bof_pkt.basic_otter_1_2, "192.168.1.2")
+        self.assertEqual(self.bof_pkt["basic_otter_1_2"], b"\xc0\xa8\x01\x02")
+        raw(self.bof_pkt) # Should raise Exception if wrong
 
 class Test05PayloadAddition(unittest.TestCase):
     """Test for BOFPacket's payload addition functionality (append())"""
