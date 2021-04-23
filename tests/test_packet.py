@@ -43,13 +43,20 @@ class Test01PacketConstruct(unittest.TestCase):
         self.assertEqual(bof_pkt.basic_otter_1_2, 0x03)
 
     def test_0105_bofpacket_scapy_attr_init_othertype(self):
-        """Test that we can set values to fields in constructor (any type)."""
+        """Test that we can set values to fields in constructor (any type: str)."""
         bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2="test")
         self.assertEqual(bof_pkt.basic_otter_1_2, "test")
         self.assertEqual(bof_pkt["basic_otter_1_2"], b"test")
-        print(raw(bof_pkt)) # Does not work
+        raw(bof_pkt) # Should raise Exception if wrong
 
-    def test_0106_bofpacket_scapy_attr_init_invalid(self):
+    def test_0106_bofpacket_scapy_attr_init_othertype_bytes(self):
+        """Test that we can set values to fields in constructor (any type: bytes)."""
+        bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2=b"\x42")
+        self.assertEqual(bof_pkt.basic_otter_1_2, b"\x42")
+        self.assertEqual(bof_pkt["basic_otter_1_2"], b"\x42")
+        raw(bof_pkt) # Should raise Exception if wrong
+
+    def test_0107_bofpacket_scapy_attr_init_invalid(self):
         """Test that settings values to unknown fields raises exceptions."""
         with self.assertRaises(BOFProgrammingError):
             bof_pkt = BOFBasicOtterPacket1(basic_otter_unknown=0x03)
@@ -104,7 +111,6 @@ class Test04Fields(unittest.TestCase):
 
     def test_0401_field_readvalue(self):
         """Test that we can get the value of a field directly."""
-        self.bof_pkt.show2()
         self.assertEqual(self.bof_pkt.basic_otter_1_1, 0x01)
         self.assertEqual(self.bof_pkt.scapy_pkt.basic_otter_1_1, 0x01)
 
@@ -118,10 +124,10 @@ class Test04Fields(unittest.TestCase):
         self.assertEqual(self.bof_pkt.basic_otter_1_2, 42)
         raw(self.bof_pkt) # If assignation went wrong, will raise exception
 
-class Test04PayloadAddition(unittest.TestCase):
+class Test05PayloadAddition(unittest.TestCase):
     """Test for BOFPacket's payload addition functionality (append())"""
 
-    def test_0401_bofpacket_addpayload_base_scapy(self):
+    def test_0501_bofpacket_addpayload_base_scapy(self):
         """Test that we can add a Scapy layer as a payload for a scapy_pkt.
         ScapyBasicOtterPacket2 should be a payload for ScapyBasicOtterPacket1.
         """
@@ -134,7 +140,7 @@ class Test04PayloadAddition(unittest.TestCase):
                          "basic_otter_2_1")
         self.assertEqual(bytes(bof_pkt), bytes(ScapyBasicOtterPacket1())+bytes(ScapyBasicOtterPacket2()))
 
-    def test_0402_bofpacket_addpayload_base_bof(self):
+    def test_0502_bofpacket_addpayload_base_bof(self):
         """Test that we can add a BOFPacket as payload for another BOFPacket."""
         bof_pkt1 = BOFPacket(scapy_pkt=ScapyBasicOtterPacket1())
         bof_pkt2 = BOFPacket(scapy_pkt=ScapyBasicOtterPacket2())
@@ -144,7 +150,7 @@ class Test04PayloadAddition(unittest.TestCase):
                          "basic_otter_2_1")
         self.assertEqual(bytes(bof_pkt1), bytes(ScapyBasicOtterPacket1()) + bytes(ScapyBasicOtterPacket2()))
 
-    def test_0403_bofpacket_addpayload_automatic(self):
+    def test_0503_bofpacket_addpayload_automatic(self):
         """Test that we can dynamically bind payloads.
         ScapyBasicOtterPacket 1 and 3 are not bound in Scapy implementation.
         """
@@ -159,7 +165,7 @@ class Test04PayloadAddition(unittest.TestCase):
         # effectively tests for "logical" payload binding (in addition to the correct frame bytes)
         self.assertEqual(bof_pkt.scapy_pkt.__class__(raw(bof_pkt.scapy_pkt)).payload.name, "basic_otter_packet_3")
 
-    def test_0404_bofpacket_addpayload_automatic_layer(self):
+    def test_0504_bofpacket_addpayload_automatic_layer(self):
         """Test that we can bind payloads with another layer than the 1st one.
         (This was a bug because we were not binding with the last)
         Here, Packet 2 is bound to 1, but Packet 2 is not bound to 3 by default.
@@ -178,16 +184,16 @@ class Test04PayloadAddition(unittest.TestCase):
                          "basic_otter_packet_3")
 
     @unittest.skip("Not implemented yet.")
-    def test_0405_bofpacket_addpayload_automatic_guess(self): # TODO
+    def test_0505_bofpacket_addpayload_automatic_guess(self): # TODO
         """Test dynamic payload binding when specific conditions are used
          via guess_payload in Scapy implementation"""
         pass
 
 
-class Test05PacketClassClone(unittest.TestCase):
+class Test06PacketClassClone(unittest.TestCase):
     """Test for Scapy packet/layer duplication (clone_pkt_class())"""
 
-    def test_0501_packet_clone_edit_classattr(self):
+    def test_0601_packet_clone_edit_classattr(self):
         """Test that packet cloning creates a separate instance of the object."""
         from scapy.fields import ByteField
         scapy_pkt1 = ScapyBasicOtterPacket1()
@@ -200,7 +206,7 @@ class Test05PacketClassClone(unittest.TestCase):
         self.assertTrue(new_field in scapy_pkt1.fields_desc and \
                         new_field not in scapy_pkt2.fields_desc)
 
-    def test_0502_packet_clone_layers(self):
+    def test_0602_packet_clone_layers(self):
         """Test that packet cloning preserves layers contents and bindings."""
         scapy_pkt = ScapyBasicOtterPacket1()/ScapyBasicOtterPacket2()/ScapyBasicOtterPacket4()
         BOFPacket._clone(scapy_pkt.getlayer("basic_otter_packet_2"), "basic_otter_packet_2_clone")

@@ -21,8 +21,8 @@ from copy import deepcopy
 from sys import getsizeof
 from ipaddress import ip_address
 # Scapy
-from scapy.packet import Packet
-from scapy.fields import Field, PacketField
+from scapy.packet import Packet, RawVal
+from scapy.fields import Field, PacketField, StrField
 # Internal
 from bof import BOFProgrammingError
 
@@ -83,10 +83,9 @@ class BOFPacket(object):
         the field with a RawVal field.
         """
         if self._scapy_pkt and hasattr(self._scapy_pkt, attr):
-            _, value = self._get_field(attr)
-            print(type(value))
-            setattr(self._scapy_pkt, attr, value)
-        return object.__setattr__(self, attr, value)
+            self._set_fields(**{attr:value})
+        else:
+            object.__setattr__(self, attr, value)
 
     def __getitem__(self, key:str) -> bytes:
         """Access a field as bytes using syntax ``bof_pkt["fieldname"]``."""
@@ -215,10 +214,34 @@ class BOFPacket(object):
         """
         for field, parent in self._field_generator():
             if field.name in attrs.keys():
+                _, old_value = parent.getfield_and_val(field.name)
+                # If type does not match the Field type, we replace the Field
+                if type(old_value) != type(attrs[field.name]):
+                    # TODO: Select the appropriate type
+                    new_field = StrField(field.name, attrs[field.name])
+                    self._replace_field_type(parent, field, new_field)
                 setattr(parent, field.name, attrs[field.name])
                 attrs.pop(field.name)
         if len(attrs):
             raise BOFProgrammingError("Field does not exist. ({0})".format(list(attrs.keys())[0]))
+
+    def _replace_field_type(self, packet, old_field, new_field):
+        """Replace a field in a packet with a field with a different type.
+        We first need to clone the packet as ``fields_desc`` is a class attribute.
+
+        :param packet: The packet in which we want to replace a field.
+        :param old_field; The field that should be replaced.
+        :param new_field: The new field with a different type.
+        :raises BOFProgrammingError: if old_field does not exist in Packet.
+        """
+        new_packet_name = "{0}_{1}_{2}".format(packet.__class__.__name__,
+                                               packet.name, new_field.name)
+        BOFPacket._clone(packet, new_packet_name)
+        for index, field in enumerate(packet.fields_desc):
+            if field == old_field:
+                packet.fields_desc[index] = new_field
+                return
+        raise BOFProgrammingError("No field to replace. ({0})".format(old_field.name))
 
     def _add_field(self, new_field:Field, packet=None, value=None) -> None:
         """Adds ``new_field`` at the end of current packet or to ``packet``.
