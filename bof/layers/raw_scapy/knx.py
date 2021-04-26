@@ -186,14 +186,18 @@ class CRI(Packet):
             [
                 # see in KNX specs if better than "pkt.structure_length > 0x02" to check if a body is present
                 (PacketField("connection_data", DeviceManagementConnection(), DeviceManagementConnection),
-                 lambda pkt: pkt.connection_type == 0x03 and pkt.structure_length > 0x02),
+                 lambda pkt: pkt.connection_type == 0x03),
                 (PacketField("connection_data", TunnelingConnection(), TunnelingConnection),
-                 lambda pkt: pkt.connection_type == 0x04 and pkt.structure_length > 0x02)
+                 lambda pkt: pkt.connection_type == 0x04)
             ],
             PacketField("connection_data", None, ByteField)
         )
 
     ]
+
+    def post_build(self, p, pay):
+        p = (len(p)).to_bytes(1, byteorder='big') + p[1:]
+        return p + pay
 
 
 class CRD(Packet):
