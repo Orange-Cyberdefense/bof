@@ -155,9 +155,9 @@ class DIBSuppSvcFamilies(Packet):
 class DeviceManagementConnection(Packet):
     name = "Device Management Connection"
     fields_desc = [
-        IntField("ip_address_1", None),
+        IPField("ip_address_1", None),
         ByteField("port_1", None),
-        IntField("ip_address_2", None),
+        IPField("ip_address_2", None),
         ByteField("port_2", None)
     ]
 
