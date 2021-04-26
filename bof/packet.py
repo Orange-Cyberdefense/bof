@@ -23,6 +23,8 @@ from struct import error as struct_error
 from socket import gaierror as socket_gaierror
 from ipaddress import ip_address
 # Scapy
+from typing import Union
+
 from scapy.packet import Packet, RawVal
 from scapy.fields import * #Field, PacketField, StrField
 # Internal
@@ -274,18 +276,71 @@ class BOFPacket(object):
                 return
         raise BOFProgrammingError("No field to replace. ({0})".format(old_field.name))
 
-    def _add_field(self, new_field:Field, packet=None, value=None) -> None:
+    def _add_field(self, new_field:Field, packet:Union[str,Packet]=None, value=None) -> None:
         """Adds ``new_field`` at the end of current packet or to ``packet``.
         As this may change the behavior for all instances of the same object,
         we first replace the class with a new one.
 
         :param new_field: The Scapy Field to add to current packet's or
                           ``packet``'s list of fields.
-        :param packet: Packet to change. If not set, default higher level
-                       packet is used.
+        :param packet: Packet to change, either referred to directly or by its
+                          name. If not set, default higher level packet is used.
         :param value: A value assigned to the new field.
+
+        Example::
+
+            bof_pkt = BOFPacket(scapy_pkt = TCP()/ModbusADURequest())
+            new_field = ByteField("new_field", 0x42)
+
+            # Various syntax allow us to add a Scapy Field to the ModbusADURequest
+            # (note that _add_field() should not be called by the end-user)
+            bof_pkt._add_field(new_field, "ModbusADU")
+            bof_pkt._add_field(new_field, bof_pkt.get_layer("ModbusADU")
+            bof_pkt._add_field(new_field, bof_pkt.payload)
         """
-        raise NotImplementedError("Don't know how to append a field yet.")
+
+        # gets the target layer by its name if not specified directly
+        if isinstance(packet, str) and self.scapy_pkt.haslayer(packet):
+            packet = self.scapy_pkt.getlayer(packet)
+
+        # if no Packet is assigned, gets the higher level packet
+        if not isinstance(packet, Packet):
+            packet = self._scapy_pkt.lastlayer()
+
+        # we replace the class with a new one to avoid shared instance issues
+        # TODO: check if class name exists before assigning a new name
+        BOFPacket._clone(packet, packet.__class__.__name__ + str(
+            randint(1000000, 9999999)))
+
+        # We reproduce the task performed during a Packet's fields init, but
+        # adapt them to a single field addition
+        # To make things simpler and straightforward, we started with no cache,
+        # but we might implement it later
+        packet.fields_desc.append(new_field)
+
+        # Similar to Packet's do_init_fields() but for a single field
+        packet.fieldtype[new_field.name] = new_field
+        if new_field.holds_packets:
+            packet.packetfields.append(new_field)
+        packet.default_fields[new_field.name] = deepcopy(new_field.default)
+
+        # Similar to the "strange initialization" (lines 164-179 of Scapy
+        # Packet constructor) but for a single field
+        fname = new_field.name
+        try:
+            value = packet.fields.pop(fname)
+            packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
+        except KeyError:
+            pass
+
+        if fname in packet.fields and fname in packet.deprecated_fields:
+            value = packet.fields[fname]
+            fname = packet._resolve_alias(fname)
+            packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
+
+        if value is not None:
+            packet.new_field = value
+
 
     #--- Payload management --------------------------------------------------#
 
@@ -337,57 +392,3 @@ class BOFPacket(object):
             # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
         self._scapy_pkt = self._scapy_pkt / other
 
-
-# TODO: Move to BOFPacket (_add_field method)
-def add_field(packet:Packet, new_field:Field, value=None) -> None:
-    """Adds a new Scapy field at the end of the specified ``packet``.
-    As this may change the behavior for all instances of the same object,
-    we first replace the class with a new one.
-
-    :param packet: the Scapy packet/layer to update with a new field
-    :param new_field: the Scapy Field to add at the end of the packet
-    :param value: a value assigned to the new field
-
-    Example::
-
-        # Basic
-        scapy_pkt = SNMP()
-        new_field = ByteField("new_field", 0x42)
-        add_field(scapy_pkt, new_field, 0x43)
-
-        # With multiple layers
-        scapy_pkt = TCP()/HTTP()
-        new_field = ByteField("new_field", 0x42)
-        add_field(scapy_pkt.getlayer(HTTP), new_field)
-    """
-    # Replace the class with a new one (with a random name)
-    BOFPacket._clone(packet, packet.__class__.__name__ + str(randint(1000000, 9999999)))
-
-    # We reproduce the task performed during a Packet's fields init, but
-    # adapt them to a single field addition
-    # To make things simpler and straightforward, we started with no cache,
-    # but we might implement it later
-    packet.fields_desc.append(new_field)
-
-    # Similar to Packet's do_init_fields() but for a single field
-    packet.fieldtype[new_field.name] = new_field
-    if new_field.holds_packets:
-        packet.packetfields.append(new_field)
-    packet.default_fields[new_field.name] = deepcopy(new_field.default)
-
-    # Similar to the "strange initialization" (lines 164-179 of Scapy
-    # Packet constructor) but for a single field
-    fname = new_field.name
-    try:
-        value = packet.fields.pop(fname)
-        packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
-    except KeyError:
-        pass
-
-    if fname in packet.fields and fname in packet.deprecated_fields:
-        value = packet.fields[fname]
-        fname = packet._resolve_alias(fname)
-        packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
-
-    if value is not None:
-        packet.new_field = value

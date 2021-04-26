@@ -1,3 +1,5 @@
+from scapy.packet import Packet
+
 from bof import BOFPacket
 from tests.test_layers.raw_scapy.otter import ScapyBasicOtterPacket1
 

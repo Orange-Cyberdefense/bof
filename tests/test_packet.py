@@ -10,10 +10,11 @@ import unittest
 # Scapy
 from scapy.contrib.modbus import ModbusADURequest
 from scapy.compat import raw
-#Internal
+# Internal
 from bof import BOFProgrammingError, BOFPacket
 from tests.test_layers.otter.otter_packet import BOFBasicOtterPacket1
 from tests.test_layers.raw_scapy.otter import *
+
 
 class Test01PacketConstruct(unittest.TestCase):
     """Test class for raw BOFPacket initialization.
@@ -30,39 +31,40 @@ class Test01PacketConstruct(unittest.TestCase):
         bof_pkt = BOFBasicOtterPacket1()
         self.assertEqual(bof_pkt.name, "BOFBasicOtterPacket1")
         self.assertEqual(bof_pkt.scapy_pkt.__class__, ScapyBasicOtterPacket1().__class__)
-        raw(bof_pkt) # Should raise Exception if wrong
+        raw(bof_pkt)  # Should raise Exception if wrong
 
     def test_0103_bofpacket_scapy_param_construct(self):
         """Test scapy_pkt parameter in constructor"""
         bof_pkt = BOFPacket(scapy_pkt=ScapyBasicOtterPacket1())
         self.assertEqual(bof_pkt.scapy_pkt.__class__, ScapyBasicOtterPacket1().__class__)
         self.assertEqual(bof_pkt.basic_otter_1_2, 0x02)
-        raw(bof_pkt) # Should raise Exception if wrong
+        raw(bof_pkt)  # Should raise Exception if wrong
 
     def test_0104_bofpacket_scapy_attr_init(self):
         """Test that we can set values to fields in constructor (same type)."""
         bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2=0x03)
         self.assertEqual(bof_pkt.basic_otter_1_2, 0x03)
-        raw(bof_pkt) # Should raise Exception if wrong
+        raw(bof_pkt)  # Should raise Exception if wrong
 
     def test_0105_bofpacket_scapy_attr_init_othertype(self):
         """Test that we can set values to fields in constructor (any type: str)."""
         bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2="test")
         self.assertEqual(bof_pkt.basic_otter_1_2, "test")
         self.assertEqual(bof_pkt["basic_otter_1_2"], b"test")
-        raw(bof_pkt) # Should raise Exception if wrong
+        raw(bof_pkt)  # Should raise Exception if wrong
 
     def test_0106_bofpacket_scapy_attr_init_othertype_bytes(self):
         """Test that we can set values to fields in constructor (any type: bytes)."""
         bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2=b"\x42")
         self.assertEqual(bof_pkt.basic_otter_1_2, b"\x42")
         self.assertEqual(bof_pkt["basic_otter_1_2"], b"\x42")
-        raw(bof_pkt) # Should raise Exception if wrong
+        raw(bof_pkt)  # Should raise Exception if wrong
 
     def test_0107_bofpacket_scapy_attr_init_invalid(self):
         """Test that settings values to unknown fields raises exceptions."""
         with self.assertRaises(BOFProgrammingError):
             bof_pkt = BOFBasicOtterPacket1(basic_otter_unknown=0x03)
+
 
 class Test02ScapyLayersAccess(unittest.TestCase):
     """Test class to make sure that we access Scapy layer content."""
@@ -106,8 +108,10 @@ class Test03PacketBuiltins(unittest.TestCase):
         self.assertEqual([x.name for x in self.bof_pkt],
                          [x.name for x in self.scapy_pkt.fields_desc])
 
+
 class Test04Fields(unittest.TestCase):
     """Test class for Scapy Fields' management from ``BOFPacket``."""
+
     @classmethod
     def setUp(self):
         self.bof_pkt = BOFBasicOtterPacket1()
@@ -125,23 +129,24 @@ class Test04Fields(unittest.TestCase):
         """Test that we can change the value of a field directly."""
         self.bof_pkt.basic_otter_1_2 = 42
         self.assertEqual(self.bof_pkt.basic_otter_1_2, 42)
-        raw(self.bof_pkt) # Should raise Exception if wrong
+        raw(self.bof_pkt)  # Should raise Exception if wrong
 
     def test_0404_field_writevalue_othertype_bytes(self):
         """Test that we can change the value of a field with different type."""
         self.bof_pkt.basic_otter_1_2 = b"\x42\x42"
         self.assertEqual(self.bof_pkt.basic_otter_1_2, b"\x42\x42")
-        raw(self.bof_pkt) # Should raise Exception if wrong
+        raw(self.bof_pkt)  # Should raise Exception if wrong
 
     def test_0405_field_writevalue_othertype_special(self):
         """Test that we can change the value of a field with special type."""
         self.bof_pkt.basic_otter_1_2 = "192.168.1.2"
         self.assertEqual(self.bof_pkt.basic_otter_1_2, "192.168.1.2")
         self.assertEqual(self.bof_pkt["basic_otter_1_2"], b"\xc0\xa8\x01\x02")
-        raw(self.bof_pkt) # Should raise Exception if wrong
+        raw(self.bof_pkt)  # Should raise Exception if wrong
+
 
 class Test05PayloadAddition(unittest.TestCase):
-    """Test for BOFPacket's payload addition functionality (append())"""
+    """Test for BOFPacket's payload addition functionality"""
 
     def test_0501_bofpacket_addpayload_base_scapy(self):
         """Test that we can add a Scapy layer as a payload for a scapy_pkt.
@@ -154,7 +159,7 @@ class Test05PayloadAddition(unittest.TestCase):
                          "basic_otter_2_1")
         self.assertEqual(bof_pkt.scapy_pkt.getlayer("ScapyBasicOtterPacket2").get_field("basic_otter_2_1").name,
                          "basic_otter_2_1")
-        self.assertEqual(bytes(bof_pkt), bytes(ScapyBasicOtterPacket1())+bytes(ScapyBasicOtterPacket2()))
+        self.assertEqual(bytes(bof_pkt), bytes(ScapyBasicOtterPacket1()) + bytes(ScapyBasicOtterPacket2()))
 
     def test_0502_bofpacket_addpayload_base_bof(self):
         """Test that we can add a BOFPacket as payload for another BOFPacket."""
@@ -186,7 +191,7 @@ class Test05PayloadAddition(unittest.TestCase):
         (This was a bug because we were not binding with the last)
         Here, Packet 2 is bound to 1, but Packet 2 is not bound to 3 by default.
         """
-        bof_pkt1 = BOFPacket(scapy_pkt=ScapyBasicOtterPacket1()/ScapyBasicOtterPacket2())
+        bof_pkt1 = BOFPacket(scapy_pkt=ScapyBasicOtterPacket1() / ScapyBasicOtterPacket2())
         bof_pkt1.append(ScapyBasicOtterPacket3(), autobind=True)
         self.assertEqual(bof_pkt1.scapy_pkt.payload.payload.get_field("basic_otter_3_1").name,
                          "basic_otter_3_1")
@@ -200,16 +205,73 @@ class Test05PayloadAddition(unittest.TestCase):
                          "basic_otter_packet_3")
 
     @unittest.skip("Not implemented yet.")
-    def test_0505_bofpacket_addpayload_automatic_guess(self): # TODO
+    def test_0505_bofpacket_addpayload_automatic_guess(self):  # TODO
         """Test dynamic payload binding when specific conditions are used
          via guess_payload in Scapy implementation"""
         pass
 
+    @unittest.skip("Not implemented yet.")
+    def test_0506_bofpacket_addpayload_size(self):  # TODO
+        """Test that total frame length is correctly calculated when adding
+        a new payload, this is very protocol specific"""
+        pass
 
-class Test06PacketClassClone(unittest.TestCase):
+
+class Test06FieldAddition(unittest.TestCase):
+    """Test for BOFPacket's field addition functionality"""
+
+    def test_0601_bofpacket_addfield_base(self):
+        """Test that we can add a basic Scapy field inside a BOFPacket
+        scapy_pkt's layer with the target packet name ase parameter"""
+        bof_pkt = BOFPacket()
+        bof_pkt.scapy_pkt = ScapyBasicOtterPacket1() / \
+                            ScapyBasicOtterPacket2() / \
+                            ScapyBasicOtterPacket4()
+        new_field = ByteField("new_field", 0x42)
+        bof_pkt._add_field(new_field, "basic_otter_packet_2")
+        self.assertEqual(
+            bof_pkt.scapy_pkt.getlayer("basic_otter_packet_2").get_field("new_field").name,
+                         "new_field")
+        self.assertEqual(bytes(bof_pkt), bytes(ScapyBasicOtterPacket1()) +
+                         bytes(ScapyBasicOtterPacket2()) +
+                         bytes([0x42]) +
+                         bytes(ScapyBasicOtterPacket3()))
+
+    def test_0602_bofpacket_addfield_direct(self):
+        """Test that we can add a basic Scapy field inside a BOFPacket
+        scapy_pkt's layer with the target packet as parameter"""
+        bof_pkt = BOFPacket()
+        bof_pkt.scapy_pkt = ScapyBasicOtterPacket1() / \
+                            ScapyBasicOtterPacket2() / \
+                            ScapyBasicOtterPacket4()
+        new_field = ByteField("new_field", 0x42)
+        bof_pkt._add_field(new_field, bof_pkt.scapy_pkt.getlayer('basic_otter_packet_2'))
+        self.assertEqual(
+            bof_pkt.scapy_pkt.getlayer("basic_otter_packet_2").get_field(
+                "new_field").name,
+            "new_field")
+        self.assertEqual(bytes(bof_pkt), bytes(ScapyBasicOtterPacket1()) +
+                         bytes(ScapyBasicOtterPacket2()) +
+                         bytes([0x42]) +
+                         bytes(ScapyBasicOtterPacket3()))
+
+    def test_06_03_bofpacket_addfield_packetfield(self):
+        """Test that we can add a Scapy PacketField field inside a BOFPacket
+        scapy_pkt's layer"""
+        # TODO
+        pass
+
+    def test_06_04_bofpacket_addfield_multipletypefield(self):
+        """Test that we can add a Scapy MultipleTypeField field inside a
+         BOFPacket scapy_pkt's layer"""
+        # TODO
+        pass
+
+
+class Test07PacketClassClone(unittest.TestCase):
     """Test for Scapy packet/layer duplication (clone_pkt_class())"""
 
-    def test_0601_packet_clone_edit_classattr(self):
+    def test_0701_packet_clone_edit_classattr(self):
         """Test that packet cloning creates a separate instance of the object."""
         from scapy.fields import ByteField
         scapy_pkt1 = ScapyBasicOtterPacket1()
@@ -222,9 +284,9 @@ class Test06PacketClassClone(unittest.TestCase):
         self.assertTrue(new_field in scapy_pkt1.fields_desc and \
                         new_field not in scapy_pkt2.fields_desc)
 
-    def test_0602_packet_clone_layers(self):
+    def test_0702_packet_clone_layers(self):
         """Test that packet cloning preserves layers contents and bindings."""
-        scapy_pkt = ScapyBasicOtterPacket1()/ScapyBasicOtterPacket2()/ScapyBasicOtterPacket4()
+        scapy_pkt = ScapyBasicOtterPacket1() / ScapyBasicOtterPacket2() / ScapyBasicOtterPacket4()
         BOFPacket._clone(scapy_pkt.getlayer("basic_otter_packet_2"), "basic_otter_packet_2_clone")
         self.assertEqual(bytes(scapy_pkt), bytes(ScapyBasicOtterPacket1())
                          + bytes(ScapyBasicOtterPacket2())
