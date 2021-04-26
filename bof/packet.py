@@ -240,7 +240,8 @@ class BOFPacket(object):
         """
         for field, parent in self._field_generator():
             if field.name in attrs.keys():
-                _, old_value = parent.getfield_and_val(field.name)
+                old_value = getattr(parent, field.name)
+                # _, old_value = parent.getfield_and_val(field.name)
                 try:
                     setattr(parent, field.name, attrs[field.name])
                     raw(parent) # Checks if current Field accepts this value
