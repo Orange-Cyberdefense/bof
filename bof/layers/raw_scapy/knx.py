@@ -428,7 +428,7 @@ class KNXTunnelingRequest(Packet):
     ]
 
     def post_build(self, p, pay):
-        p = (len(p)).to_bytes(1, byteorder='big') + p[1:]
+        p = (len(p[:4])).to_bytes(1, byteorder='big') + p[1:]
         return p + pay
 
 

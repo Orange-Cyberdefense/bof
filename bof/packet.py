@@ -26,7 +26,7 @@ from ipaddress import ip_address
 from typing import Union
 
 from scapy.packet import Packet, RawVal
-from scapy.fields import * #Field, PacketField, StrField
+from scapy.fields import Field, PacketField, IPField, MultipleTypeField
 # Internal
 from bof import BOFProgrammingError
 
@@ -216,7 +216,9 @@ class BOFPacket(object):
                    [start_packet, start_packet.payload]
         for packet in iterlist:
             for field in packet.fields_desc:
-                if isinstance(field, PacketField):
+                if isinstance(field, MultipleTypeField):
+                    field = field._find_fld()
+                if isinstance(field, PacketField) or isinstance(field, Packet):
                     yield from self._field_generator(getattr(packet, field.name))
                 elif isinstance(field, Field):
                     yield field, start_packet

@@ -19,10 +19,10 @@ def tunnel_connect(knxnet):
     conn_req = KNXPacket(type=SID.connect_request, connection_type=0x04)
     conn_req.control_endpoint.ip_address, conn_req.control_endpoint.port = knxnet.source
     conn_req.data_endpoint.ip_address, conn_req.data_endpoint.port = knxnet.source
-    conn_req.show2()
+    # conn_req.show2()
     # Retrieve the value of "channel" used for the rest of the exchange.
     response, _ = knxnet.sr(conn_req)
-    response.show2()
+    # response.show2()
     return response.communication_channel_id
 
 def tunnel_disconnect(knxnet, channel):
@@ -32,9 +32,35 @@ def tunnel_disconnect(knxnet, channel):
     disco_req = KNXPacket(type=SID.disconnect_request)
     disco_req.control_endpoint.ip_address, disco_req.control_endpoint.port = knxnet.source
     disco_req.communication_channel_id = channel
-    disco_req.show2()
+    # disco_req.show2()
     response, _ = knxnet.sr(disco_req)
+    # response.show2()
+
+#-----------------------------------------------------------------------------#
+# GROUP WRITE                                                                 #
+#-----------------------------------------------------------------------------#
+
+def group_write(knxnet, channel, group_addr, value):
+    """Writes ``value`` to KNX devices at ``group_addr``.
+    Sends a TUNNELING REQUEST with a Data Req message.
+    Expects a TUNNELING REQUEST in return.
+    The exchange must end with a TUNNELING ACK.
+    """
+    tun_req = KNXPacket(type=SID.tunneling_request, cemi=CEMI.l_data_req)
+    tun_req.communication_channel_id = channel
+    tun_req.cemi.cemi_data.source_address = "15.15.255"
+    tun_req.cemi.cemi_data.destination_address = group_addr
+    tun_req.cemi.data = value
+    tun_req.show2()
+    ack, _ = knxnet.sr(tun_req)
+    # ack.show2()
+    response, _ = knxnet.receive()
     response.show2()
+    # We have to ACK when we receive tunneling requests
+    if response.sid == SID.tunneling_request and \
+       tun_req.cemi.message_code == CEMI.l_data_req:
+        ack = KNXPacket(type=SID.tunneling_ack, communication_channel_id=channel)
+        # ack.show2()
 
 #-----------------------------------------------------------------------------#
 # RUN                                                                         #
@@ -48,7 +74,7 @@ try:
     knxnet = KNXnet()
     knxnet.connect(argv[1])
     channel = tunnel_connect(knxnet)
-    print(channel)
+    group_write(knxnet, channel, argv[2], int(argv[3]))
     tunnel_disconnect(knxnet, channel)
 except BOFNetworkError as bne:
     print(bne)
