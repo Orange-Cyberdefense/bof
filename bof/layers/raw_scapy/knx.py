@@ -294,7 +294,7 @@ class CEMI(Packet):
                 (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xF6),
                 (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xF5)
             ],
-            PacketField("cemi_data", None, ByteField)
+            PacketField("cemi_data", LcEMI(), LcEMI)
         )
     ]
 

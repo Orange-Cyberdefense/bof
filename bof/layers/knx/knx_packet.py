@@ -85,7 +85,10 @@ class KNXPacket(BOFPacket):
         :param ptype: Type of frame to build. Ignored if ``_pkt`` set.
                       Should be a value from ``SID`` dict imported from KNX Scapy
                       implementation as a dict key, a string or as bytes.
-        :raises BOFProgrammingError: if type is unknown or invalid.
+        :param cemi: cEMI field type. Raises error if type does not have have a
+                     cEMI field, is ignored if there is no type given.
+        :raises BOFProgrammingError: if type is unknown or invalid or if cEMI is set
+                                     but there is no cEMI field in packet type.
         """
         itype = self._get_code(ptype, scapy_knx.SERVICE_IDENTIFIER_CODES)
         try:
@@ -94,7 +97,10 @@ class KNXPacket(BOFPacket):
             raise BOFProgrammingError("Unknown type for KNXPacket ({0})".format(ptype))
         if cemi:
             cemi_pkt = scapy_knx.CEMI(message_code=self._get_code(cemi, scapy_knx.MESSAGE_CODES))
-            self._scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet(cemi=cemi_pkt)
+            try:
+                self._scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet(cemi=cemi_pkt)
+            except AttributeError:
+                raise BOFProgrammingError("Packet type has no cEMI field ({0})".format(itype)) from None
         else:
             self._scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet()
 

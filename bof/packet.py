@@ -198,7 +198,6 @@ class BOFPacket(object):
         size = max(size, len(value))
         return Field(name, value, fmt="{0}s".format(size))
 
-
     def _field_generator(self, start_packet:object=None) -> tuple:
         """Yields fields in packet/subpackets with their closest parent."""
         start_packet = self.scapy_pkt if not start_packet else start_packet
@@ -210,7 +209,7 @@ class BOFPacket(object):
                     field = field._find_fld()
                 if isinstance(field, PacketField) or isinstance(field, Packet):
                     yield from self._field_generator(getattr(packet, field.name))
-                elif isinstance(field, Field):
+                if isinstance(field, Field): # We also yield if PacketField
                     yield field, start_packet
 
     def _get_field(self, name:str) -> tuple:
