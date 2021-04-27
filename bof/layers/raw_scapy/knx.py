@@ -158,7 +158,8 @@ class DeviceManagementConnection(Packet):
         IPField("ip_address_1", None),
         ByteField("port_1", None),
         IPField("ip_address_2", None),
-        ByteField("port_2", None)
+        ByteField("port_2", None),
+        PacketField("hpai", HPAI(), HPAI)
     ]
 
 
@@ -209,13 +210,17 @@ class CRD(Packet):
             [
                 # see if better way than "pkt.structure_length > 0x02" to check if a body is present
                 (PacketField("connection_data", DeviceManagementConnection(), DeviceManagementConnection),
-                 lambda pkt: pkt.connection_type == 0x03 and pkt.structure_length > 0x02),
+                 lambda pkt: pkt.connection_type == 0x03),
                 (PacketField("connection_data", CRDTunnelingConnection(), CRDTunnelingConnection),
-                 lambda pkt: pkt.connection_type == 0x04 and pkt.structure_length > 0x02)
+                 lambda pkt: pkt.connection_type == 0x04)
             ],
             PacketField("connection_data", None, ByteField)
         )
     ]
+
+    def post_build(self, p, pay):
+        p = (len(p)).to_bytes(1, byteorder='big') + p[1:]
+        return p + pay
 
 
 # cEMI blocks
@@ -277,60 +282,18 @@ class DPcEMI(Packet):
     ]
 
 
-class LDataReq(Packet):
-    name = "L_Data.req"
-    fields_desc = [
-        PacketField("L_Data.req", LcEMI(), LcEMI)
-    ]
-
-
-class LDataCon(Packet):
-    name = "L_Data.con"
-    fields_desc = [
-        PacketField("L_Data.con", LcEMI(), LcEMI)
-    ]
-
-
-class PropReadReq(Packet):
-    name = "PropRead.req"
-    fields_desc = [
-        PacketField("PropRead.req", DPcEMI(), DPcEMI)
-    ]
-
-
-class PropReadCon(Packet):
-    name = "PropRead.con"
-    fields_desc = [
-        PacketField("PropRead.con", DPcEMI(), DPcEMI)
-    ]
-
-
-class PropWriteReq(Packet):
-    name = "PropWrite.req"
-    fields_desc = [
-        PacketField("PropWrite.req", DPcEMI(), DPcEMI)
-    ]
-
-
-class PropWriteCon(Packet):
-    name = "PropWrite.con"
-    fields_desc = [
-        PacketField("PropWrite.con", DPcEMI(), DPcEMI)
-    ]
-
-
 class CEMI(Packet):
     name = "CEMI"
     fields_desc = [
         ByteEnumField("message_code", None, MESSAGE_CODES),
         MultipleTypeField(
             [
-                (PacketField("cemi_data", LDataReq(), LDataReq), lambda pkt: pkt.message_code == 0x11),
-                (PacketField("cemi_data", LDataCon(), LDataCon), lambda pkt: pkt.message_code == 0x2e),
-                (PacketField("cemi_data", PropReadReq(), PropReadReq), lambda pkt: pkt.message_code == 0xFC),
-                (PacketField("cemi_data", PropReadCon(), PropReadCon), lambda pkt: pkt.message_code == 0xFB),
-                (PacketField("cemi_data", PropWriteReq(), PropWriteReq), lambda pkt: pkt.message_code == 0xF6),
-                (PacketField("cemi_data", PropWriteCon(), PropWriteCon), lambda pkt: pkt.message_code == 0xF5)
+                (PacketField("cemi_data", LcEMI(), LcEMI), lambda pkt: pkt.message_code == 0x11),
+                (PacketField("cemi_data", LcEMI(), LcEMI), lambda pkt: pkt.message_code == 0x2e),
+                (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xFC),
+                (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xFB),
+                (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xF6),
+                (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xF5)
             ],
             PacketField("cemi_data", None, ByteField)
         )
@@ -543,12 +506,6 @@ bind_layers(CRI, Padding)
 bind_layers(CRD, Padding)
 bind_layers(LcEMI, Padding)
 bind_layers(DPcEMI, Padding)
-bind_layers(LDataReq, Padding)
-bind_layers(LDataCon, Padding)
-bind_layers(PropReadReq, Padding)
-bind_layers(PropReadCon, Padding)
-bind_layers(PropWriteReq, Padding)
-bind_layers(PropWriteCon, Padding)
 bind_layers(CEMI, Padding)
 
 bind_layers(KNXSearchRequest, Padding)
