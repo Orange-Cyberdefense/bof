@@ -28,7 +28,7 @@ from typing import Union
 from scapy.packet import Packet, RawVal
 from scapy.fields import Field, PacketField, IPField, MultipleTypeField
 # Internal
-from bof import BOFProgrammingError
+from bof import log, BOFProgrammingError
 
 ###############################################################################
 # Constants                                                             #
@@ -91,10 +91,15 @@ class BOFPacket(object):
         the type she wants. Therefore, if the type is not matching, we replace
         the field with a RawVal field.
         """
-        if self._scapy_pkt and hasattr(self._scapy_pkt, attr):
-            self._set_fields(**{attr:value})
-        else:
-            object.__setattr__(self, attr, value)
+        # We try to set attribute as if it was a field
+        if self._scapy_pkt:
+            try:
+                self._set_fields(**{attr:value})
+                return
+            except BOFProgrammingError:
+                pass
+        # If it fails, we set it to current attr
+        object.__setattr__(self, attr, value)
 
     def __getitem__(self, key:str) -> bytes:
         """Access a field as bytes using syntax ``bof_pkt["fieldname"]``."""
@@ -104,21 +109,6 @@ class BOFPacket(object):
         if isinstance(item, int):
             item = item.to_bytes(field.sz, byteorder="big")
         return item
-
-    #-------------------------------------------------------------------------#
-    # Scapy methods to relay                                                  #
-    #-------------------------------------------------------------------------#
-
-    def show(self, dump=False, indent=3, lvl="", label_lvl=""):
-        return self._scapy_pkt.show(dump=dump, indent=indent, lvl=lvl,
-                                   label_lvl=label_lvl)
-
-    def show2(self, dump=False, indent=3, lvl="", label_lvl=""):
-        return self._scapy_pkt.show2(dump=dump, indent=indent, lvl=lvl,
-                                    label_lvl=label_lvl)
-
-    def get_field(self, field:str) -> object:
-        return self._scapy_pkt.get_field(field)
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -249,7 +239,7 @@ class BOFPacket(object):
                 try:
                     setattr(parent, field.name, attrs[field.name])
                     raw(parent) # Checks if current Field accepts this value
-                except (struct_error, socket_gaierror):
+                except (struct_error, socket_gaierror, TypeError):
                     # # If type does not match the Field type, we replace the Field
                     new_field = self._create_field(field.name, attrs[field.name], field.sz)
                     self._replace_field_type(parent, field, new_field)

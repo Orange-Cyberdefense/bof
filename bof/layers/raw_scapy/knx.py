@@ -260,12 +260,11 @@ class LcEMI(Packet):
         BitEnumField("sequence_type", 0, 1, {
             0: "unnumbered"
         }),
-        BitField("reserved2", 0, 4),
-        BitEnumField("acpi", 2, 4, {
+        BitField("reserved", 0, 6),
+        BitEnumField("acpi", 2, 2, {
             2: "GroupValueWrite"
         }),
-        BitField("reserved3", 0, 6),
-        StrLenField("data", None, length_from=lambda pkt: pkt.npdu_length)  # to be tested
+        BitField("data", 0, 6)
 
     ]
 

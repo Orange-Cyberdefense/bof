@@ -1,6 +1,7 @@
 # BOF usage example using KNXnet/IP
 # This script will send a write request to a KNX group address.
 # Usage: python group_write.py IP_ADDRESS GROUP_ADDRESS VALUE
+# Example: python group_write.py 192.168.1.242 1/1/1 1
 
 from sys import path, argv
 path.append('../../')
@@ -50,7 +51,7 @@ def group_write(knxnet, channel, group_addr, value):
     tun_req.communication_channel_id = channel
     tun_req.cemi.cemi_data.source_address = "15.15.255"
     tun_req.cemi.cemi_data.destination_address = group_addr
-    tun_req.cemi.data = value
+    tun_req.cemi.cemi_data.data = value
     tun_req.show2()
     ack, _ = knxnet.sr(tun_req)
     # ack.show2()
