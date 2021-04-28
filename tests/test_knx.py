@@ -244,5 +244,4 @@ class Test05FrameAttributes(unittest.TestCase):
         self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.42")
         self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.42")
         self.assertEqual(frame["ip_address"], b'\xc0\xa8\x01\x2a')
-        frame.show2()
         raw(frame) # Should raise if wrong
