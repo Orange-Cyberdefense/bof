@@ -139,7 +139,7 @@ class Test03KNXFrameConstructor(unittest.TestCase):
         from bof.layers.raw_scapy.knx import HPAI
         my_hpai = HPAI(ip_address="192.168.1.2")
         frame = knx.KNXPacket(type=knx.SID.description_request, control_endpoint=my_hpai)
-        self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.2")
+        self.assertEqual(frame.ip_address, "192.168.1.2")
         self.assertEqual(frame["ip_address"], b"\xc0\xa8\x01\x02")
 
 class Test04KNXCEMIFrameConstructor(unittest.TestCase):
@@ -218,6 +218,7 @@ class Test05FrameAttributes(unittest.TestCase):
         """Test that we can directly access the attribute of a packet."""
         frame = knx.KNXPacket(type=knx.SID.description_request, port=60000)
         self.assertEqual(frame.scapy_pkt.control_endpoint.port, 60000)
+        self.assertEqual(frame.port, 60000)
         self.assertEqual(frame["port"], b"\xea\x60")
 
     def test_0504_knx_attr_deeper_write(self):
@@ -235,3 +236,13 @@ class Test05FrameAttributes(unittest.TestCase):
         self.assertEqual(frame.control_endpoint.ip_address, "hi mark!")
         self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "hi mark!")
         self.assertEqual(frame["ip_address"], b"hi mark!")
+
+    def test_0506_knx_attr_as_bytes(self):
+        """Test that we can set a value directly as bytes using bof_pkt[field]"""
+        frame = knx.KNXPacket(type=knx.SID.description_request)
+        frame["ip_address"] = b'\xc0\xa8\x01\x2a'
+        self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.42")
+        self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.42")
+        self.assertEqual(frame["ip_address"], b'\xc0\xa8\x01\x2a')
+        frame.show2()
+        raw(frame) # Should raise if wrong

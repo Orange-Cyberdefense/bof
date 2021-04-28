@@ -80,8 +80,17 @@ class BOFPacket(object):
 
     def __getattr__(self, attr):
         """Return attr corresponding to fields in the Scapy packet first."""
+        # We try to set attribute as if it was a field
+        if self._scapy_pkt:
+            try:
+                field, val = self._get_field(attr)
+                return val
+            except BOFProgrammingError:
+                pass
+        # If not we return Scapy's attribute with that name
         if self._scapy_pkt and hasattr(self._scapy_pkt, attr):
             return getattr(self._scapy_pkt, attr)
+        # Or the one for this object.
         return object.__getattribute__(self, attr)
 
     def __setattr__(self, attr, value):
@@ -103,12 +112,24 @@ class BOFPacket(object):
 
     def __getitem__(self, key:str) -> bytes:
         """Access a field as bytes using syntax ``bof_pkt["fieldname"]``."""
-        field, value = self._get_field(key)
-        item = field.i2m(field, value)
-        # We want bytes but i2m might return something else
-        if isinstance(item, int):
-            item = item.to_bytes(field.sz, byteorder="big")
-        return item
+        for field, parent in self._field_generator():
+            if field.name == key:
+                _, value = parent.getfield_and_val(key)
+                item = field.i2m(parent, value)
+                # We want bytes but i2m might return something else
+                if isinstance(item, int):
+                    item = item.to_bytes(field.sz, byteorder="big")
+                return item
+        raise BOFProgrammingError("Field does not exist. ({0})".format(key))
+
+    def __setitem__(self, key:str, value:bytes) -> None:
+        """Directly set a value as bytes to a field without changing its type."""
+        for field, parent in self._field_generator():
+            if field.name == key:
+                ivalue = field.m2i(parent, value)
+                setattr(parent, field.name, ivalue)
+                return
+        raise BOFProgrammingError("Field does not exist. ({0})".format(key))
 
     #-------------------------------------------------------------------------#
     # Properties                                                              #
@@ -221,7 +242,9 @@ class BOFPacket(object):
         """
         for field, parent in self._field_generator():
             if field.name == name:
-                return parent.getfield_and_val(name)
+                field_and_val = parent.getfield_and_val(name)
+                if field_and_val:
+                    return field_and_val
         raise BOFProgrammingError("Field does not exist. ({0})".format(name))
 
     def _set_fields(self, **attrs):
