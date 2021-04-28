@@ -122,7 +122,7 @@ class BOFPacket(object):
         """Directly set a value as bytes to a field without changing its type."""
         field, oldval, parent = self._get_field(key)
         ivalue = field.m2i(parent, mvalue)
-        if isinstance(oldval, int):
+        if isinstance(oldval, int) and isinstance(ivalue, bytes):
             ivalue = int.from_bytes(ivalue, byteorder="big")
         setattr(parent, key, ivalue)
 

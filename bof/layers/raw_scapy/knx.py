@@ -181,7 +181,7 @@ class CRDTunnelingConnection(Packet):
 class CRI(Packet):
     name = "CRI (Connection Request Information)"
     fields_desc = [
-        ByteField("structure_length", 0x00),
+        ByteField("structure_length", 0x02),
         ByteEnumField("connection_type", 0x03, CONNECTION_TYPE_CODES),
         MultipleTypeField(
             [
@@ -398,7 +398,7 @@ class KNXConfigurationRequest(Packet):
     ]
 
     def post_build(self, p, pay):
-        p = (len(p)).to_bytes(1, byteorder='big') + p[1:]
+        p = (len(p[:4])).to_bytes(1, byteorder='big') + p[1:]
         return p + pay
 
 
