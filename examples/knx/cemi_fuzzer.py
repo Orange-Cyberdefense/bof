@@ -16,8 +16,12 @@ from bof import BOFNetworkError
 # REPORTING STUFF                                                             #
 #-----------------------------------------------------------------------------#
 
+LOG_FILENAME = "fuzzer_{0}.log".format(datetime.now().strftime("%y%m%d-%H%M%S"))
+
 def WRITE(message:str) -> None:
     """Write message to any output we want."""
+    LOG_FD.write(message)
+    LOG_FD.write("\n")
     print(message)
 
 #-----------------------------------------------------------------------------#
@@ -74,7 +78,7 @@ def random_bytes(packet:KNXPacket) -> (KNXPacket, str):
         packet[field.name] = new_value
         yield packet, "<{0}: {1}>".format(field.name, new_value)
         packet[field.name] = old_value
-        sleep(0.2) # TMP #####################################################
+        # sleep(0.2)
 
 #-----------------------------------------------------------------------------#
 # FUZZER                                                                      #
@@ -89,6 +93,7 @@ def fuzz(ip:str, generator:object, base_pkt:KNXPacket) -> None:
         # INIT
         triggers = 0
         total = 0
+        conf_ack = KNXPacket(type=SID.configuration_ack)
         WRITE("*** START: {0} ***".format(datetime.now().strftime("%y-%m-%d-%H:%M:%S")))
         while 1:
             # SET OR RESET CONNECTION
@@ -100,34 +105,36 @@ def fuzz(ip:str, generator:object, base_pkt:KNXPacket) -> None:
             # START SENDING PACKETS
             for packet, field in generator(base_pkt):
                 packet.sequence_counter = sequence_counter
-                WRITE("{0} ({1})".format(field, packet))
                 try:
+                    print("{0} requests sent, {1} event(s)... (Ctrl+C to stop)".format(total,triggers),
+                          end="\r")
                     ack, _ = knxnet.sr(packet)
                     # If OK, device replies with an ACK frame we want to check
-                    if not ack.status == 0x00:
-                        WRITE("!!! Error in acknoledgement ({0})".format(ack))
+                    if ack.sid == SID.configuration_ack and not ack.status == 0x00:
+                        WRITE("\n!!! Error in acknowledgement ({0})".format(ack))
+                        WRITE("{0} ({1})".format(field, packet))
                         triggers += 1
                         disconnect(knxnet, channel)
                         break
                     # Then with a configuration request we have to reply to
                     conf, _ = knxnet.receive()
                     if conf.sid == SID.configuration_request:
-                        ack = KNXPacket(type=SID.configuration_ack,
-                                        communication_channel_id=channel,
-                                        sequence_counter=channel)
-                        knxnet.send(ack)
-                    sequence_counter += 1
+                        conf_ack.communication_channel_id = channel
+                        conf_ack.sequence_counter = sequence_counter
+                        knxnet.send(conf_ack)
+                    sequence_counter = sequence_counter + 1 if sequence_counter < 255 else 0
                     total += 1
-                except BOFNetworkError:
-                    WRITE("!!! Timeout")
+                except BOFNetworkError: # Automatically disconnected.
+                    WRITE("\n!!! Timeout")
+                    WRITE("{0} ({1})".format(field, packet))
                     triggers += 1
-                    # disconnect(knxnet, channel)
                     break
     except KeyboardInterrupt:
-        print("Cancelled.")
+        print("\nCancelled.")
     finally:
         disconnect(knxnet, channel)
         WRITE("*** ENDED with {0} triggers ({1} total requests sent). ***".format(triggers, total))
+        LOG_FD.close()
 
 #-----------------------------------------------------------------------------#
 # RUN                                                                         #
@@ -137,6 +144,8 @@ if len(argv) < 2:
     print("Usage: python {0} IP_ADDRESS".format(argv[0]))
     quit()
 
+# Open log file
+LOG_FD = open(LOG_FILENAME, "w+")
 # Create the base frame to mutate during fuzzing
 base_pkt = KNXPacket(type=SID.configuration_request, cemi=CEMI.propread_req)
 base_pkt.number_of_elements = 1

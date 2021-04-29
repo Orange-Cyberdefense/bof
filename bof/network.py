@@ -102,6 +102,7 @@ class _Transport(object):
         self._queue = asyncio.Queue()
         self._source = None
         self._transport = None
+        self._socket = None
 
     #-------------------------------------------------------------------------#
     # Public                                                                  #
