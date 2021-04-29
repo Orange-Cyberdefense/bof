@@ -18,8 +18,8 @@ def tunnel_connect(knxnet):
     Creates and send a CONNECT REQUEST with type "TUNNELING CONNECTION".
     """
     conn_req = KNXPacket(type=SID.connect_request, connection_type=0x04)
-    conn_req.control_endpoint.ip_address, conn_req.control_endpoint.port = knxnet.source
-    conn_req.data_endpoint.ip_address, conn_req.data_endpoint.port = knxnet.source
+    conn_req.scapy_pkt.control_endpoint.ip_address, conn_req.scapy_pkt.control_endpoint.port = knxnet.source
+    conn_req.scapy_pkt.data_endpoint.ip_address, conn_req.scapy_pkt.data_endpoint.port = knxnet.source
     # conn_req.show2()
     # Retrieve the value of "channel" used for the rest of the exchange.
     response, _ = knxnet.sr(conn_req)
@@ -31,7 +31,7 @@ def tunnel_disconnect(knxnet, channel):
     Creates and send a DISCONNECT REQUEST.
     """
     disco_req = KNXPacket(type=SID.disconnect_request)
-    disco_req.control_endpoint.ip_address, disco_req.control_endpoint.port = knxnet.source
+    disco_req.ip_address, disco_req.port = knxnet.source
     disco_req.communication_channel_id = channel
     # disco_req.show2()
     response, _ = knxnet.sr(disco_req)
@@ -49,9 +49,9 @@ def group_write(knxnet, channel, group_addr, value):
     """
     tun_req = KNXPacket(type=SID.tunneling_request, cemi=CEMI.l_data_req)
     tun_req.communication_channel_id = channel
-    tun_req.cemi.cemi_data.source_address = "15.15.255"
-    tun_req.cemi.cemi_data.destination_address = group_addr
-    tun_req.cemi.cemi_data.data = value
+    tun_req.source_address = "15.15.255"
+    tun_req.destination_address = group_addr
+    tun_req.data = value
     tun_req.show2()
     ack, _ = knxnet.sr(tun_req)
     # ack.show2()
@@ -59,7 +59,7 @@ def group_write(knxnet, channel, group_addr, value):
     response.show2()
     # We have to ACK when we receive tunneling requests
     if response.sid == SID.tunneling_request and \
-       tun_req.cemi.message_code == CEMI.l_data_req:
+       tun_req.message_code == CEMI.l_data_req:
         ack = KNXPacket(type=SID.tunneling_ack, communication_channel_id=channel)
         # ack.show2()
 

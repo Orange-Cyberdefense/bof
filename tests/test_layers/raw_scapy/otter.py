@@ -1,4 +1,4 @@
-from scapy.fields import ByteField
+from scapy.fields import ByteField, PacketField
 from scapy.layers.inet import TCP
 from scapy.packet import Packet, bind_layers
 
@@ -34,6 +34,12 @@ class ScapyBasicOtterPacket4(Packet):
         ByteField("basic_otter_4_2", 0x02)
     ]
 
+class ScapyNestedOtterPacket1(Packet):
+    name = "nested_otter_packet_1"
+    fields_desc = [
+        PacketField("nested_otter_1_1", ScapyBasicOtterPacket1(), ScapyBasicOtterPacket1),
+        PacketField("nested_otter_1_3", ScapyBasicOtterPacket3(), ScapyBasicOtterPacket3)
+    ]
 
 bind_layers(ScapyBasicOtterPacket1, ScapyBasicOtterPacket2)
 bind_layers(ScapyBasicOtterPacket2, ScapyBasicOtterPacket4)

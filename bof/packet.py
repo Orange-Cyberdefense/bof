@@ -86,10 +86,15 @@ class BOFPacket(object):
                 _, value, _ = self._get_field(attr)
                 return value
             except BOFProgrammingError:
-                pass
+                # We forbid access with absolute path outside scapy_pkt
+                # Because it's too confusing. Either you access fields directly,
+                # Or via scapy_pkt with absolute path.
+                if hasattr(self._scapy_pkt, attr):
+                    if attr in [x.name for x in self.fields]:
+                        raise BOFProgrammingError("This field cannot be accessed "
+                                                  "directly ({0}).".format(attr)) from None
+                    return getattr(self._scapy_pkt, attr)
         # If not we return Scapy's attribute with that name
-        if self._scapy_pkt and hasattr(self._scapy_pkt, attr):
-            return getattr(self._scapy_pkt, attr)
         # Or the one for this object.
         return object.__getattribute__(self, attr)
 
@@ -154,6 +159,14 @@ class BOFPacket(object):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
+    def get(self, *args):
+        """Get a field either from its name, partial or absolute path."""
+        raise NotImplementedError("BOFPacket: get")
+
+    def set(self, value, *args):
+        """Set ``value`` to a field from its name, partial or absolute path."""
+        raise NotImplementedError("BOFPacket: set")
+
     def append(self, other:object, autobind:bool=False, packet=None, value=None) -> None:
         """Adds either a BOFPacket, Scapy Packet or Field to current packet.
 
@@ -214,7 +227,7 @@ class BOFPacket(object):
         size = max(size, len(value))
         return Field(name, value, fmt="{0}s".format(size))
 
-    def _field_generator(self, start_packet:object=None) -> tuple:
+    def _field_generator(self, start_packet:object=None, terminal=False) -> tuple:
         """Yields fields in packet/subpackets with their closest parent."""
         start_packet = self.scapy_pkt if not start_packet else start_packet
         iterlist = [start_packet] if isinstance(start_packet, PacketField) else \
@@ -225,7 +238,7 @@ class BOFPacket(object):
                     field = field._find_fld()
                 if isinstance(field, PacketField) or isinstance(field, Packet):
                     yield from self._field_generator(getattr(packet, field.name))
-                if isinstance(field, Field): # We also yield if PacketField
+                if isinstance(field, Field):
                     yield field, start_packet
 
     def _get_field(self, name:str) -> tuple:
@@ -238,9 +251,15 @@ class BOFPacket(object):
         for field, parent in self._field_generator():
             if field.name == name:
                 field_and_val = parent.getfield_and_val(name)
-                if field_and_val:
-                    _, val = field_and_val
-                    return field, val, parent
+                # We do not return packetfields directly because we should not
+                # manipulate them outside direct call to Scapy or direct access
+                # to the fields they contain.
+                if not isinstance(field, PacketField):
+                    # getfield_and_val may not return anything if field of main packet
+                    if not field_and_val and parent == self._scapy_pkt:
+                        return field, getattr(parent, name), parent
+                    elif field_and_val:
+                        return field, field_and_val[1], parent
         raise BOFProgrammingError("Field does not exist. ({0})".format(name))
 
     def _set_fields(self, **attrs):

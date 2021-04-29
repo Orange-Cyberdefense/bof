@@ -37,14 +37,9 @@ def connect(ip:str, port:int) -> (KNXnet, int):
     try:
         knxnet.connect(ip, port)
         conn_req = KNXPacket(type=SID.connect_request, connection_type=0x03)
-        conn_req.control_endpoint.ip_address, conn_req.control_endpoint.port = knxnet.source
-        conn_req.data_endpoint.ip_address, conn_req.data_endpoint.port = knxnet.source
-        # TMP HACK ############################################################
-        degueulasse = bytearray(bytes(conn_req)[:24])
-        degueulasse[5:6] = b"\x18" # Manually change lengths
-        degueulasse[22:23] = b"\x02"
-        # END TMP HACK ########################################################
-        response, _ = knxnet.sr(degueulasse)
+        conn_req.scapy_pkt.control_endpoint.ip_address, conn_req.scapy_pkt.control_endpoint.port = knxnet.source
+        conn_req.scapy_pkt.data_endpoint.ip_address, conn_req.scapy_pkt.data_endpoint.port = knxnet.source
+        response, _ = knxnet.sr(conn_req)
         if response.sid == SID.connect_response and response.status == 0x00:
             channel = response.communication_channel_id
     except BOFNetworkError as bne:
@@ -57,7 +52,7 @@ def disconnect(knxnet:KNXnet, channel:int) -> None:
     if knxnet:
         disco_req = KNXPacket(type=SID.disconnect_request, 
                               communication_channel_id = channel)
-        disco_req.control_endpoint.ip_address, disco_req.control_endpoint.port = knxnet.source
+        disco_req.ip_address, disco_req.port = knxnet.source
         knxnet.send(disco_req)
         knxnet.disconnect()
 
@@ -70,7 +65,7 @@ def random_bytes(packet:KNXPacket) -> (KNXPacket, str):
     We only change one field at a time.
     """
     exclude_list = ["cemi_data", "message_code", "data"]
-    fields = [x.name for x,y in packet._field_generator(packet.cemi) if x.name
+    fields = [x.name for x,y in packet._field_generator(packet.scapy_pkt.cemi) if x.name
               not in exclude_list]
     while 1:
         field, old_value, parent = packet._get_field(choice(fields))

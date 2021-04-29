@@ -132,7 +132,7 @@ class Test03KNXFrameConstructor(unittest.TestCase):
         """Test that we can create KNX packet and set value to any field."""
         frame = knx.KNXPacket(type=knx.SID.description_request, ip_address="192.168.1.1")
         self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.1")
-        self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.1")
+        self.assertEqual(frame.ip_address, "192.168.1.1")
 
     def test_0311_knx_packet_scapy_attribute(self):
         """Test that we can create KNX packet and set a Scapy packet as attr."""
@@ -152,24 +152,24 @@ class Test04KNXCEMIFrameConstructor(unittest.TestCase):
         """Test that we can instantiate a KNX packet with no cEMI."""
         from bof.layers.raw_scapy.knx import LcEMI
         frame = knx.KNXPacket(type=knx.SID.tunneling_request)
-        self.assertTrue(isinstance(frame.cemi.cemi_data, LcEMI))
+        self.assertTrue(isinstance(frame.scapy_pkt.cemi.cemi_data, LcEMI))
 
     def test0402_knx_req_cemi_from_construct_dict(self):
         """Test that we can create a KNX packet using cEMI from a dict."""
         frame = knx.KNXPacket(type=knx.SID.configuration_request,
                               cemi=knx.CEMI.propread_req)
-        self.assertEqual(frame.cemi.message_code, 0xfc)
+        self.assertEqual(frame.message_code, 0xfc)
 
     def test0403_knx_req_cemi_from_construct_str(self):
         """Test that we can create a KNX packet using cEMI type as a string."""
         frame = knx.KNXPacket(type="CONFIGURATION REQUEST",
                               cemi="PropWrite.req")
-        self.assertEqual(frame.cemi.message_code, 0xf6)
+        self.assertEqual(frame.message_code, 0xf6)
 
     def test0404_knx_req_cemi_from_construct_bytes(self):
         """Test that we can create a KNX packet using cEMI as value in bytes."""
         frame = knx.KNXPacket(type=b"\x04\x20", cemi=b"\x2e")
-        self.assertEqual(frame.cemi.message_code, knx.CEMI.l_data_con)
+        self.assertEqual(frame.message_code, knx.CEMI.l_data_con)
 
     def test0405_knx_req_cemi_with_other_type(self):
         """Test that we cannot create a KNX packet if cEMI not in type."""
@@ -187,18 +187,18 @@ class Test04KNXCEMIFrameConstructor(unittest.TestCase):
         with self.assertRaises(BOFProgrammingError):
             frame = knx.KNXPacket(type=knx.SID.tunneling_request, cemi=b"\x80")
 
-    def test0308_knx_req_type_from_construct_empty(self):
+    def test0408_knx_req_type_from_construct_empty(self):
         """Test that we can create a KNX packet with empty type and cemi."""
         frame = knx.KNXPacket(type="", cemi="")
         self.assertEqual(frame.service_identifier, None)
         with self.assertRaises(AttributeError):
             raw(frame.cemi)
 
-    def test_0309_knx_packet_header_attribute(self):
+    def test_0409_knx_packet_header_attribute(self):
         """Test that we can create KNX packet and set value to a cemi field."""
         frame = knx.KNXPacket(type=knx.SID.configuration_request,
                               cemi=knx.CEMI.l_data_req, data=4)
-        self.assertEqual(frame.cemi.cemi_data.data, 4)
+        self.assertEqual(frame.data, 4)
         raw(frame) # Should raise if wrong
 
 class Test05FrameAttributes(unittest.TestCase):
@@ -224,8 +224,8 @@ class Test05FrameAttributes(unittest.TestCase):
     def test_0504_knx_attr_deeper_write(self):
         """Test that we can directly change the attribute of a packet."""
         frame = knx.KNXPacket(type=knx.SID.description_request)
-        frame.control_endpoint.ip_address = "192.168.1.1"
-        self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.1")
+        frame.scapy_pkt.control_endpoint.ip_address = "192.168.1.1"
+        self.assertEqual(frame.ip_address, "192.168.1.1")
         self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.1")
         self.assertEqual(frame["ip_address"], b'\xc0\xa8\x01\x01')
 
@@ -233,7 +233,7 @@ class Test05FrameAttributes(unittest.TestCase):
         """Test that we can directly change the attribute of a packet."""
         frame = knx.KNXPacket(type=knx.SID.description_request)
         frame.ip_address = "hi mark!"
-        self.assertEqual(frame.control_endpoint.ip_address, "hi mark!")
+        self.assertEqual(frame.ip_address, "hi mark!")
         self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "hi mark!")
         self.assertEqual(frame["ip_address"], b"hi mark!")
 
@@ -241,7 +241,7 @@ class Test05FrameAttributes(unittest.TestCase):
         """Test that we can set a value directly as bytes using bof_pkt[field]"""
         frame = knx.KNXPacket(type=knx.SID.description_request)
         frame["ip_address"] = b'\xc0\xa8\x01\x2a'
-        self.assertEqual(frame.control_endpoint.ip_address, "192.168.1.42")
+        self.assertEqual(frame.ip_address, "192.168.1.42")
         self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.42")
         self.assertEqual(frame["ip_address"], b'\xc0\xa8\x01\x2a')
         raw(frame) # Should raise if wrong
