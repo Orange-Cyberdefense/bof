@@ -1,8 +1,11 @@
-from scapy.fields import PacketField, MultipleTypeField, ByteField, XByteField, ShortEnumField, ShortField, \
-    ByteEnumField, IPField, StrFixedLenField, MACField, XBitField, PacketListField, IntField, FieldLenField, \
+from scapy.fields import PacketField, MultipleTypeField, ByteField, XByteField, \
+    ShortEnumField, ShortField, \
+    ByteEnumField, IPField, StrFixedLenField, MACField, XBitField, \
+    PacketListField, IntField, FieldLenField, \
     StrLenField, BitEnumField, BitField, ConditionalField
 from scapy.packet import Packet, bind_layers, bind_top_down, Padding
-from scapy.packet import Packet, bind_layers, bind_bottom_up, Padding, bind_top_down
+from scapy.packet import Packet, bind_layers, bind_bottom_up, Padding, \
+    bind_top_down
 from scapy.layers.inet import UDP
 
 ### KNX CODES
@@ -140,9 +143,11 @@ class DIBSuppSvcFamilies(Packet):
     fields_desc = [
         ByteField("structure_length", 0x02),
         ByteEnumField("description_type", 0x02, DESCRIPTION_TYPE_CODES),
-        ConditionalField(PacketListField("service_family", ServiceFamily(), ServiceFamily,
-                                         length_from=lambda pkt: pkt.structure_length - 0x02),
-                         lambda pkt: pkt.structure_length > 0x02)
+        ConditionalField(
+            PacketListField("service_family", ServiceFamily(), ServiceFamily,
+                            length_from=lambda
+                                pkt: pkt.structure_length - 0x02),
+            lambda pkt: pkt.structure_length > 0x02)
     ]
 
     def post_build(self, p, pay):
@@ -151,17 +156,6 @@ class DIBSuppSvcFamilies(Packet):
 
 
 # CRI and CRD blocks
-
-class DeviceManagementConnection(Packet):
-    name = "Device Management Connection"
-    fields_desc = [
-        IPField("ip_address_1", None),
-        ByteField("port_1", None),
-        IPField("ip_address_2", None),
-        ByteField("port_2", None),
-        PacketField("hpai", HPAI(), HPAI)
-    ]
-
 
 class TunnelingConnection(Packet):
     name = "Tunneling Connection"
@@ -183,17 +177,8 @@ class CRI(Packet):
     fields_desc = [
         ByteField("structure_length", 0x02),
         ByteEnumField("connection_type", 0x03, CONNECTION_TYPE_CODES),
-        MultipleTypeField(
-            [
-                # see in KNX specs if better than "pkt.structure_length > 0x02" to check if a body is present
-                (PacketField("connection_data", DeviceManagementConnection(), DeviceManagementConnection),
-                 lambda pkt: pkt.connection_type == 0x03),
-                (PacketField("connection_data", TunnelingConnection(), TunnelingConnection),
-                 lambda pkt: pkt.connection_type == 0x04)
-            ],
-            PacketField("connection_data", None, ByteField)
-        )
-
+        ConditionalField(PacketField("connection_data", TunnelingConnection(), TunnelingConnection),
+                         lambda pkt: pkt.connection_type == 0x04)
     ]
 
     def post_build(self, p, pay):
@@ -206,16 +191,8 @@ class CRD(Packet):
     fields_desc = [
         ByteField("structure_length", 0x00),
         ByteEnumField("connection_type", 0x03, CONNECTION_TYPE_CODES),
-        MultipleTypeField(
-            [
-                # see if better way than "pkt.structure_length > 0x02" to check if a body is present
-                (PacketField("connection_data", DeviceManagementConnection(), DeviceManagementConnection),
-                 lambda pkt: pkt.connection_type == 0x03),
-                (PacketField("connection_data", CRDTunnelingConnection(), CRDTunnelingConnection),
-                 lambda pkt: pkt.connection_type == 0x04)
-            ],
-            PacketField("connection_data", None, ByteField)
-        )
+        ConditionalField(PacketField("connection_data", TunnelingConnection(), TunnelingConnection),
+                         lambda pkt: pkt.connection_type == 0x04)
     ]
 
     def post_build(self, p, pay):
@@ -228,8 +205,10 @@ class CRD(Packet):
 class LcEMI(Packet):
     name = "L_cEMI"
     fields_desc = [
-        FieldLenField("additional_information_length", 0, fmt="B", length_of="additional_information"),
-        StrLenField("additional_information", None, length_from=lambda pkt: pkt.additional_information_length),
+        FieldLenField("additional_information_length", 0, fmt="B",
+                      length_of="additional_information"),
+        StrLenField("additional_information", None,
+                    length_from=lambda pkt: pkt.additional_information_length),
         # Controlfield 1 (1 byte made of 8*1 bits)
         BitEnumField("frame_type", 1, 1, {
             1: "standard"
@@ -287,12 +266,18 @@ class CEMI(Packet):
         ByteEnumField("message_code", None, MESSAGE_CODES),
         MultipleTypeField(
             [
-                (PacketField("cemi_data", LcEMI(), LcEMI), lambda pkt: pkt.message_code == 0x11),
-                (PacketField("cemi_data", LcEMI(), LcEMI), lambda pkt: pkt.message_code == 0x2e),
-                (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xFC),
-                (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xFB),
-                (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xF6),
-                (PacketField("cemi_data", DPcEMI(), DPcEMI), lambda pkt: pkt.message_code == 0xF5)
+                (PacketField("cemi_data", LcEMI(), LcEMI),
+                 lambda pkt: pkt.message_code == 0x11),
+                (PacketField("cemi_data", LcEMI(), LcEMI),
+                 lambda pkt: pkt.message_code == 0x2e),
+                (PacketField("cemi_data", DPcEMI(), DPcEMI),
+                 lambda pkt: pkt.message_code == 0xFC),
+                (PacketField("cemi_data", DPcEMI(), DPcEMI),
+                 lambda pkt: pkt.message_code == 0xFB),
+                (PacketField("cemi_data", DPcEMI(), DPcEMI),
+                 lambda pkt: pkt.message_code == 0xF6),
+                (PacketField("cemi_data", DPcEMI(), DPcEMI),
+                 lambda pkt: pkt.message_code == 0xF5)
             ],
             PacketField("cemi_data", LcEMI(), LcEMI)
         )
@@ -313,7 +298,8 @@ class KNXSearchResponse(Packet):
     fields_desc = [
         PacketField("control_endpoint", HPAI(), HPAI),
         PacketField("device_info", DIBDeviceInfo(), DIBDeviceInfo),
-        PacketField("supported_service_families", DIBSuppSvcFamilies(), DIBSuppSvcFamilies)
+        PacketField("supported_service_families", DIBSuppSvcFamilies(),
+                    DIBSuppSvcFamilies)
     ]
 
 
@@ -328,7 +314,8 @@ class KNXDescriptionResponse(Packet):
     name = "DESCRIPTION_RESPONSE"
     fields_desc = [
         PacketField("device_info", DIBDeviceInfo(), DIBDeviceInfo),
-        PacketField("supported_service_families", DIBSuppSvcFamilies(), DIBSuppSvcFamilies)
+        PacketField("supported_service_families", DIBSuppSvcFamilies(),
+                    DIBSuppSvcFamilies)
         # TODO: this is an optional field in KNX specs, add conditions to take it into account
         # PacketField("other_device_info", DIBDeviceInfo(), DIBDeviceInfo)
     ]
@@ -460,7 +447,8 @@ class KNX(Packet):
         # computes header_length
         p = (len(p)).to_bytes(1, byteorder='big') + p[1:]
         # computes total_length
-        p = p[:-2] + (len(p) + len(pay)).to_bytes(2, byteorder='big')  # TODO: get the whole frame instead of payload
+        p = p[:-2] + (len(p) + len(pay)).to_bytes(2,
+                                                  byteorder='big')  # TODO: get the whole frame instead of payload
         return p + pay
 
 
@@ -498,7 +486,6 @@ bind_layers(HPAI, Padding)
 bind_layers(ServiceFamily, Padding)
 bind_layers(DIBDeviceInfo, Padding)
 bind_layers(DIBSuppSvcFamilies, Padding)
-bind_layers(DeviceManagementConnection, Padding)
 bind_layers(TunnelingConnection, Padding)
 bind_layers(CRDTunnelingConnection, Padding)
 bind_layers(CRI, Padding)
