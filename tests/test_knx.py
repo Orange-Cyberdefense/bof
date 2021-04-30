@@ -245,3 +245,12 @@ class Test05FrameAttributes(unittest.TestCase):
         self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.42")
         self.assertEqual(frame["ip_address"], b'\xc0\xa8\x01\x2a')
         raw(frame) # Should raise if wrong
+
+    def test_0507_knx_attr_samenames(self):
+        """Test that we can access attr with the same name as other fields."""
+        frame = knx.KNXPacket(type=knx.SID.connect_request)
+        frame.update("192.168.1.1", "control_endpoint", "ip_address")
+        frame.update("192.168.1.2", "data_endpoint", "ip_address")
+        self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.1")
+        self.assertEqual(frame.scapy_pkt.data_endpoint.ip_address, "192.168.1.2")
+        raw(frame) # Should raise if wrong

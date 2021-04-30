@@ -194,9 +194,52 @@ class Test05NestedFields(unittest.TestCase):
             self.bof_pkt.nested_otter_1_1.basic_otter_1_2 = "192.168.1.2"
         raw(self.bof_pkt)  # Should raise Exception if wrong
 
-    # def test_0507_field_update_firstlevel(self):
-    # def test_0508_field_update_deepterlevel(self):
-    # def test_0509_field_update_wrongpath(self):
+    def test_0507_field_get_firstlevel(self):
+        """Test that we can get() the value of a field."""
+        self.assertEqual(self.bof_pkt.get("basic_otter_1_1"), 0x01)
+        self.assertTrue(isinstance(self.bof_pkt.get("nested_otter"), PacketField))
+
+    def test_0508_field_get_absolutelevel(self):
+        """Test that we can get() the value of a field with absolute path."""
+        self.assertEqual(self.bof_pkt.get("nested_otter", "nested_otter_2_4", "basic_otter_4_2"), 0x02)
+
+    def test_0508_field_get_partiallevel(self):
+        """Test that we can get() a field with partial path indication."""
+        self.assertEqual(self.bof_pkt.get("nested_otter", "basic_otter_4_2"), 0x02)
+
+    def test_0509_field_get_wrongpath(self):
+        """Test that we cannot get() a field with invalid path indication."""
+        with self.assertRaises(BOFProgrammingError):
+            self.bof_pkt.get("invalid", "basic_otter_4_2")
+
+    def test_0510_field_update_firstlevel(self):
+        """Test that we can set() the value of a field)."""
+        self.bof_pkt.update(0x2a, "basic_otter_1_2")
+        self.bof_pkt.update(0x2a, "basic_otter_3_1")
+        self.assertEqual(self.bof_pkt.scapy_pkt.nested_otter_1_1.basic_otter_1_2, 0x2a)
+        self.assertEqual(self.bof_pkt.scapy_pkt.nested_otter_1_3.basic_otter_3_1, 0x2a)
+        self.assertEqual(self.bof_pkt.basic_otter_1_2, 0x2a)
+        self.assertEqual(self.bof_pkt.basic_otter_3_1, 0x2a)
+        raw(self.bof_pkt)  # Should raise Exception if wrong
+        
+    def test_0511_field_set_absolutelevel(self):
+        """Test that we can update() a field with absolute path."""
+        self.bof_pkt.update(0x2a, "nested_otter", "nested_otter_2_4", "basic_otter_4_2")
+        self.assertEqual(self.bof_pkt.scapy_pkt.nested_otter.nested_otter_2_4.basic_otter_4_2, 0x2a)
+        self.assertEqual(self.bof_pkt.basic_otter_4_2, 0x2a)
+        raw(self.bof_pkt)  # Should raise Exception if wrong
+
+    def test_0512_field_set_partiallevel(self):
+        """Test that we can update() a field with partial path indication."""
+        self.bof_pkt.update(0x2a, "nested_otter", "basic_otter_4_1")
+        self.assertEqual(self.bof_pkt.scapy_pkt.nested_otter.nested_otter_2_4.basic_otter_4_1, 0x2a)
+        self.assertEqual(self.bof_pkt.basic_otter_4_1, 0x2a)
+        raw(self.bof_pkt)  # Should raise Exception if wrong
+
+    def test_0513_field_set_wrongpath(self):
+        """Test that we cannot update() a field with invalid path indication."""
+        with self.assertRaises(BOFProgrammingError):
+            self.bof_pkt.update(0x2a, "invalid", "basic_otter_4_2")
 
 class Test06PayloadAddition(unittest.TestCase):
     """Test for BOFPacket's payload addition functionality"""

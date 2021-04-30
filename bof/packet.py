@@ -22,18 +22,12 @@ from sys import getsizeof
 from struct import error as struct_error
 from socket import gaierror as socket_gaierror
 from ipaddress import ip_address
-# Scapy
 from typing import Union
-
+# Scapy
 from scapy.packet import Packet, RawVal
 from scapy.fields import Field, PacketField, IPField, MultipleTypeField
 # Internal
 from bof import log, BOFProgrammingError
-
-###############################################################################
-# Constants                                                             #
-###############################################################################
-
 
 ###############################################################################
 # BOFPacket class                                                             #
@@ -151,7 +145,7 @@ class BOFPacket(object):
         return self.__class__.__name__
 
     @property
-    def fields(self, start_packet:object=None) -> list:
+    def fields(self) -> list:
         """Returns the list of fields in ``BOFPacket``."""
         return [field for field, parent in self._field_generator()]
 
@@ -159,13 +153,28 @@ class BOFPacket(object):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def get(self, *args):
+    def get(self, *args): # TODO
         """Get a field either from its name, partial or absolute path."""
-        raise NotImplementedError("BOFPacket: get")
+        parent = self._scapy_pkt
+        for arg in args:
+            if arg is args[-1]: # Last item
+                field, value, _ = self._get_field(arg, parent, packets=True)
+                return field if isinstance(field, PacketField) else value
+            else:
+                _ , _, parent = self._get_field(arg, parent, packets=True)
+        raise BOFProgrammingError("Could not find field ({0}).".format(args))
 
-    def set(self, value, *args):
+    def update(self, value, *args):
         """Set ``value`` to a field from its name, partial or absolute path."""
-        raise NotImplementedError("BOFPacket: set")
+        parent = self._scapy_pkt
+        for arg in args:
+            if arg is args[-1]: # Last item
+                field, _, _ = self._get_field(arg, parent, packets=True)
+                self._set_fields(start_packet=parent, **{field.name: value})
+                return
+            else:
+                _ , parent, _ = self._get_field(arg, parent, packets=True)
+        raise BOFProgrammingError("Could not find field ({0}).".format(args))
 
     def append(self, other:object, autobind:bool=False, packet=None, value=None) -> None:
         """Adds either a BOFPacket, Scapy Packet or Field to current packet.
@@ -227,7 +236,7 @@ class BOFPacket(object):
         size = max(size, len(value))
         return Field(name, value, fmt="{0}s".format(size))
 
-    def _field_generator(self, start_packet:object=None, terminal=False) -> tuple:
+    def _field_generator(self, start_packet:object=None) -> tuple:
         """Yields fields in packet/subpackets with their closest parent."""
         start_packet = self.scapy_pkt if not start_packet else start_packet
         iterlist = [start_packet] if isinstance(start_packet, PacketField) else \
@@ -241,20 +250,22 @@ class BOFPacket(object):
                 if isinstance(field, Field):
                     yield field, start_packet
 
-    def _get_field(self, name:str) -> tuple:
+    def _get_field(self, name:str, start_packet:object=None, packets:bool=False) -> tuple:
         """Extract a field from its name anywhere in a Scapy packet.
 
         :param name: Name of the field to retrieve.
+        :param start_packet: Packet to start the search from (Packet or PacketField)
+        :param packets: If set to True, will also return PacketField objects.
         :returns: A tuple ``field_object, field_value``.
         :raises BOFProgrammingError: if field does not exist.
         """
-        for field, parent in self._field_generator():
+        for field, parent in self._field_generator(start_packet):
             if field.name == name:
                 field_and_val = parent.getfield_and_val(name)
                 # We do not return packetfields directly because we should not
                 # manipulate them outside direct call to Scapy or direct access
                 # to the fields they contain.
-                if not isinstance(field, PacketField):
+                if not isinstance(field, PacketField) or packets:
                     # getfield_and_val may not return anything if field of main packet
                     if not field_and_val and parent == self._scapy_pkt:
                         return field, getattr(parent, name), parent
@@ -262,14 +273,14 @@ class BOFPacket(object):
                         return field, field_and_val[1], parent
         raise BOFProgrammingError("Field does not exist. ({0})".format(name))
 
-    def _set_fields(self, **attrs):
+    def _set_fields(self, start_packet:object=None, **attrs):
         """Set values to fields using a list of dict ``{field: value, ...}``.
         In constructor, field values are set AFTER the packet type is defined.
 
         :param fields: List to use to set values to fields. Each entry is a dict
                        with format ``field_name: value_to_set``.
         """
-        for field, parent in self._field_generator():
+        for field, parent in self._field_generator(start_packet=start_packet):
             if field.name in attrs.keys():
                 old_value = getattr(parent, field.name)
                 # _, old_value = parent.getfield_and_val(field.name)
