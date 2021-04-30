@@ -1,22 +1,86 @@
 """unittest for Modbus TCP implementation ``bof.layers.modbus``
 
 - Modbus packet frame creation and parsing
-- Modbus TCP connection and packet exchange (send/receive) TODO
-- Frame Fuzzing TODO
+- Modbus TCP connection and packet exchange (send/receive)
+- Frame use-cases / examples TODO
 """
 
 import unittest
+from subprocess import Popen
 
 from scapy.contrib.modbus import ModbusADURequest, ModbusPDU01ReadCoilsRequest
 
 from bof import BOFProgrammingError
 from bof.layers import modbus
 
+TCP_ECHO_SERVER_CMD = 'ncat -l 502 --keep-open --exec "/bin/cat"'
+
+class Test01ModbusConnection(unittest.TestCase):
+    """Test class for Modbus TCP connection features"""
+    @classmethod
+    def setUpClass(self):
+        self.echo_server = Popen(TCP_ECHO_SERVER_CMD.split())
+    @classmethod
+    def tearDownClass(self):
+        self.echo_server.terminate()
+        self.echo_server.wait()
+
+    def test_0101_modbusnet_instantiate(self):
+        modbus_net = modbus.ModbusNet()
+
+    def test_0102_modbusnet_connect(self):
+        modbus_net = modbus.ModbusNet()
+        modbus_net.connect("localhost", 502)
+        self.assertEqual(modbus_net.source_address, "127.0.0.1")
+        modbus_net.disconnect()
+
+class Test02ModbusExchange(unittest.TestCase):
+    """Test class for Modbus TCP exchange.
+    Prerequisites: ModbusNet class instantiated, connect and disconnect OK.
+    """
+    @classmethod
+    def setUpClass(self):
+        self.modbus_net = modbus.ModbusNet()
+        self.echo_server = Popen(TCP_ECHO_SERVER_CMD.split())
+    def setUp(self):
+        self.modbus_net.connect("localhost")
+    def tearDown(self):
+        self.modbus_net.disconnect()
+    @classmethod
+    def tearDownClass(self):
+        self.echo_server.terminate()
+        self.echo_server.wait()
+
+    def test_0201_modbus_send_modbuspacket(self):
+        """Test that we can send frames in BOF format."""
+        frame_bof = modbus.ModbusPacket(type=modbus.MODBUS_TYPES.REQUEST)
+        sent = self.modbus_net.send(frame_bof)
+        self.assertEqual(sent, 7)  # replace with bytes content ?
+
+    def test_0202_modbus_send_modbuspacket(self):
+        """Test that we can send frames in Scapy format."""
+        frame_scapy = ModbusADURequest()/ModbusPDU01ReadCoilsRequest()
+        recv = self.modbus_net.send(frame_scapy)
+        self.assertEqual(recv, 12)
+
+    def test_0203_modbus_send_raw(self):
+        """Test that we can send frames in bytes directly."""
+        frame = b'\x01\xf5\x00\x00\x00\x06\x07\x06\x00\x04\x09\xc4'
+        recv = self.modbus_net.sr(frame)
+        self.assertEqual(bytes(recv[0]), frame)
+
+    def test_0204_modbus_receive(self):
+        """Test that received bytes are converted to ``Modbus``s."""
+        frame = b'\x01\xf5\x00\x00\x00\x06\x07\x06\x00\x04\x09\xc4'
+        recv = self.modbus_net.sr(frame)
+        self.assertTrue(isinstance(recv[0], modbus.ModbusPacket))
+
 class Test03ModbusFrameConstructor(unittest.TestCase):
     """Test class for Modbus TCP frame building using BOF's Modbus classes.
     Modbus implementation classes inherit from ``ModbusPacket`` and make a
     correspondence between BOF content and protocol implementation in Scapy.
     """
+
     def test0301_modbus_empty_packet(self):
         """Test that we can create a Modbus TCP frame with no PDU"""
         modbus_frame = modbus.ModbusPacket(type=modbus.MODBUS_TYPES.REQUEST)
