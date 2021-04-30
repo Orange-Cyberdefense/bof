@@ -71,7 +71,7 @@ Report issues
 -------------
 
 Report bugs, ask questions or request for missing documentation and new features
-by submitting an issue with GitHub. For bugs, please describe your problem as
+by submitting an issue on GitHub. For bugs, please describe your problem as
 clearly as you can.
 
 Architecture
