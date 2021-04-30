@@ -28,6 +28,7 @@ from socket import gaierror as socket_gaierror
 from ipaddress import ip_address
 from typing import Union
 # Scapy
+from scapy.compat import raw
 from scapy.packet import Packet, RawVal
 from scapy.fields import Field, PacketField, IPField, MultipleTypeField
 # Internal
@@ -310,7 +311,7 @@ class BOFPacket(object):
         size = max(size, len(value))
         return Field(name, value, fmt="{0}s".format(size))
 
-    def _field_generator(self, start_packet:object=None) -> tuple:
+    def _field_generator(self, start_packet:object=None, terminal=False) -> tuple:
         """Yields fields in packet/packetfields with their closest parent."""
         start_packet = self.scapy_pkt if not start_packet else start_packet
         iterlist = [start_packet] if isinstance(start_packet, PacketField) else \
