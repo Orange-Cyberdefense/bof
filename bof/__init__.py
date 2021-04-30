@@ -10,23 +10,27 @@ The following submodules are available:
 
 :base:
     Basic helpers for correct module usage (error handling, logging, some
-    parsing features. Available from direct bof import (``import bof``).
+    parsing features.
 
 :network:
     Global network classes, used by protocol implementations in submodules.
     The content of this class should not be used directly, unless writing a
-    new protocol submodule. Available from direct bof import (``import bof``)
+    new protocol submodule.
 
 :packet:
     Base classe for specialized BOF packets in layers. Such classes link BOF
-    content and usage to protocol implementations in Scapy. Technically
-    speaking, they are the interface between BOF's end user and Scapy Packet
-    and Field objects.
+    content and usage to protocol implementations in Scapy. In other words,
+    they interface BOF's syntax used by the end user with Scapy Packet and
+    Field objects used for the packet itself. The base class ``BOFPacket``
+    is not supposed to be instantiated directly, but whatever. 
 
 :layers:
     Protocol implementations to be imported in BOF. Importing ``layers`` gives
-    acces to BOF protocol implementations as well as raw Scapy implementations
-    (if any) in folder ``layers/scapy``.
+    acces to BOF protocol implementations inheriting from ``BOFPacket``
+    (interface between BOF and Scapy worlds).  The directory
+    ``layers/raw_scapy`` may contain protocol implementations in Scapy which
+    are not integrated to Scapy's repository (for instance, if you wrote your
+    own but did not contribute (yet)).
 """
 
 ###############################################################################

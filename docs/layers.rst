@@ -1,11 +1,3 @@
-BOFPacket
-=========
-
-.. automodule:: bof.packet
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Layers
 ======
 
@@ -21,11 +13,13 @@ KNX
    :members:
    :undoc-members:
    :show-inheritance:
-.. automodule:: bof.layers.knx_network
+
+.. automodule:: bof.layers.knx.knx_network
    :members:
    :undoc-members:
    :show-inheritance:
-.. automodule:: bof.layers.knx_packet
+
+.. automodule:: bof.layers.knx.knx_packet
    :members:
    :undoc-members:
    :show-inheritance:

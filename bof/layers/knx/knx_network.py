@@ -15,16 +15,12 @@ Usage::
 
     knxnet = KNXnet()
     knxnet.connect("192.168.1.242")
-    data, addr = knxnet.sr(KNX()/KNXDescriptionRequest()) # TODO
+    data, addr = knxnet.sr(KNXPacket(type=SID.description_request))
     data.show2()
     knxnet.disconnect()
-
-Additional options can be used to automatically initiate an exchange (send
-the appropriate sequence of frames) based on predefined exchange sequences.
-
-*TODO*
-
 """
+
+# Scapy
 from scapy.packet import Packet
 # Internal
 from bof.network import UDP
@@ -53,7 +49,7 @@ class KNXnet(UDP):
         super().connect(ip, port)
         return self
 
-    def send(self, data, address:tuple=None) -> int:
+    def send(self, data:object, address:tuple=None) -> int:
         """Converts BOF and Scapy frames to bytes to send.
         Relies on ``UDP`` class to send data.
 
@@ -74,7 +70,7 @@ class KNXnet(UDP):
         """Converts received bytes to a parsed ``KNXPacket`` object.
 
         :param timeout: Time to wait to receive a frame (default is 1 sec)
-        :returns; A ``KNX`` object.
+        :returns: A ``KNXPacket`` object.
         """
         data, address = super().receive(timeout)
         return KNXPacket(data), address

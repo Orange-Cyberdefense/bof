@@ -56,6 +56,8 @@ class KNXPacket(BOFPacket):
     :param type: Type of frame to build. Ignored if ``_pkt`` set.
                  Should be a value from ``SID`` dict imported from KNX Scapy
                  implementation as a dict key, a string or as bytes.
+    :param kwargs: Any field to initialize when instantiating the frame, with
+                   format field_name=value.
 
     Example of initialization::
 
@@ -63,12 +65,17 @@ class KNXPacket(BOFPacket):
         pkt = KNXPacket(type=SID.description_request) # From service id dict
         pkt = KNXPacket(type="DESCRIPTION REQUEST") # From service id name
         pkt = KNXPacket(type=b"\x02\x03") # From service id value
+        pkt = KNXPacket(type=SID.connect_request, communication_channel_id=2)
         pkt = KNXPacket(scapy_pkt=KNX()/KNXDescriptionRequest()) # With Scapy Packet
         pkt = KNXPacket() # Empty packet (just a KNX header)
     """
 
-    def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=None, type:object=None, **kwargs) -> None:
-        # Initialize Scapy object from bytes or as an empty KNX packet
+    #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#
+
+    def __init__(self, _pkt:bytes=None, scapy_pkt:Packet=None,
+                 type:object=None, **kwargs) -> None:
         if _pkt or (not type and not scapy_pkt):
             self._scapy_pkt = scapy_knx.KNX(_pkt=_pkt)
         elif scapy_pkt:
@@ -83,42 +90,26 @@ class KNXPacket(BOFPacket):
         """Format packet according to the specified type (service identifier).
 
         :param ptype: Type of frame to build. Ignored if ``_pkt`` set.
-                      Should be a value from ``SID`` dict imported from KNX Scapy
-                      implementation as a dict key, a string or as bytes.
+                      Should be a value from ``SID`` dict imported from KNX
+                      Scapy implementation as a dict key, a string or as bytes.
         :param cemi: cEMI field type. Raises error if type does not have have a
                      cEMI field, is ignored if there is no type given.
         :raises BOFProgrammingError: if type is unknown or invalid or if cEMI is set
                                      but there is no cEMI field in packet type.
         """
-        itype = self._get_code(ptype, scapy_knx.SERVICE_IDENTIFIER_CODES)
+        itype = self.__get_code(ptype, scapy_knx.SERVICE_IDENTIFIER_CODES)
         try:
             packet, = [p for f, p in scapy_knx.KNX.payload_guess if f[TYPE_FIELD] == itype]
         except ValueError:
             raise BOFProgrammingError("Unknown type for KNXPacket ({0})".format(ptype))
         if cemi:
-            cemi_pkt = scapy_knx.CEMI(message_code=self._get_code(cemi, scapy_knx.MESSAGE_CODES))
+            cemi_pkt = scapy_knx.CEMI(message_code=self.__get_code(cemi, scapy_knx.MESSAGE_CODES))
             try:
                 self._scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet(cemi=cemi_pkt)
             except AttributeError:
                 raise BOFProgrammingError("Packet type has no cEMI field ({0})".format(itype)) from None
         else:
             self._scapy_pkt = scapy_knx.KNX(service_identifier=itype)/packet()
-
-    def _get_code(self, code:object, codes_dict:dict) -> int:
-        """Get the code associated to ``name`` in ``codes_dict``.
-        Code is an integer, but we may need to convert it from bytes.
-        """
-        if isinstance(code, str):
-            for key, value in codes_dict.items():
-                if to_property(code) == to_property(value):
-                    code = key
-                    break
-        if isinstance(code, bytes):
-            code = int.from_bytes(code, byteorder="big")
-        if code not in codes_dict.keys():
-            raise BOFProgrammingError("Invalid code ({0})".format(code))
-        return code
-
 
     @property
     def type(self) -> str:
@@ -133,3 +124,22 @@ class KNXPacket(BOFPacket):
             return self._scapy_pkt.service_identifier.to_bytes(2, byteorder="big")
         except AttributeError:
             raise BOFProgrammingError("Packet has no service identifier.")
+
+    #-------------------------------------------------------------------------#
+    # Private                                                                 #
+    #-------------------------------------------------------------------------#
+
+    def __get_code(self, code:object, codes_dict:dict) -> int:
+        """Get the code associated to ``name`` in ``codes_dict``.
+        Code is an integer, but we may need to convert it from bytes.
+        """
+        if isinstance(code, str):
+            for key, value in codes_dict.items():
+                if to_property(code) == to_property(value):
+                    code = key
+                    break
+        if isinstance(code, bytes):
+            code = int.from_bytes(code, byteorder="big")
+        if code not in codes_dict.keys():
+            raise BOFProgrammingError("Invalid code ({0})".format(code))
+        return code

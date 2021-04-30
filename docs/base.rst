@@ -16,3 +16,11 @@ Basic network protocol implementation
    :members:
    :undoc-members:
    :show-inheritance:
+
+BOFPacket base class
+--------------------
+
+.. automodule:: bof.packet
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -10,7 +10,7 @@ Relies on module ``asyncio``.
 Both classes rely on internal class ``_Transport``, which should not be
 instantiated.
 
-Network connection and example with raw UDP::
+Network connection and exchange example with raw UDP::
 
     from bof import UDP
     udp = UDP()
@@ -22,7 +22,7 @@ Usage is the same with raw TCP.
 
 .. warning:: Direct initialization of TCP/UDP object is not recommended.
              The user should use BOF network classes inherited from
-             TCP/UDP (e.g. ``KnxNet`` for the ``KNX`` protocol).
+             TCP/UDP (e.g. ``KNXnet`` for the ``KNX`` protocol).
 """
 
 import asyncio

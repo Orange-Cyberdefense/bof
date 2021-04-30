@@ -1,20 +1,24 @@
-"""A BOFPacket represents a frame or part of one (a block), that contains
- packets and fields.
+"""Interfaces with a packet as a Scapy object, with specific features.
 
-A BOFPacket uses a Scapy Packet object as attribute, as BOF protocol
-implementations are based on Scapy.
+A BOFPacket is a sort of wrapper around a Scapy Packet object, and
+implements specific features or changes relative to Scapy's behavior when
+interacting with this packet.
 
-The Scapy Packet is used as a basis for BOF to manipulate frames with its
-own syntax. However, you can still perform "Scapy stuff" on the packet by
-directly accessing BOFPacket.scapy_pkt attribute.
+The Scapy Packet is used as a basis for BOF to manipulate frames with its own
+syntax. You don't need to know how to use Scapy to use BOF.  However, you can
+still perform "Scapy stuff" on the packet by directly accessing
+``BOFPacket.scapy_pkt`` attribute.
 
-Note that BOFPacket DOES NOT inherit from Scapy packet, because we don't need
-a "specialized" class, but a "translation" from BOF usage to Scapy objects.
+.. note:: BOFPacket DOES NOT inherit from Scapy packet, because we don't need a
+          "specialized" class, but a "translation" from BOF usage to Scapy
+          objects.
 
 Example (keep in mind that BOFPacket should not be instantiated directly :))::
 
-    TODO:: add example of BOF final syntax + Scapy usage
-
+    pkt = BOFPacket(scapy_pkt=ScapyBasicOtterPacket1())
+    print(pkt.scapy_pkt.basic_otter_1_1, pkt.basic_otter_1_1) # Same output
+    pkt.basic_otter_1_1 = "192.168.1.2" # Not the expected type, BOF converts it
+    pkt.show2()
 """
 from random import randint
 from copy import deepcopy
@@ -34,17 +38,21 @@ from bof import log, BOFProgrammingError
 ###############################################################################
 
 class BOFPacket(object):
-    """Representation of a network packet in BOF.
-
-    A BOFPacket represents a frame or part of one (a block), that contains
-    packets and fields.
+    """Base class for BOF network packet handling, to inherit in subclasses.
 
     This class should not be instantiated directly but protocol-specific
-    Packet class in BOF shall inherit it.
+    Packet classes in BOF shall inherit it. It acts as a wrapper around
+    Scapy-based packets in the specified protocol, either relaying, replacing
+    or modifying Scapy default behaviors on Packets and Fields.
 
-    :param _pkt: Raw Packet bytes used to build a frame (mostly done at reception)
-    :param scapy_pkt: Scapy actual Packet object (inheriting from packet) and
-                      used by BOF for protocol implementation-related stuff.
+    :param _pkt: Raw Packet bytes used to build a packet (mostly done at
+                 reception, but you can manually create a packet from bytes)
+    :param scapy_pkt: Actual Scapy ``Packet`` object, used by BOF for protocol
+                      implementation-related stuff. Can be referred to directly
+                      to do "Scapy stuff" inside BOF.
+    :param kwargs: Field values to set when instantiating the class. Format is
+                   ``field_name=value, ...``. If two fields have the same name,
+                   it sets the first one.
 
     Example::
 
@@ -73,31 +81,48 @@ class BOFPacket(object):
         yield from self.fields
 
     def __getattr__(self, attr):
-        """Return attr corresponding to fields in the Scapy packet first."""
+        """Returns either a field (final), a scapy_pkt attr or this class' attr.
+
+        For a field to be returned, ``attr`` must be the name of a "terminal"
+        field, not of a container for other fields (PacketField or Packet).
+        BOF forbids access to fields via absolute path without using the
+        ``scapy_pkt`` attribute to avoid confusions when getting/setting values
+        to fields.
+
+        If the attribute is not a final field, we return in that order:
+        - An attribute with that name in ``scapy_pkt`` (if not a PacketField)
+        - The corresponding attribute in the current instance.
+
+        Example::
+
+            bof_pkt.port = 3671 # Works
+            bof_pkt.scapy_pkt.control_endpoint.port = 3671 # Works
+
+            bof_pkt.control_endpoint.port = 3671 # Raises exception
+        """
         # We try to set attribute as if it was a field
         if self._scapy_pkt:
             try:
                 _, value, _ = self._get_field(attr)
                 return value
             except BOFProgrammingError:
-                # We forbid access with absolute path outside scapy_pkt
-                # Because it's too confusing. Either you access fields directly,
-                # Or via scapy_pkt with absolute path.
+                # We check if scapy_pkt's corresponding attribute is a
+                # PacketField or a Packet. If not, we return this attribute.
                 if hasattr(self._scapy_pkt, attr):
                     if attr in [x.name for x in self.fields]:
                         raise BOFProgrammingError("This field cannot be accessed "
                                                   "directly ({0}).".format(attr)) from None
                     return getattr(self._scapy_pkt, attr)
-        # If not we return Scapy's attribute with that name
-        # Or the one for this object.
+        # If there were no final field nor scapy_pkt attr, we return this object's.
         return object.__getattribute__(self, attr)
 
     def __setattr__(self, attr, value):
-        """If attribute is a field, set it to the Scapy object with changes.
-        Scapy Fields only accept values with the appropriate format, but
-        BOF does not care, the end user should be able to set values from
-        the type she wants. Therefore, if the type is not matching, we replace
-        the field with a RawVal field.
+        """Sets a value to an attribute with changes if the attribute is a field.
+
+        Scapy Fields only accept values with the appropriate format, but BOF
+        does not care, the end user should be able to set values from the type
+        she wants. Therefore, if the type is not matching, The Field is replaced
+        with a Field of the same name and new content, with a different type.
         """
         # We try to set attribute as if it was a field
         if self._scapy_pkt:
@@ -118,7 +143,12 @@ class BOFPacket(object):
         return mvalue
 
     def __setitem__(self, key:str, mvalue:bytes) -> None:
-        """Directly set a value as bytes to a field without changing its type."""
+        """Directly set a value as bytes to a field without changing its type.
+
+        Example::
+
+            bof_pkt["fieldname"] = b"\x00"
+        """
         field, oldval, parent = self._get_field(key)
         ivalue = field.m2i(parent, mvalue)
         if isinstance(oldval, int) and isinstance(ivalue, bytes):
@@ -134,7 +164,10 @@ class BOFPacket(object):
         return self._scapy_pkt
     @scapy_pkt.setter
     def scapy_pkt(self, pkt:Packet) -> None:
-        """Set a content to a Packet directly with Scapy format."""
+        """Set a content to a Packet directly with Scapy format.
+        
+        :raises BOFProgrammingError: if pkt is not a Scapy Packet object.
+        """
         if isinstance(pkt, Packet):
             self._scapy_pkt = pkt
         else:
@@ -142,19 +175,42 @@ class BOFPacket(object):
 
     @property
     def type(self) -> str:
+        """Get information about the packet's type (protocol-dependent).
+        
+        Should be overriden in subclasses to match a protocol's different
+        types of packets. For instance, BOF's packet for the KNX protocol
+        (``KNXPacket``) returns the type of packet as a name, relying on its
+        identifier fields. If identifier is 0x0203, ``pkt.type`` indicates that
+        the packet is a ``DESCRIPTION REQUEST``.
+        """
         return self.__class__.__name__
 
     @property
     def fields(self) -> list:
-        """Returns the list of fields in ``BOFPacket``."""
+        """Returns the list of field objects in a ``BOFPacket``.
+
+        Can be used to retrieve the list of fields as a name list with::
+
+            [x.name for x in pkt.fields]
+        """
         return [field for field, parent in self._field_generator()]
 
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def get(self, *args): # TODO
-        """Get a field either from its name, partial or absolute path."""
+    def get(self, *args) -> object:
+        """Get a field either from its name, partial or absolute path.
+
+        Partial indicates part of the absolute path, in other words where the
+        search for the field should start from.
+
+        :param args: Can take from one to many arguments. The last argument
+                     must be the field you look for. Previous "path" arguments
+                     must be in the right order (even if the path is not
+                     complete).
+        :raises BOFProgrammingError: If field not found or not supported.
+        """
         parent = self._scapy_pkt
         for arg in args:
             if arg is args[-1]: # Last item
@@ -164,8 +220,20 @@ class BOFPacket(object):
                 _ , _, parent = self._get_field(arg, parent, packets=True)
         raise BOFProgrammingError("Could not find field ({0}).".format(args))
 
-    def update(self, value, *args):
-        """Set ``value`` to a field from its name, partial or absolute path."""
+    def update(self, value:object, *args) -> None:
+        """Set value to a field either from its name, partial or absolute path.
+
+        Partial indicates part of the absolute path, in other words where the
+        search for the field should start from.
+
+        :param value: The value to set to the field. If the type does not match,
+                      the type of field will be changed.
+        :param args: Can take from one to many arguments. The last argument
+                     must be the field you look for. Previous "path" arguments
+                     must be in the right order (even if the path is not
+                     complete).
+        :raises BOFProgrammingError: If field not found or not supported.
+        """
         parent = self._scapy_pkt
         for arg in args:
             if arg is args[-1]: # Last item
@@ -198,15 +266,16 @@ class BOFPacket(object):
     #-------------------------------------------------------------------------#
 
     @staticmethod
-    def _clone(packet:Packet, name:str):
+    def _clone(packet:Packet, name:str) -> None:
         """Replaces the Scapy ``packet`` class by an exact copy.
+
         This is a trick used when we need to modify a ``Packet`` class attribute
         without affecting all instances of an object.
         For instance, if we change ``fields_desc`` to add a field, all new
         instances will be changed as this is a class attribute.
         
-        :param packet: the Scapy Packet to update
-        :param name: the new class name for packet
+        :param packet: the Scapy Packet to update.
+        :param name: the new class name for packet.
         """
         # Checks if a binding exists between packet and its preceding layer
         # (bindings are defined as a list of tuples `layer.payload_guess`)
@@ -225,8 +294,13 @@ class BOFPacket(object):
     #--- Field management ----------------------------------------------------#
 
     @staticmethod
-    def _create_field(name, value, size=0):
-        """Create appropriate Field according to the type of ``value``."""
+    def _create_field(name:str, value:object, size:int=0) -> Field:
+        """Create appropriate Field according to the type of ``value``.
+
+        Several specific types must be handled differently. So far only
+        IP addresses are supported. Please create an issue  or pull request if
+        you miss any other one.
+        """
         try:
             ip_address(value)
             return IPField(name, value)
@@ -237,7 +311,7 @@ class BOFPacket(object):
         return Field(name, value, fmt="{0}s".format(size))
 
     def _field_generator(self, start_packet:object=None) -> tuple:
-        """Yields fields in packet/subpackets with their closest parent."""
+        """Yields fields in packet/packetfields with their closest parent."""
         start_packet = self.scapy_pkt if not start_packet else start_packet
         iterlist = [start_packet] if isinstance(start_packet, PacketField) else \
                    [start_packet, start_packet.payload]
@@ -266,19 +340,21 @@ class BOFPacket(object):
                 # manipulate them outside direct call to Scapy or direct access
                 # to the fields they contain.
                 if not isinstance(field, PacketField) or packets:
-                    # getfield_and_val may not return anything if field of main packet
+                    # getfield_and_val may not return anything for fields in main packet
                     if not field_and_val and parent == self._scapy_pkt:
                         return field, getattr(parent, name), parent
                     elif field_and_val:
                         return field, field_and_val[1], parent
         raise BOFProgrammingError("Field does not exist. ({0})".format(name))
 
-    def _set_fields(self, start_packet:object=None, **attrs):
+    def _set_fields(self, start_packet:object=None, **attrs) -> None:
         """Set values to fields using a list of dict ``{field: value, ...}``.
         In constructor, field values are set AFTER the packet type is defined.
 
+        :param start_packet: Packet or PacketField to start the search from.
         :param fields: List to use to set values to fields. Each entry is a dict
                        with format ``field_name: value_to_set``.
+        :raises BOFProgrammingError: if field was not found.
         """
         for field, parent in self._field_generator(start_packet=start_packet):
             if field.name in attrs.keys():
@@ -296,14 +372,15 @@ class BOFPacket(object):
         if len(attrs):
             raise BOFProgrammingError("Field does not exist. ({0})".format(list(attrs.keys())[0]))
 
-    def _replace_field_type(self, packet, old_field, new_field):
+    def _replace_field_type(self, packet:Packet, old_field:Field, new_field:Field):
         """Replace a field in a packet with a field with a different type.
-        We first need to clone the packet as ``fields_desc`` is a class attribute.
+        We first need to clone the packet class as ``fields_desc`` is a class
+        attribute and will be changed for every instance of that class otherwise.
 
         :param packet: The packet in which we want to replace a field.
         :param old_field; The field that should be replaced.
         :param new_field: The new field with a different type.
-        :raises BOFProgrammingError: if old_field does not exist in Packet.
+        :raises BOFProgrammingError: if ``old_field`` does not exist in Packet.
         """
         new_packet_name = "{0}_{1}_{2}".format(packet.__class__.__name__,
                                                packet.name, new_field.name)
@@ -338,32 +415,26 @@ class BOFPacket(object):
             bof_pkt._add_field(new_field, bof_pkt.get_layer("ModbusADU")
             bof_pkt._add_field(new_field, bof_pkt.payload)
         """
-
-        # gets the target layer by its name if not specified directly
+        # Fets the target layer by its name if not specified directly
         if isinstance(packet, str) and self.scapy_pkt.haslayer(packet):
             packet = self.scapy_pkt.getlayer(packet)
-
-        # if no Packet is assigned, gets the higher level packet
+        # If no Packet is assigned, gets the higher level packet
         if not isinstance(packet, Packet):
             packet = self._scapy_pkt.lastlayer()
-
-        # we replace the class with a new one to avoid shared instance issues
+        # We replace the class with a new one to avoid shared instance issues
         # TODO: check if class name exists before assigning a new name
         BOFPacket._clone(packet, packet.__class__.__name__ + str(
             randint(1000000, 9999999)))
-
         # We reproduce the task performed during a Packet's fields init, but
         # adapt them to a single field addition
         # To make things simpler and straightforward, we started with no cache,
         # but we might implement it later
         packet.fields_desc.append(new_field)
-
         # Similar to Packet's do_init_fields() but for a single field
         packet.fieldtype[new_field.name] = new_field
         if new_field.holds_packets:
             packet.packetfields.append(new_field)
         packet.default_fields[new_field.name] = deepcopy(new_field.default)
-
         # Similar to the "strange initialization" (lines 164-179 of Scapy
         # Packet constructor) but for a single field
         fname = new_field.name
@@ -372,12 +443,10 @@ class BOFPacket(object):
             packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
         except KeyError:
             pass
-
         if fname in packet.fields and fname in packet.deprecated_fields:
             value = packet.fields[fname]
             fname = packet._resolve_alias(fname)
             packet.fields[fname] = packet.get_field(fname).any2i(packet, value)
-
         if value is not None:
             packet.new_field = value
 
