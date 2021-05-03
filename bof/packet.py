@@ -20,6 +20,7 @@ Example (keep in mind that BOFPacket should not be instantiated directly :))::
     pkt.basic_otter_1_1 = "192.168.1.2" # Not the expected type, BOF converts it
     pkt.show2()
 """
+import gc
 from random import randint
 from copy import deepcopy
 from sys import getsizeof
@@ -285,6 +286,9 @@ class BOFPacket(object):
             in_payload_guess = any(packet.__class__ in binding \
                                    for binding in packet.underlayer.payload_guess)
         # Duplicates our packet class and replaces it by the clone
+        # first checks that provided name is not already used, otherwise generates a new one
+        while name in [type(o).__name__ for o in gc.get_objects()]:
+            name = name + '_' + str(randint(1000000, 9999999))
         class_copy = type(name, (packet.__class__,), {})
         packet.__class__ = class_copy
         # Bindings with the preceding layer must be done again
@@ -423,9 +427,7 @@ class BOFPacket(object):
         if not isinstance(packet, Packet):
             packet = self._scapy_pkt.lastlayer()
         # We replace the class with a new one to avoid shared instance issues
-        # TODO: check if class name exists before assigning a new name
-        BOFPacket._clone(packet, packet.__class__.__name__ + str(
-            randint(1000000, 9999999)))
+        BOFPacket._clone(packet, packet.__class__.__name__)
         # We reproduce the task performed during a Packet's fields init, but
         # adapt them to a single field addition
         # To make things simpler and straightforward, we started with no cache,
@@ -492,12 +494,10 @@ class BOFPacket(object):
             other = other.scapy_pkt
         # Gets the last payload of our packet (will be bound to next payload)
         lastlayer = self._scapy_pkt.lastlayer()
-        # TODO: Rewrite + Refactor + Test for existing class name
-        BOFPacket._clone(lastlayer, lastlayer.__class__.__name__
-                        + str(randint(1000000, 9999999)))
         # Checks if binding exists between last layer and the other class
         is_binding = any(other.__class__ in b for b in lastlayer.payload_guess)
         if isinstance(other, Packet) and autobind and not is_binding:
+            BOFPacket._clone(lastlayer, lastlayer.__class__.__name__)
             lastlayer.payload_guess.insert(0, ({}, other.__class__))
             # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
         self._scapy_pkt = self._scapy_pkt / other

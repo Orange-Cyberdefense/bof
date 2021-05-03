@@ -392,3 +392,11 @@ class Test08PacketClassClone(unittest.TestCase):
                          + bytes(ScapyBasicOtterPacket4()))
         self.assertEqual(scapy_pkt.__class__(raw(scapy_pkt)).getlayer("basic_otter_packet_2").name,
                          "basic_otter_packet_2")
+
+    def test_0803_packet_clone_duplicate(self):
+        """Test that specifying an already existing class names will generate a new one"""
+        scapy_pkt1 = ScapyBasicOtterPacket1()
+        BOFPacket._clone(scapy_pkt1, "basic_otter_packet_1_clone")
+        scapy_pkt2 = ScapyBasicOtterPacket1()
+        BOFPacket._clone(scapy_pkt2, "basic_otter_packet_1_clone")
+        self.assertNotEqual(scapy_pkt1.__class__.__name__, scapy_pkt2.__class__.__name__)
