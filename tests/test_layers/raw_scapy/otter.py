@@ -48,5 +48,19 @@ class ScapyNestedOtterPacket1(Packet):
         PacketField("nested_otter", ScapyNestedOtterPacket2(), ScapyNestedOtterPacket2)
     ]
 
+class ScapyOtterGuessPayloadPacket1(Packet):
+    name = "guess_otter_1"
+    fields_desc = [
+        ByteField("payload_identifier", None)
+    ]
+
+    def guess_payload_class(self, payload):
+        if self.payload_identifier == 0x01:
+            return ScapyBasicOtterPacket1
+        elif self.payload_identifier == 0x02:
+            return ScapyBasicOtterPacket2
+        else:
+            return None
+
 bind_layers(ScapyBasicOtterPacket1, ScapyBasicOtterPacket2)
 bind_layers(ScapyBasicOtterPacket2, ScapyBasicOtterPacket4)

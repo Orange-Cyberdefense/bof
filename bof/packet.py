@@ -497,7 +497,7 @@ class BOFPacket(object):
         # Checks if binding exists between last layer and the other class
         is_binding = any(other.__class__ in b for b in lastlayer.payload_guess)
         if isinstance(other, Packet) and autobind and not is_binding:
-            BOFPacket._clone(lastlayer, lastlayer.__class__.__name__)
+            self._clone(lastlayer, lastlayer.__class__.__name__)
             lastlayer.payload_guess.insert(0, ({}, other.__class__))
             # we may also use Scapy builtin bind_layers or pkt.decode_payload_as()
         self._scapy_pkt = self._scapy_pkt / other
