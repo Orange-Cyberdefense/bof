@@ -304,11 +304,21 @@ class Test06PayloadAddition(unittest.TestCase):
         self.assertEqual(bof_pkt1.scapy_pkt.__class__(raw(bof_pkt1.scapy_pkt)).payload.payload.name,
                          "basic_otter_packet_3")
 
-    @unittest.skip("Not implemented yet.")
-    def test_0605_bofpacket_addpayload_automatic_guess(self):  # TODO
+    def test_0605_bofpacket_addpayload_automatic_guess(self):
         """Test dynamic payload binding when specific conditions are used
          via guess_payload in Scapy implementation"""
-        pass
+        bof_pkt = BOFPacket(scapy_pkt=ScapyOtterGuessPayloadPacket1())
+        bof_pkt.append(ScapyBasicOtterPacket3(), autobind=True)
+        self.assertEqual(bof_pkt.scapy_pkt.payload.get_field("basic_otter_3_1").name,
+                         "basic_otter_3_1")
+        self.assertEqual(
+            bof_pkt.scapy_pkt.getlayer("ScapyBasicOtterPacket3").get_field("basic_otter_3_1").name,
+            "basic_otter_3_1")
+        self.assertEqual(bytes(bof_pkt), bytes(ScapyOtterGuessPayloadPacket1())
+                         + bytes(ScapyBasicOtterPacket3()))
+        # effectively tests for "logical" payload binding (in addition to the correct frame bytes)
+        self.assertEqual(bof_pkt.scapy_pkt.__class__(raw(bof_pkt.scapy_pkt)).payload.name,
+                         "basic_otter_packet_3")
 
     @unittest.skip("Not implemented yet.")
     def test_0606_bofpacket_addpayload_size(self):  # TODO
@@ -393,3 +403,11 @@ class Test08PacketClassClone(unittest.TestCase):
                          + bytes(ScapyBasicOtterPacket4()))
         self.assertEqual(scapy_pkt.__class__(raw(scapy_pkt)).getlayer("basic_otter_packet_2").name,
                          "basic_otter_packet_2")
+
+    def test_0803_packet_clone_duplicate(self):
+        """Test that specifying an already existing class names will generate a new one"""
+        scapy_pkt1 = ScapyBasicOtterPacket1()
+        BOFPacket._clone(scapy_pkt1, "basic_otter_packet_1_clone")
+        scapy_pkt2 = ScapyBasicOtterPacket1()
+        BOFPacket._clone(scapy_pkt2, "basic_otter_packet_1_clone")
+        self.assertNotEqual(scapy_pkt1.__class__.__name__, scapy_pkt2.__class__.__name__)

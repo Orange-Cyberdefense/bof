@@ -8,7 +8,9 @@
 
 import unittest
 from subprocess import Popen
+
 from scapy.compat import raw
+
 from bof.layers import knx
 from bof.base import BOFProgrammingError
 
