@@ -1,6 +1,6 @@
 """
-Boiboite Opener Framework
-=========================
+Introduction
+============
 
 Boiboite Opener Framework / Ouvre-Boiboite Framework contains a set of features
 to write scripts using industrial network protocols for test and attack

@@ -8,6 +8,7 @@
 
 import unittest
 from subprocess import Popen
+from scapy.compat import raw
 from bof.layers import knx
 from bof.base import BOFProgrammingError
 
@@ -202,7 +203,7 @@ class Test04KNXCEMIFrameConstructor(unittest.TestCase):
         raw(frame) # Should raise if wrong
 
 class Test05FrameAttributes(unittest.TestCase):
-    """Test class for KNX objects acess to subpackets a fields with attributes."""
+    """Test class for KNX objects access to subpackets a fields with attributes."""
     def test_0501_knx_attr_direct_read(self):
         """Test that we can directly access the attribute of a packet."""
         frame = knx.KNXPacket(type=knx.SID.search_request)
@@ -232,10 +233,10 @@ class Test05FrameAttributes(unittest.TestCase):
     def test_0505_knx_attr_deeper_write_scapyrejected(self):
         """Test that we can directly change the attribute of a packet."""
         frame = knx.KNXPacket(type=knx.SID.description_request)
-        frame.ip_address = "hi mark!"
-        self.assertEqual(frame.ip_address, "hi mark!")
-        self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "hi mark!")
-        self.assertEqual(frame["ip_address"], b"hi mark!")
+        frame.ip_address = "hi mark!" # IP address is 4 bytes
+        self.assertEqual(frame.ip_address, "ark!")
+        self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "ark!")
+        self.assertEqual(frame["ip_address"], b"ark!")
 
     def test_0506_knx_attr_as_bytes(self):
         """Test that we can set a value directly as bytes using bof_pkt[field]"""
@@ -254,3 +255,46 @@ class Test05FrameAttributes(unittest.TestCase):
         self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "192.168.1.1")
         self.assertEqual(frame.scapy_pkt.data_endpoint.ip_address, "192.168.1.2")
         raw(frame) # Should raise if wrong
+
+class Test06TypeConversion(unittest.TestCase):
+    """Test class for field types conversion checks.
+
+    Field types conversion may occur when assigning a value of a different type
+    to a field or when converting to/from machine representation with syntax
+    ``frame["field"]``.
+    """
+    @classmethod
+    def setUp(self):
+        self.bof_pkt = knx.KNXPacket(type=knx.SID.configuration_request,
+                                     cemi=knx.CEMI.l_data_req)
+
+    def test_0601_knx_bytesfield_to_bytestr(self):
+        """Test that we can retrieve the value of a bytefield as bytes string."""
+        self.assertEqual(self.bof_pkt["protocol_version"], b"\x10")
+        self.assertEqual(self.bof_pkt.protocol_version, 0x10)
+
+    def test_0602_knx_bytesfield_assign_regular(self):
+        """Test that we can set the value of a bytefield regularly and as bytes."""
+        self.bof_pkt.protocol_version = 0x01
+        self.assertEqual(self.bof_pkt["protocol_version"], b"\x01")
+        self.assertEqual(self.bof_pkt.protocol_version, 0x01)
+        self.bof_pkt["protocol_version"] = b"\x02"
+        self.assertEqual(self.bof_pkt["protocol_version"], b"\x02")
+        self.assertEqual(self.bof_pkt.protocol_version, 0x02)
+        raw(self.bof_pkt) # Should raise if wrong
+
+    def test_0603_knx_bytesfield_assign_bytes(self):
+        """Test that we can set the value of a bytefield as bytes directly."""
+        self.bof_pkt.protocol_version = b"\x01"
+        self.assertEqual(self.bof_pkt["protocol_version"], b"\x01")
+        self.assertEqual(self.bof_pkt.protocol_version, 0x01)
+        raw(self.bof_pkt) # Should raise if wrong
+
+    def test_0604_knx_bytesfield_assign_larger(self):
+        """Test that setting a larger value to a field will truncate it."""
+        self.bof_pkt.protocol_version = 0x2021
+        self.assertEqual(self.bof_pkt["protocol_version"], b"\x21")
+        self.assertEqual(self.bof_pkt.protocol_version, 0x21)
+        raw(self.bof_pkt) # Should raise if wrong
+
+        self.bof_pkt.show2()
