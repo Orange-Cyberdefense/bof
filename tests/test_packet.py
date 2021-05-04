@@ -303,7 +303,7 @@ class Test06PayloadAddition(unittest.TestCase):
         self.assertEqual(bof_pkt1.scapy_pkt.__class__(raw(bof_pkt1.scapy_pkt)).payload.payload.name,
                          "basic_otter_packet_3")
 
-    def test_0605_bofpacket_addpayload_automatic_guess(self):  # TODO: fix test
+    def test_0605_bofpacket_addpayload_automatic_guess(self):
         """Test dynamic payload binding when specific conditions are used
          via guess_payload in Scapy implementation"""
         bof_pkt = BOFPacket(scapy_pkt=ScapyOtterGuessPayloadPacket1())
