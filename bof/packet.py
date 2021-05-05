@@ -306,13 +306,6 @@ class BOFPacket(object):
         IP addresses are supported. Please create an issue  or pull request if
         you miss any other one.
         """
-        try:
-            ip_address(value)
-            return IPField(name, value)
-        except ValueError:
-            pass
-        # Set default type
-        size = max(size, len(value))
         return Field(name, value, fmt="{0}s".format(size))
 
     def _field_generator(self, start_packet:object=None, terminal=False) -> tuple:
@@ -352,6 +345,71 @@ class BOFPacket(object):
                         return field, field_and_val[1], parent
         raise BOFProgrammingError("Field does not exist. ({0})".format(name))
 
+    ### WIP ###
+
+    def _resize(self, value, size, byteorder="big"):
+        """TODO"""
+        from_bytes = {
+            bytes: lambda x: x,
+            int: lambda x: int.from_bytes(x, byteorder=byteorder),
+            str: lambda x: x.decode("utf-8")
+        }
+        to_bytes = {
+            bytes: lambda x, l: x,
+            int: lambda x, l: x.to_bytes(l, byteorder=byteorder),
+            str: lambda x, l: x.encode("utf-8")
+        }
+        SIZE = {
+            bytes: lambda x: len(x),
+            int: lambda x: ((x.bit_length() + 7) // 8),
+            str: lambda x: len(x)
+        }
+        T = type(value)
+        if T in SIZE and SIZE[T](value) > size:
+            bvalue = to_bytes[T](value, SIZE[T](value))
+            bvalue = bvalue[len(bvalue)-size:] if byteorder == 'big' else bvalue[:size]
+            value = from_bytes[type(value)](bvalue)
+        return value
+
+    def _setattr(self, parent, field, value):
+        """TODO"""
+        value = self._resize(value, field.sz)
+        setattr(parent, field.name, value)
+
+    ### REQ REFACTO ###
+    def _any2i(self, parent, field, new_value) -> bool:
+        """TODO"""
+        old_value = getattr(parent, field.name)
+        # Handle special fields
+        if isinstance(field, IPField):
+            try:
+                ip_address(new_value)
+                setattr(parent, field.name, new_value)
+                return True
+            except ValueError:
+                return False # We have to change the field's type
+        # Type is None, we can't rely on previous value
+        if not old_value:
+            self._setattr(parent, field, new_value)
+            try:
+                raw(parent)
+                return True            
+            except struct_error:
+                pass # Enter other conditions
+        # Type is the same as the previous one
+        if type(old_value) == type(new_value):
+            self._setattr(parent, field, new_value)
+            return True
+        # Type is set directly as bytes, we try to convert to internal repr
+        if isinstance(new_value, bytes):
+            internal = field.m2i(parent, new_value)
+            if isinstance(old_value, int):
+                # If internal value was an int, we need to manually convert it back
+                internal = int.from_bytes(internal, byteorder="big")
+            self._setattr(parent, field, internal)
+            return True
+        return False
+
     def _set_fields(self, start_packet:object=None, **attrs) -> None:
         """Set values to fields using a list of dict ``{field: value, ...}``.
         In constructor, field values are set AFTER the packet type is defined.
@@ -363,21 +421,19 @@ class BOFPacket(object):
         """
         for field, parent in self._field_generator(start_packet=start_packet):
             if field.name in attrs.keys():
-                old_value = getattr(parent, field.name)
-                # _, old_value = parent.getfield_and_val(field.name)
-                try:
-                    setattr(parent, field.name, attrs[field.name])
-                    raw(parent) # Checks if current Field accepts this value
-                except (struct_error, socket_gaierror, TypeError):
+                result = self._any2i(parent, field, attrs[field.name])
+                if not result:
                     # # If type does not match the Field type, we replace the Field
                     new_field = self._create_field(field.name, attrs[field.name], field.sz)
-                    self._replace_field_type(parent, field, new_field)
-                    setattr(parent, field.name, attrs[field.name])
+                    self._replace_field(parent, field, new_field)
+                    self._setattr(parent, field, attrs[field.name])
                 attrs.pop(field.name)
         if len(attrs):
             raise BOFProgrammingError("Field does not exist. ({0})".format(list(attrs.keys())[0]))
 
-    def _replace_field_type(self, packet:Packet, old_field:Field, new_field:Field):
+    ### WIP ###
+
+    def _replace_field(self, packet:Packet, old_field:Field, new_field:Field):
         """Replace a field in a packet with a field with a different type.
         We first need to clone the packet class as ``fields_desc`` is a class
         attribute and will be changed for every instance of that class otherwise.
