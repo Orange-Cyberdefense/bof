@@ -65,6 +65,7 @@ class ModbusNet(TCP):
         elif isinstance(data, Packet):
             data = raw(data)
         return super().send(data, address)
+        # TODO: add transaction id incrementation + unitid (+ name ?)
 
     def receive(self, timeout: float = 1.0) -> object:
         """Converts received bytes to a parsed ``ModbusPacket`` object.
@@ -73,4 +74,4 @@ class ModbusNet(TCP):
         :returns: A ``ModbusPacket`` object and the sender address.
         """
         data, address = super().receive(timeout)
-        return ModbusPacket(_pkt=data, type=MODBUS_TYPES.REQUEST), address
+        return ModbusPacket(_pkt=data, type=MODBUS_TYPES.RESPONSE), address
