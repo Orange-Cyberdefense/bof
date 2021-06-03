@@ -236,9 +236,9 @@ class Test05FrameAttributes(unittest.TestCase):
         """Test that we can directly change the attribute of a packet."""
         frame = knx.KNXPacket(type=knx.SID.description_request)
         frame.ip_address = "hi mark!" # IP address is 4 bytes
-        self.assertEqual(frame.ip_address, "ark!")
-        self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "ark!")
-        self.assertEqual(frame["ip_address"], b"ark!")
+        self.assertEqual(frame.ip_address, "hi mark!")
+        self.assertEqual(frame.scapy_pkt.control_endpoint.ip_address, "hi mark!")
+        self.assertEqual(frame["ip_address"], b"hi mark!")
 
     def test_0506_knx_attr_as_bytes(self):
         """Test that we can set a value directly as bytes using bof_pkt[field]"""
@@ -289,7 +289,7 @@ class Test06TypeConversion(unittest.TestCase):
         """Test that we can set the value of a bytefield as bytes directly."""
         self.bof_pkt.protocol_version = b"\x01"
         self.assertEqual(self.bof_pkt["protocol_version"], b"\x01")
-        self.assertEqual(self.bof_pkt.protocol_version, 0x01)
+        self.assertEqual(self.bof_pkt.protocol_version, b"\x01")
         raw(self.bof_pkt) # Should raise if wrong
 
     def test_0604_knx_bytesfield_assign_larger(self):
@@ -298,5 +298,3 @@ class Test06TypeConversion(unittest.TestCase):
         self.assertEqual(self.bof_pkt["protocol_version"], b"\x21")
         self.assertEqual(self.bof_pkt.protocol_version, 0x21)
         raw(self.bof_pkt) # Should raise if wrong
-
-        self.bof_pkt.show2()

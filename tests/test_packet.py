@@ -56,7 +56,7 @@ class Test01PacketConstruct(unittest.TestCase):
     def test_0106_bofpacket_scapy_attr_init_othertype_bytes(self):
         """Test that we can set values to fields in constructor (any type: bytes)."""
         bof_pkt = BOFBasicOtterPacket1(basic_otter_1_2=b"\x42")
-        self.assertEqual(bof_pkt.basic_otter_1_2, 66)
+        self.assertEqual(bof_pkt.basic_otter_1_2, b"\x42")
         self.assertEqual(bof_pkt["basic_otter_1_2"], b"\x42")
         raw(bof_pkt)  # Should raise Exception if wrong
 
@@ -145,7 +145,7 @@ class Test04BasicFields(unittest.TestCase):
     def test_0404_field_writevalue_othertype_bytes(self):
         """Test that we can change the value of a field with different type."""
         self.bof_pkt.basic_otter_1_2 = b"\x42\x42"
-        self.assertEqual(self.bof_pkt.basic_otter_1_2, 66)
+        self.assertEqual(self.bof_pkt.basic_otter_1_2, b"\x42")
         self.assertEqual(self.bof_pkt["basic_otter_1_2"], b"\x42")
         raw(self.bof_pkt)  # Should raise Exception if wrong
 
@@ -186,7 +186,7 @@ class Test05NestedFields(unittest.TestCase):
     def test_0505_nestedfield_writevalue_othertype_bytes(self):
         """Test that we can change the value of a field with different type."""
         self.bof_pkt.basic_otter_1_2 = b"\x42"
-        self.assertEqual(self.bof_pkt.scapy_pkt.nested_otter_1_1.basic_otter_1_2, 66)
+        self.assertEqual(self.bof_pkt.scapy_pkt.nested_otter_1_1.basic_otter_1_2, b"\x42")
         raw(self.bof_pkt)  # Should raise Exception if wrong
 
     def test_0506_nestedfield_writevalue_othertype_blockedsyntax(self):

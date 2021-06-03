@@ -31,7 +31,8 @@ from typing import Union
 # Scapy
 from scapy.compat import raw
 from scapy.packet import Packet, RawVal
-from scapy.fields import Field, PacketField, IPField, MultipleTypeField
+from scapy.fields import Field, PacketField, IPField, MultipleTypeField, \
+    ByteField
 # Internal
 from bof import log, BOFProgrammingError
 
@@ -345,10 +346,10 @@ class BOFPacket(object):
                         return field, field_and_val[1], parent
         raise BOFProgrammingError("Field does not exist. ({0})".format(name))
 
-    ### WIP ###
-
     def _resize(self, value, size, byteorder="big"):
-        """TODO"""
+        """Truncates value to size if value is type int, bytes or str.
+        We can probably do better but so far it is enough.
+        """
         from_bytes = {
             bytes: lambda x: x,
             int: lambda x: int.from_bytes(x, byteorder=byteorder),
@@ -372,42 +373,32 @@ class BOFPacket(object):
         return value
 
     def _setattr(self, parent, field, value):
-        """TODO"""
-        value = self._resize(value, field.sz)
+        """Set value to field using setattr on parent.
+        For some fields, we may need to truncate fields using ``_resize()``.
+        """
+        if isinstance(field, ByteField) or type(field) == Field:
+            value = self._resize(value, field.sz)
         setattr(parent, field.name, value)
 
-    ### REQ REFACTO ###
     def _any2i(self, parent, field, new_value) -> bool:
-        """TODO"""
-        old_value = getattr(parent, field.name)
+        """Try to set a value to a field and see if it passes or not.
+        If it fails, the field will be replaced with a field of another type.
+
+        :returns: True if field was set without raising exceptions, False otherwise.
+        """
         # Handle special fields
         if isinstance(field, IPField):
             try:
                 ip_address(new_value)
-                setattr(parent, field.name, new_value)
-                return True
             except ValueError:
                 return False # We have to change the field's type
-        # Type is None, we can't rely on previous value
-        if not old_value:
+        # Try to assign: if it fails, we have to change the field's type as well
+        try:
             self._setattr(parent, field, new_value)
-            try:
-                raw(parent)
-                return True            
-            except struct_error:
-                pass # Enter other conditions
-        # Type is the same as the previous one
-        if type(old_value) == type(new_value):
-            self._setattr(parent, field, new_value)
+            raw(parent)
             return True
-        # Type is set directly as bytes, we try to convert to internal repr
-        if isinstance(new_value, bytes):
-            internal = field.m2i(parent, new_value)
-            if isinstance(old_value, int):
-                # If internal value was an int, we need to manually convert it back
-                internal = int.from_bytes(internal, byteorder="big")
-            self._setattr(parent, field, internal)
-            return True
+        except struct_error:
+            pass # Any other exception is unexpected and we let it happen
         return False
 
     def _set_fields(self, start_packet:object=None, **attrs) -> None:
