@@ -34,6 +34,10 @@ Getting started
 git clone https://github.com/Orange-Cyberdefense/bof.git
 ```
 
+Requirements (Protocol implementations use
+[Scapy](https://scapy.readthedocs.io/en/latest/)'s format): ``` pip install
+scapy ```
+
 BOF is a Python 3.6+ library that should be imported in scripts.  It has no
 installer yet so you need to refer to the `bof` subdirectory which contains the
 library (inside the repository) in your project or to copy the folder to your
@@ -49,7 +53,54 @@ Now you can start using BOF!
 TL;DR
 -----
 
-> TODO
+### Send and receive packets
+
+```python
+from bof.layers.knx import KNXnet, KNXPacket, SID
+from bof import BOFNetworkError
+
+knxnet = KNXnet()
+try:
+    knxnet.connect("192.168.1.242", 3671)
+    pkt = KNXPacket(type=SID.description_request,
+                    ip_address=knxnet.source_address,
+                    port=knxnet.source_port)
+    pkt.show2()
+    response, _ = knxnet.sr(pkt)
+    response.show2()
+except BOFNetworkError as bne:
+    pass
+finally:
+    knxnet.disconnect()
+```
+
+### Craft your own packets
+
+```python
+from bof.layers.knx import KNXPacket, SID
+from bof.layers.raw_scapy.knx import LcEMI
+
+pkt = KNXPacket(type=SID.description_request)
+pkt.ip_address = b"\x01\x01"
+pkt.port = 99999
+pkt.append(LcEMI())
+pkt.show2() # This may output something strange
+```
+
+### Interface with Scapy
+
+BOF relies on Scapy for protocol implementations, with an additional layer that
+translates BOF code to changes on Scapy packets and fields. Why? Because BOF may
+slightly modify or override Scapy’s internal behavior.
+
+You do not need to know how to use Scapy to use BOF, however if you do, you are
+free to interact with the Scapy packet directly as well.
+
+```python
+packet = KNXPacket(type=connect_request)
+packet.field1 = 1 # Applying additional BOF operations (ex: change types)
+packet.scapy_pkt.field1 = 1 # Direct access to Scapy Packet object
+```
 
 Complete documentation
 ----------------------
@@ -62,7 +113,7 @@ The HTML user manual and source code documentation can be built from the
 repository:
  
 1. `$> cd docs && make html`
-2. Navigate to `[path to repository]/docs/_build/html/index.html)`
+2. Navigate to `[path to repository]/docs/_build/html/index.html`
 
 Example scripts are in folder `examples`.
 

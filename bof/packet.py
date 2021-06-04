@@ -31,10 +31,15 @@ from typing import Union
 # Scapy
 from scapy.compat import raw
 from scapy.packet import Packet, RawVal
-from scapy.fields import Field, PacketField, IPField, MultipleTypeField, \
-    ByteField
+from scapy.fields import *
 # Internal
 from bof import log, BOFProgrammingError
+
+###############################################################################
+# Constants                                                                   #
+###############################################################################
+
+CHANGEABLE_TYPES = (ByteField, ShortField, IntField) # May be completed
 
 ###############################################################################
 # BOFPacket class                                                             #
@@ -376,7 +381,7 @@ class BOFPacket(object):
         """Set value to field using setattr on parent.
         For some fields, we may need to truncate fields using ``_resize()``.
         """
-        if isinstance(field, ByteField) or type(field) == Field:
+        if isinstance(field, CHANGEABLE_TYPES) or type(field) == Field:
             value = self._resize(value, field.sz)
         setattr(parent, field.name, value)
 

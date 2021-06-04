@@ -298,3 +298,8 @@ class Test06TypeConversion(unittest.TestCase):
         self.assertEqual(self.bof_pkt["protocol_version"], b"\x21")
         self.assertEqual(self.bof_pkt.protocol_version, 0x21)
         raw(self.bof_pkt) # Should raise if wrong
+
+    def test_0605_knx_intfield_overflow(self):
+        bof_pkt = knx.KNXPacket(type=knx.SID.description_request)
+        bof_pkt.port = 999999
+        self.assertEqual(bof_pkt.port, 16959)
