@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'Boiboite Opener Framework'
-copyright = '2020, Lex'
+copyright = '2020-2021, Lex'
 author = 'Lex'
 
 # The full version, including alpha/beta/rc tags
-release = '0.3.0'
+release = '0.4.0'
 
 
 # -- General configuration ---------------------------------------------------

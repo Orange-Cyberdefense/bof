@@ -8,4 +8,4 @@
    :caption: Available submodules:
 
    base
-   knx
+   layers

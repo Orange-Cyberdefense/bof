@@ -1,13 +1,14 @@
-Changelog
-=========
+Changelog 0.3.0 to 0.4.0
+========================
 
-Release 0.3.0
--------------
+Network
+-------
 
-* [BOF] Generic block and frame code moved from KNX and OPCUA
-	implementations to core
-* [BOF] New "depends:" keyword in JSON specification file, to make the
-	value of a field depend on the value of another one
-* [BOF] First version of developer documentation
-* [KNX] Tunneling connection management with ``L_Data`` messages
-* [KNX] KNX individual and group address parsing and conversion
+* Bug fix in exception handing for `asyncio` transport objects
+* New method `sr` as a shortcut for `send_receive` in protocol implementations
+* Refactoring: `UDP()` and `TCP()` classes now inherit an internal `_Transport()` class
+
+Tests
+-----
+
+* Unit tests for `base.py` and `network.py` have been updated.

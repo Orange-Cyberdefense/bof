@@ -1,4 +1,7 @@
 """
+Introduction
+============
+
 Boiboite Opener Framework / Ouvre-Boiboite Framework contains a set of features
 to write scripts using industrial network protocols for test and attack
 purposes.
@@ -7,35 +10,34 @@ The following submodules are available:
 
 :base:
     Basic helpers for correct module usage (error handling, logging, some
-    parsing features. Available from direct bof import (``import bof``).
+    parsing features.
 
 :network:
     Global network classes, used by protocol implementations in submodules.
     The content of this class should not be used directly, unless writing a
-    new protocol submodule. Available from direct bof import (``import bof``)
+    new protocol submodule.
 
-:frame:
-    Generic frame representation as objects within BOF. Classes from this
-    submodule should be inherited by protocol implementations, but they should
-    not be used directly by the end user.
+:packet:
+    Base classe for specialized BOF packets in layers. Such classes link BOF
+    content and usage to protocol implementations in Scapy. In other words,
+    they interface BOF's syntax used by the end user with Scapy Packet and
+    Field objects used for the packet itself. The base class ``BOFPacket``
+    is not supposed to be instantiated directly, but whatever. 
 
-:byte:
-    Set of functions for byte conversion and handling. Accessed via import of
-    the byte submodule (``from bof import byte``).
-
-:knx:
-    Implementation of the BMS protocol KNX, relying on ``bof.UDP``. Provides
-    classes and methods for sending and receiving KNX datagrams on the network
-    over KNXnet/IP, and for reading and writing valid or invalid KNX
-    frames.
+:layers:
+    Protocol implementations to be imported in BOF. Importing ``layers`` gives
+    acces to BOF protocol implementations inheriting from ``BOFPacket``
+    (interface between BOF and Scapy worlds).  The directory
+    ``layers/raw_scapy`` may contain protocol implementations in Scapy which
+    are not integrated to Scapy's repository (for instance, if you wrote your
+    own but did not contribute (yet)).
 """
 
 ###############################################################################
-# Include content to be imported by module users                              #
+# Include content to be imported by module users when importing "bof"         #
 ###############################################################################
 
 from .base import *
 from .network import *
-from .frame import *
-from .byte import * 
-from .spec import *
+from .packet import *
+from .layers import *
