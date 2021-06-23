@@ -7,19 +7,22 @@
 
 import unittest
 from subprocess import Popen
+from time import sleep
 
 from scapy.contrib.modbus import ModbusADURequest, ModbusPDU01ReadCoilsRequest
 
 from bof import BOFProgrammingError
 from bof.layers import modbus
 
-TCP_ECHO_SERVER_CMD = 'ncat -l 502 --keep-open --exec "/bin/cat"'
+TCP_ECHO_SERVER_CMD_1 = "ncat -e /bin/cat -k -l 1502"
+TCP_ECHO_SERVER_CMD_2 = "ncat -e /bin/cat -k -l 1503"
 
 class Test01ModbusConnection(unittest.TestCase):
     """Test class for Modbus TCP connection features"""
     @classmethod
     def setUpClass(self):
-        self.echo_server = Popen(TCP_ECHO_SERVER_CMD.split())
+        self.echo_server = Popen(TCP_ECHO_SERVER_CMD_1.split())
+        sleep(1)
     @classmethod
     def tearDownClass(self):
         self.echo_server.terminate()
@@ -30,7 +33,7 @@ class Test01ModbusConnection(unittest.TestCase):
 
     def test_0102_modbusnet_connect(self):
         modbus_net = modbus.ModbusNet()
-        modbus_net.connect("localhost", 502)
+        modbus_net.connect("127.0.0.1", 1502)
         self.assertEqual(modbus_net.source_address, "127.0.0.1")
         modbus_net.disconnect()
 
@@ -41,9 +44,10 @@ class Test02ModbusExchange(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         self.modbus_net = modbus.ModbusNet()
-        self.echo_server = Popen(TCP_ECHO_SERVER_CMD.split())
+        self.echo_server = Popen(TCP_ECHO_SERVER_CMD_2.split())
+        sleep(1)
     def setUp(self):
-        self.modbus_net.connect("localhost")
+        self.modbus_net.connect("localhost", 1503)
     def tearDown(self):
         self.modbus_net.disconnect()
     @classmethod
@@ -58,10 +62,10 @@ class Test02ModbusExchange(unittest.TestCase):
         self.assertEqual(sent, 7)  # replace with bytes content ?
 
     def test_0202_modbus_send_modbuspacket(self):
-        """Test that we can send frames in Scapy format."""
-        frame_scapy = ModbusADURequest()/ModbusPDU01ReadCoilsRequest()
-        recv = self.modbus_net.send(frame_scapy)
-        self.assertEqual(recv, 12)
+         """Test that we can send frames in Scapy format."""
+         frame_scapy = ModbusADURequest()/ModbusPDU01ReadCoilsRequest()
+         recv = self.modbus_net.send(frame_scapy)
+         self.assertEqual(recv, 12)
 
     def test_0203_modbus_send_raw(self):
         """Test that we can send frames in bytes directly."""
