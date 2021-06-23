@@ -87,6 +87,9 @@ pkt.append(LcEMI())
 pkt.show2() # This may output something strange
 ```
 
+> A recipient device will probably not respond to that, but at least you know
+  that BOF won't stop you from messing with your packets.
+
 ### Interface with Scapy
 
 BOF relies on Scapy for protocol implementations, with an additional layer that
