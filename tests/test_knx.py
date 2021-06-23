@@ -12,7 +12,7 @@ from subprocess import Popen
 from scapy.compat import raw
 
 from bof.layers import knx
-from bof.base import BOFProgrammingError
+from bof.base import BOFProgrammingError, BOFNetworkError
 
 UDP_ECHO_SERVER_CMD = "ncat -e /bin/cat -k -u -l 3671"
 
@@ -303,3 +303,16 @@ class Test06TypeConversion(unittest.TestCase):
         bof_pkt = knx.KNXPacket(type=knx.SID.description_request)
         bof_pkt.port = 999999
         self.assertEqual(bof_pkt.port, 16959)
+
+class Test07Features(unittest.TestCase):
+    """Test class for higher level features."""
+    def test_0701_search_invalid(self):
+        """Test that using wrong arguments for search raises exception."""
+        with self.assertRaises(BOFProgrammingError):
+            devices = knx.search("lol")
+        with self.assertRaises(BOFProgrammingError):
+            devices = knx.search(["lol", "wut"])
+    def test_0701_search_valid(self):
+        """Test that using valid arguments for search does not raise expcetion."""
+        devices = knx.search("224.0.23.12")
+        devices = knx.search(["224.0.23.12", "192.168.1.42"])

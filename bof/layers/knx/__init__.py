@@ -29,7 +29,11 @@ The following files are available in the module:
     and uses Scapy's implementation of KNX (located in ``bof/layers/raw_scapy``
     until contribution to Scapy). Contains method to build, read or alter a
     frame or part of it, even if this does not follow KNX's specifications.
+
+:knx_feature:
+    Higher-level functions to discover and interact with devices via KNXnet/IP.
 """
 
 from .knx_network import *
 from .knx_packet import *
+from .knx_feature import *
