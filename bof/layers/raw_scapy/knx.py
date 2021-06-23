@@ -55,6 +55,18 @@ KNX_MEDIUM_CODES = {
     0x02: "KNX_TP"
 }
 
+# KNX Standard v2.1 - 03_03_07 p9
+KNX_ACPI_CODES = {
+    0: "GroupValueRead",
+    1: "GroupValueResp",
+    2: "GroupValueWrite",
+    3: "IndAddrWrite",
+    4: "IndAddrRead",
+    5: "IndAddrResp",
+    6: "AdcRead",
+    7: "AdcResp"
+}
+
 
 ### KNX SPECIFIC FIELDS
 
@@ -239,10 +251,8 @@ class LcEMI(Packet):
         BitEnumField("sequence_type", 0, 1, {
             0: "unnumbered"
         }),
-        BitField("reserved", 0, 6),
-        BitEnumField("acpi", 2, 2, {
-            2: "GroupValueWrite"
-        }),
+        BitField("reserved", 0, 4),
+        BitEnumField("acpi", 2, 4, KNX_ACPI_CODES),
         BitField("data", 0, 6)
 
     ]

@@ -167,6 +167,7 @@ def connect_tunneling(ip: str, port: int=KNX_PORT) -> (KNXnet, int, str):
     conn_req.scapy_pkt.control_endpoint.ip_address, conn_req.scapy_pkt.control_endpoint.port = knxnet.source
     conn_req.scapy_pkt.data_endpoint.ip_address, conn_req.scapy_pkt.data_endpoint.port = knxnet.source
     response, _ = knxnet.sr(conn_req)
+    # FIX: we can't access knx_individual_address directly
     knx_source = response.scapy_pkt.connection_response_data_block.connection_data.knx_individual_address
     return knxnet, response.communication_channel_id, knx_source
 
@@ -180,23 +181,36 @@ def disconnect_tunneling(knxnet: KNXnet, channel: int) -> None:
     response, _ = knxnet.sr(disco_req)
 
 ###############################################################################
+# KNX FIELD MESSAGES (cEMI)                                                   #
+###############################################################################
+
+def cemi_group_write(knx_source: str, knx_group_addr: str, value):
+    """Builds a KNX message (cEMI) to write a value to a group address."""
+    cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
+    cemi.cemi_data.source_address = knx_source
+    cemi.cemi_data.destination_address = "1/1/1"
+    cemi.cemi_data.acpi = ACPI.groupvaluewrite
+    cemi.cemi_data.data = int(value)
+    return cemi
+
+###############################################################################
 # SEND REQUESTS                                                               #
 ###############################################################################
 
-def tunneling_request(knxnet: KNXnet, channel: int, knx_source:str,
-                      knx_group_addr: str, value) -> KNXPacket:
+def tunneling_request(knxnet: KNXnet, channel: int, cemi: Packet) -> KNXPacket:
     """Sends a tunneling request with a specified cEMI message.
     The server first replies with an ack, then the response (or at least we 
     hope it will arrive in this order x)).
     We need to ack back after receiving the response.
     """
-    tun_req = KNXPacket(type=SID.tunneling_request, cemi=CEMI.l_data_req)
+    tun_req = KNXPacket(type=SID.tunneling_request)
     tun_req.communication_channel_id = channel
-    tun_req.source_address = knx_source
-    tun_req.destination_address = "1/1/1"
-    tun_req.data = int(value)
+    tun_req.cemi = cemi
+    tun_req.show2()
     ack, _ = knxnet.sr(tun_req)
+    ack.show2()
     response, _ = knxnet.receive()
+    response.show2()
     # We have to ACK when we receive tunneling requests
     if response.sid == SID.tunneling_request and \
        tun_req.message_code == CEMI.l_data_req:
@@ -215,7 +229,8 @@ def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> KNXPacke
     """
     # Start tunneling connection
     knxnet, channel, knx_source = connect_tunneling(ip, port)
-    response = tunneling_request(knxnet, channel, knx_source, knx_group_addr, value)
+    cemi = cemi_group_write(knx_source, knx_group_addr, value)
+    response = tunneling_request(knxnet, channel, cemi)
     # End tunneling connection
     disconnect_tunneling(knxnet, channel)
     return response

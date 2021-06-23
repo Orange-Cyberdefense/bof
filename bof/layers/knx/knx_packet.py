@@ -40,6 +40,8 @@ SID = type('SID', (object,),
             for k,v in scapy_knx.SERVICE_IDENTIFIER_CODES.items()})()
 CEMI = type('CEMI', (object,),
            {to_property(v):k for k,v in scapy_knx.MESSAGE_CODES.items()})()
+ACPI = type('ACPI', (object,),
+           {to_property(v):k for k,v in scapy_knx.KNX_ACPI_CODES.items()})()
 
 TYPE_FIELD = "service_identifier"
 CEMI_FIELD = "cemi"
