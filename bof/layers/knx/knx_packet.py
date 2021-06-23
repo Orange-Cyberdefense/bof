@@ -126,6 +126,20 @@ class KNXPacket(BOFPacket):
             raise BOFProgrammingError("Packet has no service identifier.")
 
     #-------------------------------------------------------------------------#
+    # Protected                                                               #
+    #-------------------------------------------------------------------------#
+
+    def _setattr(self, parent, field, value):
+        """Set value to field using setattr on parent.
+        For some fields, we may need to truncate fields using ``_resize()``.
+        """
+        if isinstance(field, scapy_knx.KNXAddressField) or \
+           isinstance(field, scapy_knx.KNXGroupField):
+            setattr(parent, field.name, value)
+        else:
+            super()._setattr(parent, field, value)
+
+    #-------------------------------------------------------------------------#
     # Private                                                                 #
     #-------------------------------------------------------------------------#
 

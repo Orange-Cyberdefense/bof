@@ -191,7 +191,7 @@ class CRD(Packet):
     fields_desc = [
         ByteField("structure_length", 0x00),
         ByteEnumField("connection_type", 0x03, CONNECTION_TYPE_CODES),
-        ConditionalField(PacketField("connection_data", TunnelingConnection(), TunnelingConnection),
+        ConditionalField(PacketField("connection_data", CRDTunnelingConnection(), CRDTunnelingConnection),
                          lambda pkt: pkt.connection_type == 0x04)
     ]
 
