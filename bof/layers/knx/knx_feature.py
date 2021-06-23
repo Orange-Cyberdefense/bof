@@ -71,11 +71,29 @@ class KNXDevice(object):
         }
         return cls(**args)
 
+    @classmethod
+    def init_from_description_response(cls, response: KNXPacket, source: tuple):
+        """Set appropriate values according to the content of description response.
+
+        :param response: Description Response provided by a device as a KNXPacket.
+        :returns: A KNXDevice object.
+        """
+        args = {
+            "name": response.device_friendly_name.decode('utf-8'),
+            "ip_address": source[0],
+            "port": source[1],
+            "knx_address": KNXAddressField.i2repr(None, None, response.knx_address),
+            "mac_address": response.device_mac_address,
+            "multicast_address": response.device_multicast_address,
+            "serial_number": response.device_serial_number            
+        }
+        return cls(**args)
+
 ###############################################################################
 # DISCOVERY                                                                   #
 ###############################################################################
 
-def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> object:
+def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> list:
     """Search for KNX devices on an network (multicast, unicast address(es).
     Sends a SEARCH REQUEST per IP and expects one SEARCH RESPONSE per device.
     **KNX Standard v2.1**
@@ -84,7 +102,8 @@ def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> object:
                search for.  Default value is default KNXnet/IP multicast
                address 224.0.23.12.
     :param port: KNX port, default is 3671.
-    :returns: The list of responding KNXnet/IP devices in the network.
+    :returns: The list of responding KNXnet/IP devices in the network as
+              KNXDevice objects.
     :raises BOFProgrammingError: if IP is invalid.
     """
     devices = []
@@ -109,3 +128,27 @@ def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> object:
             pass
         knxnet.disconnect()
     return devices
+
+def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
+    """Returns discovered information about a device.
+    SO far, only sends a DESCRIPTION REQUEST and uses the DESCRIPTION RESPONSE.
+    This function may evolve to include all underlying devices.
+
+    :param ip: IPv4 address of KNX device.
+    :param port: KNX port, default is 3671.
+    :returns: A KNXDevice object.
+    :raises BOFProgrammingError: if IP is invalid.
+    :raises BOFNetworkError: if device cannot be reached.
+    """
+    try:
+        ip_address(ip)
+    except ValueError:
+        raise BOFProgrammingError("Invalid IP {0}".format(ip)) from None
+        return
+    # Description request
+    knxnet = KNXnet().connect(ip, port)
+    descr_req = KNXPacket(type=SID.description_request)
+    descr_req.ip_address, descr_req.port = knxnet.source
+    response, source = knxnet.sr(descr_req)
+    knxnet.disconnect()
+    return KNXDevice.init_from_description_response(response, source)

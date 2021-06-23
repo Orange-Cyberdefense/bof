@@ -312,7 +312,17 @@ class Test07Features(unittest.TestCase):
             devices = knx.search("lol")
         with self.assertRaises(BOFProgrammingError):
             devices = knx.search(["lol", "wut"])
-    def test_0701_search_valid(self):
+    def test_0702_search_valid(self):
         """Test that using valid arguments for search does not raise expcetion."""
         devices = knx.search("224.0.23.12")
         devices = knx.search(["224.0.23.12", "192.168.1.42"])
+    def test_0703_discover_invalid(self):
+        """Test that using wrong arguments for search raises exception."""
+        with self.assertRaises(BOFProgrammingError):
+            devices = knx.discover("lol")
+        with self.assertRaises(BOFProgrammingError):
+            devices = knx.discover(["lol", "wut"])
+    def test_0704_search_valid_nonetwork(self):
+        """Test that using valid arguments for search does not raise expcetion."""
+        with self.assertRaises(BOFNetworkError):
+            devices = knx.discover("192.168.1.42")
