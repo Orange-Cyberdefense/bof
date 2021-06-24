@@ -77,9 +77,55 @@ clearly as you can.
 Architecture
 ============
 
-> TODO
+The library has the following structure::
+
+  .
+  ├── bof
+  │   ├── base.py
+  │   ├── network.py
+  │   ├── packet.py
+  │   ├── __init__.py
+  │   ├── layers
+  │   │   ├── knx
+  │   │   │   ├── knx_feature.py
+  │   │   │   ├── knx_network.py
+  │   │   │   ├── knx_packet.py
+  │   │   ├── other protocol
+  │   │   │   ├── other protocol content
+  │   │   └── raw_scapy
+  │   │       ├── knx.py
+
+* The protocol-independent part of BOF (the core) is in ``bof`` directly.
+* BOF protocol features are in ``bof/layers/[protocol]``
+* Scapy protocol implementations are imported directly from Scapy or can be
+  stored in ``bof/layers/raw_scapy/[protocol].py``
+
+Apart from the library:
+
+* The documentation as RestructuredText files for Sphinx is in ``docs``
+* Unit tests (one file for the core, one file per protocol) are in ``tests``
+* Implementation examples are in ``examples/[protocol]``
 
 Extend BOF
 ==========
 
-> TODO
+Here is how to add a new protocol to BOF:
+
+1. Make sure that the protocol exist in Scapy or provide an implementation in
+   Scapy format (the file can be stored in ``bof/layers/raw_scapy``).
+2. Create a folder in ``bof/layers`` with the name of your implementation. Here
+   we'll add the protocol ``otter``.
+3. In ``bof/layers/otter``, create a Python file with a class inerithing either
+   from TCP or UDP (they are in ``bof/network.py``). It will contain any
+   protocol-related operations at network level. For instance, you may overwrite
+   send and receive operation so that they return ``OtterPacket`` directly.
+4. Create another Python file to write a class ``OtterPacket`` (or whatever)
+   inheriting from ``BOFPacket``.
+
+.. code-block:: python
+
+   class OtterPacket(BOFPacket):
+
+5. Please refer to ``BOFPacket`` (in ``bof/packet.py``) and to other
+   implementations such as ``KNX`` to know how to write the content of the
+   class, until I write a better tutorial! :D
