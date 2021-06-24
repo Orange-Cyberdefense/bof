@@ -21,8 +21,8 @@ There are three ways to use BOF:
   instead of using it (we fuzz devices with it). The end user should have
   started digging into the protocol's specifications.
 
-**Please note that targeting BMS systems can have a severe impact on buildings and
-people and that BOF must be used carefully.**
+**Please note that targeting industrial systems can have a severe impact on
+buildings and people and that BOF must be used carefully.**
 
 [![GitHub license](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://github.com/Orange-Cyberdefense/bof/blob/master/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Orange-Cyberdefense/bof.svg)](https://gitHub.com/Orange-Cyberdefense/bof/releases/)
@@ -33,6 +33,10 @@ Getting started
 ```
 git clone https://github.com/Orange-Cyberdefense/bof.git
 ```
+
+Requirements (Protocol implementations use
+[Scapy](https://scapy.readthedocs.io/en/latest/)'s format): ``` pip install
+scapy ```
 
 BOF is a Python 3.6+ library that should be imported in scripts.  It has no
 installer yet so you need to refer to the `bof` subdirectory which contains the
@@ -46,48 +50,74 @@ import bof
 
 Now you can start using BOF!
 
-> The following code samples interact using the building management system
-  protocol KNXnet/IP (the framework supports only this one for now).
+TL;DR
+-----
 
 ### Discover devices on a network
 
 ```python
-from bof import knx
+from bof.layers.knx import search
 
-devices = knx.discover("192.168.1.0/24")
+devices = search()
 for device in devices:
     print(device)
+```
+
+Should output something like:
+
+```
+Device: "boiboite" @ 192.168.1.242:3671 - KNX address: 15.15.255 - Hardware: 00:00:ff:ff:ff:ff (SN: 0123456789)
 ```
 
 ### Send and receive packets
 
 ```python
-from bof import knx, BOFNetworkError
+from bof.layers.knx import KNXnet, KNXPacket, SID
+from bof import BOFNetworkError
 
-knxnet = knx.KnxNet()
 try:
-    knxnet.connect("192.168.1.1", 3671)
-    frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
-    print(frame)
-    knxnet.send(frame)
-    response = knxnet.receive()
-    print(response)
+    knxnet = KNXnet().connect("192.168.1.242", 3671)
+    pkt = KNXPacket(type=SID.description_request,
+                    ip_address=knxnet.source_address,
+                    port=knxnet.source_port)
+    pkt.show2()
+    response, _ = knxnet.sr(pkt)
+    response.show2()
 except BOFNetworkError as bne:
-    print(str(bne))
+    pass
 finally:
     knxnet.disconnect()
 ```
 
-### Craft your own packets!
+### Craft your own packets
 
 ```python
-from bof import knx
+from bof.layers.knx import KNXPacket, SID
+from bof.layers.raw_scapy.knx import LcEMI
 
-frame = knx.KnxFrame()
-frame.header.service_identifier.value = b"\x02\x03"
-hpai = knx.KnxBlock(type="HPAI")
-frame.body.append(hpai)
-print(frame)
+pkt = KNXPacket(type=SID.description_request)
+pkt.ip_address = b"\x01\x01"
+pkt.port = 99999 # Yes it's too large
+pkt.append(LcEMI())
+pkt.show2() # This may output something strange
+```
+
+> A recipient device will probably not respond to that, but at least you know
+  that BOF won't stop you from messing with your packets.
+
+### Interface with Scapy
+
+BOF relies on Scapy for protocol implementations, with an additional layer that
+translates BOF code to changes on Scapy packets and fields. Why? Because BOF may
+slightly modify or override Scapy’s internal behavior.
+
+You do not need to know how to use Scapy to use BOF, however if you do, you are
+free to interact with the Scapy packet directly as well.
+
+```python
+packet = KNXPacket(type=connect_request)
+packet.field1 = 1 # Applying additional BOF operations (ex: change types)
+packet.scapy_pkt.field1 = 1 # Direct access to Scapy Packet object
 ```
 
 Complete documentation
@@ -101,21 +131,20 @@ The HTML user manual and source code documentation can be built from the
 repository:
  
 1. `$> cd docs && make html`
-2. Navigate to `[path to repository]/docs/_build/html/index.html)`
+2. Navigate to `[path to repository]/docs/_build/html/index.html`
 
 Example scripts are in folder `examples`.
 
 Contributing
 ------------
 
-Contributors are welcome! BOF is still an ongoing project and so far, we focused
-on the detailed implementation of the KNX specification. One can already do the
-main basic operations, but there are many types of frames and features in the
-KNX standard (without even mentioning the extensions) and not all of them have
-been implemented yet. Furthermore, there will still be room for higher-level
-functions that will make tests easier.  We also wrote BOF so that it can be
-extended to other field protocols (industrial, building management, etc.), so
-why not implement another one?
+Contributors are welcome! BOF is still an ongoing project, which relies on
+industrial network protocol implementations in Scapy format. You can first
+contribute by contributing to Scapy and adding new protocols ("layers"). Or, you
+can contribute by integrating a Scapy protocol to BOF. The documentation
+explains how to do it. Furthermore, there will still be room for higher-level
+functions that will make tests easier or implement known attack against
+protocols or protocol implementations.
 
 Here a few things to know beforehand:
 

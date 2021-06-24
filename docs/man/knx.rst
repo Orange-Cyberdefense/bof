@@ -7,33 +7,55 @@ components to the IP network.
 
 .. code-block::
 
-   from bof import knx
+   from bof.layers import knx
 
-Discover KNX devices
---------------------
+Device discovery
+----------------
 
-The function `search()` from `bof.knx` lists the IP addresses of KNX devices
-responding on an IP network.
+BOF provides features to discover devices on a network and gather information
+about them. Calling them will send the appropriate KNXnet/IP requests to devices
+and parse their response, you don't need to know how the protocol works.
 
->>> from bof import knx
->>> knx.search("192.168.1.0/24")
-['192.168.1.10']
+.. code-block:: python
 
-The function `discover()` gathers information about a KNX device at a defined IP
-address (or on multiple KNX devices on an address range) and stores it to a
-``KnxDevice`` object.
+   from bof.layers.knx import search
 
->>> from bof import knx
->>> device = knx.discover("192.168.1.10")
->>> print(device)
-KnxDevice: Name=boiboite, MAC=00:00:54:ff:ff:ff, IP=192.168.1.10:3671 KNX=15.15.255
+   devices = search()
+   for device in devices:
+       print(device)
+
+You can also learn more about a specific device:
+
+.. code-block:: python
+
+   from bof.layers.knx import discover
+
+   device = discover("192.168.1.42")
+   print(device)
+
+The resulting object is a ``KNXDevice`` object that comes with a set
+of attributes and methods to interact with a device.
+
+Send commands
+-------------
+
+A few commands are available so far to perform basic operations on a KNXnet/IP
+server or underlying devices:
+
+.. code-block:: python
+
+   from bof.layers.knx import group_write
+
+   # Write value 1 to group address 1/1/1
+   group_write(device.ip_address, "1/1/1", 1)
 
 Connect to a device
 -------------------
 
 .. code-block:: python
 
-   from bof import knx, BOFNetworkError
+   from bof.layers import knx
+   from bof import BOFNetworkError
 
    knxnet = knx.KnxNet()
    try:
@@ -46,306 +68,229 @@ Connect to a device
 
 The class ``KnxNet`` is used to connect to a KNX device (server or object). It
 creates a UDP connection to a KNX device. ``connect`` can take an additionnal
-``init`` parameter. When ``True``, a special connection request frame is sent to
-the remote KNX device to agree on terms for the connection and "initializes" the
-KNX exchange. This is required for some exchanges (ex: configuration requests),
-but most requests can be sent without such initialization.
+``init`` parameter.
 
 Send and receive frames
 -----------------------
 
 .. code-block:: python
 
-   frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
-   print(frame)
-   knxnet.send(frame)
-   response = knxnet.receive()
-   print(response)
+  from bof.layers.knx import KNXnet, KNXPacket, SID
 
-When a connection is established, one may start sending KNX frames to the
-device. Frames are sent and received as bytes arrays, but they are represented
-as ``KnxFrame`` objects within BOF. In the example below, we create a frame with
-type ``DESCRIPTION REQUEST`` (asking the device to describe itself). The format
-of such frame is extracted from BOF's KNX specification JSON file (see next
-section for details). The object is converted to a byte array when sent to the
-device. The ``response`` received is a byte array parsed into a ``KnxFrame``
-object.
+  knxnet = KNXnet().connect("192.168.1.242")
+  pkt = KNXPacket(type=SID.description_request)
+  pkt.ip_address, pkt.port = knxnet.source
+  pkt.show2()
+  response, _ = knxnet.sr(pkt)
+  response.show2()
+  knxnet.disconnect()
 
-There are several ways to gather information about a created or received frame:
+When a connection is established, one may start sending KNX frames to a
+device. Frames are sent and received as byte arrays, but they are represented as
+``KNXPacket`` within BOF. In the example above, we create a frame with type
+``Description Request`` to ask a device to describe itself. The format of such
+frame is extracted from the KNX implementation in Scapy format, either
+integrated to Scapy or imported to BOF's ``raw_scapy`` directory. The
+``response`` is received as a byte array, converted to a ``KNXPacket`` object.
 
-.. code-block:: python
-
-   >>> bytes(frame)
-   b'\x06\x10\x02\x03\x00\x0e\x08\x01\x7f\x00\x00\x01\xbe\x6d'
-
-   >>> print(frame) 
-   KnxFrame object: <bof.knx.knxframe.KnxFrame object at 0x7fb810f799b0>
-   [HEADER]
-       <header length: b'\x06' (1B)>
-       <protocol version: b'\x10' (1B)>
-       <service identifier: b'\x02\x03' (2B)>
-       <total length: b'\x00\x0e' (2B)>
-   [BODY]
-       KnxBlock: control endpoint
-           <structure length: b'\x08' (1B)>
-           <host protocol code: b'\x01' (1B)>
-           <ip address: b'\x00\x00\x00\x00' (4B)>
-           <port: b'\x00\x00' (2B)>
-
-   >>> print(frame.sid)
-   DESCRIPTION REQUEST
-
-   >>> print(frame.attributes)
-   ['header_length', 'protocol_version', 'service_identifier', 'total_length',
-   'control_endpoint', 'structure_length', 'host_protocol_code', 'ip_address',
-   'port']
-
-The content of a frame is a set of blocks and fields. The ordered list of fields
-object (even fields in blocks and blocks within blocks) can be accessed as
-follows:
+You can also use methods that will directly initialize and send the following
+basic KNXnet/IP frames.
 
 .. code-block:: python
 
-   >>> for field in frame:
-   ...     print(field)
-   ... 
-   <header length: b'\x06' (1B)>
-   <protocol version: b'\x10' (1B)>
-   <service identifier: b'\x02\x03' (2B)>
-   <total length: b'\x00\x0e' (2B)>
-   <structure length: b'\x08' (1B)>
-   <host protocol code: b'\x01' (1B)>
-   <ip address: b'\x00\x00\x00\x00' (4B)>
-   <port: b'\x00\x00' (2B)>
+    knxnet = KNXnet().connect(ip, port)
+    # CONNECT REQUEST
+    channel = connect_request_management(knxnet)
+    # CONFIGURATION REQUEST with "property read" KNX message
+    cemi = cemi_property_read(CEMI_OBJECT_TYPES.ip_parameter_object,
+                            CEMI_PROPERTIES.pid_additional_individual_addresses)
+    response = configuration_request(knxnet, channel, cemi)
+    # DISCONNECT REQUEST
+    disconnect_request(knxnet, channel)
+    knxnet.disconnect()
 
-Finally, one can access specific part of a frame by its name (part of the
-structure, block, field) and access its properties.
+Available requests (from KNX Standard v2.1) are:
 
-.. code-block:: python
+- ``Search request``
+- ``Description request``
+- ``Connect request`` (with connection type "management" and "tunneling")
+- ``Disconnect request``
+- ``Configuration request``
+- ``Tunneling request``
 
-   >>> print(frame.header)
-   KnxBlock: header
-       <header length: b'\x06' (1B)>
-       <protocol version: b'\x10' (1B)>
-       <service identifier: b'\x02\x03' (2B)>
-       <total length: b'\x00\x0e' (2B)>
-
-   >>> print(frame.header.total_length)
-   <total length: b'\x00\x0e' (2B)>
-
-   >>> print(frame.header.total_length.name)
-   total length
-
-   >>> print(frame.header.total_length.value)
-   b'\x00\x0e'
-
-   >>> print(frame.header.total_length.size)
-   2
+.. note:: Configuration requests and tunneling requests "carry"
+	  medium-independent KNX data in a block called "cEMI". Therefore, when
+	  creating such a request you need to specify the type of cEMI to use
+	  (see below for details).
 
 Understanding KNX frames
 ------------------------
 
+Structure
++++++++++
+
 Conforming to the KNX Standard v2.1, a KNX frame has a header and body. The
 header's structure never changes but the body's structure varies according to
 the type of frame (message) given in the header's ``service identifier``
-field. In this manual, we call "block" a set of "fields" (smallest part of the
-frame, usually a byte or a byte array). The header and body are blocks, but can
-(will) also contain nested blocks.
+field.
 
 .. figure:: images/knx_frame.png
 
-Frame, block and field objects inherit from ``BOFFrame``, ``BOFBlock`` and
-``BOFField`` global structures. A ``KnxFrame`` contains a header and a body as
-blocks (``KnxBlock``). A block contains a set of raw fields (``KnxField``)
-and/or nested ``KnxBlock`` objects with a special structure (ex: ``HPAI`` is a
-type of block with fixed fields).  Finally, a ``KnxField`` object has three main
-attributes: a ``name``, a ``size`` (number of bytes) and a ``value`` (as a byte
-array).
+A KNX frame contains a set of blocks (set of fields) which contain raw fields or
+nested block. In BOF (and Scapy), we do not refer to blocks: A ``KNXPacket``
+contains a Scapy ``Packet`` with ``Field`` objects. Some ``Field`` objects act
+as blocks (yeah, I know...) and may contain other ``Field`` objects.
 
-For instance, the format of a ``DESCRIPTION REQUEST`` message extracted from the
-specification has the following structure:
+Message types
++++++++++++++
 
-.. figure:: images/knx_fields.png
-
-Some interaction (not all of them) require to send a ``CONNECT REQUEST`` frame
- beforehand to agree on the type of connection, the channel to use, etc. In the
- example above, we directly send a ``DESCRIPTION REQUEST``, which expects a
- ``DESCRIPTION RESPONSE`` from the server.
-
-Create frames
--------------
-
-Within a script using BOF, a ``KnxFrame`` can be built either from scratch
-(creating each block and field one by one), from a raw byte array that is parsed
-(usually a received frame) or by specifying the type of frame in the
-constructor.
+The KNX standard describes a set of message types with different format. Please
+refer to KNX implementation using Scapy here:
+``bof/layers/raw_scapy/knx.py``. The header contains a field
+``service_identifier`` that states the type of message. ``knx.SID`` contains a
+list of valid types to use when creating a frame:
 
 .. code-block:: python
 
-   empty_frame = knx.KnxFrame()
-   existing_frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
-   received_frame = knx.KnxFrame(bytes=data)
+   >>> from bof.layers.knx import *
+   >>> packet = KNXPacket(type=SID.configuration_request)
+   >>> packet.show2()
+   ###[ KNXnet/IP ]### 
+     header_length= 6
+     protocol_version= 0x10
+     service_identifier= CONFIGURATION_REQUEST
+     total_length= 21
+   ###[ CONFIGURATION_REQUEST ]### 
+        structure_length= 4
+        communication_channel_id= 1
+        sequence_counter= 0
+        reserved  = 0
+        \cemi      \
+         |###[ CEMI ]### 
+         |  message_code= 0
+         |  \cemi_data \
+         |   |###[ L_cEMI ]### 
+	 [...]
 
-.. warning:: For some frames, the structure of the body depends on the value of
-   a field inside the body, and sometimes inside the same block. Therefore, we
-   have to specify the value for that field as soon as possible. When the frame
-   is built from a received byte array, this part is handled directly, but when
-   building a frame from the specification, please remember to set this value in
-   the constructor::
-
-     KnxFrame(type="CONNECT REQUEST", connection_type_code="Tunneling connection")
-
-From the specification
-++++++++++++++++++++++
-
-The KNX standard describes a set of message types with different
-format. Specific predefined blocks and identifiers are also written to KNX
-Specification's JSON file. It has not been fully implemented yet so there may be
-missing content, please refer to `bof/knx/knxnet.json` to know what is currently
-supported. Obviously, the specification file content can be changed or a frame
-can be built without referring to the specification, we discuss it further in
-the "Advanced usage" section (not available yet).
+Service identifier codes are also directly accepted:
 
 .. code-block:: python
 
-   frame = knx.KnxFrame(type="DESCRIPTION REQUEST")
+   >>> packet2 = KNXPacket(type=0x0201)
+   >>> packet2.show2()
+   ###[ KNXnet/IP ]### 
+     header_length= 6
+     protocol_version= 0x10
+     service_identifier= SEARCH_REQUEST
+     total_length= 14
+   ###[ ('SEARCH_REQUEST',) ]### 
+        \discovery_endpoint\
+         |###[ HPAI ]### 
+         |  structure_length= 8
+         |  host_protocol= IPV4_UDP
+         |  ip_address= 0.0.0.0
+         |  port      = 0
 
-A ``KnxFrame`` object based on a frame with the ``DESCRIPTION REQUEST`` service
-identifier (sid) will be built according to this portion of the ``knxnet.json``
-specification file.
+Specifying no types create an empty KNX Packet.
 
-.. code-block:: json
+KNXnet/IP messages vs. KNX messages
++++++++++++++++++++++++++++++++++++
 
-   {
-    "frame": [
-	{"name": "header", "type": "HEADER"},
-	{"name": "body", "type": "depends:service identifier"}
-    ],
-    "blocks": {
-	"DESCRIPTION REQUEST": [
-	    {"name": "control endpoint", "type": "HPAI"}
-	],
-	"HEADER": [
-	    {"name": "header length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "protocol version", "type": "field", "size": 1, "default": "10"},
-	    {"name": "service identifier", "type": "field", "size": 2},
-	    {"name": "total length", "type": "field", "size": 2}
-	],
-	"HPAI": [
-	    {"name": "structure length", "type": "field", "size": 1, "is_length": true},
-	    {"name": "host protocol code", "type": "field", "size": 1, "default": "01"},
-	    {"name": "ip address", "type": "field", "size": 4},
-	    {"name": "port", "type": "field", "size": 2}
-	]
-    },
-    "codes" : {
-	"service identifier": {
-	    "0203": "DESCRIPTION REQUEST"
-	}
-    }
-    }
-
-It should then have the following pattern:
-
-.. figure:: images/bof_spec.png
-
-In predefined frames, fields are empty except for optional fields, fields with a
-default value or fields that store a length, which is evaluated automatically.
-Some frames can be sent as is to a remote server, such as ``DESCRIPTION
-REQUEST`` frames, but some of them require to fill the empty fields.
-
-From a byte array
-+++++++++++++++++
-
-A KnxFrame object can be created by parsing a raw byte array. This is what
-happens when receiving a frame from a remote server.
+We use BOF to interact with a device over IP, that's why we always send
+KNXnet/IP requests. Some of them stick to "IP" level and will retrieve global
+information that "exist" at this level (for instance, hardware and network
+information about a KNXnet/IP server).
 
 .. code-block:: python
 
-   data = b'\x06\x10\x02\x03\x00\x0e\x08\x01\x7f\x00\x00\x01\xbe\x6d'
-   frame_from_byte = knx.KnxFrame(bytes=data)
-   received_frame = knxnet.receive() # received_frame is a KnxFrame object
+   knx.discover("192.168.1.42")
 
-The format of the frame must be understood by BOF to be efficient (i.e. the
-service identifier shall be recognized and described in the JSON specification
-file).
+Outputs::
 
-From scratch
-++++++++++++
+   Device: "boiboite" @ 192.168.1.242:3671 - KNX address: 15.15.255 -
+   Hardware: 00:00:ff:ff:ff:ff (SN: 0123456789)
 
-A frame can be created without referring to a predefined format, by manually
-adding blocks and fields to the frame. The section "Advanced usage" (not
-available yet) contains details on how to do so.
+However, some requests move to the "KNX" level (the layer below), either to
+retrieve or send KNX-specific information on a KNXnet/IP server, or to interact
+with KNX devices underneath. In this case, some KNXnet/IP frames (most notably
+configuration requests and tunneling requests) will carry a special block
+containing medium-independent KNX data.
+
+This special KNX data block is called cEMI (for Common External Messaging
+Interface) and it acts like a frame inside the frame, with its own protocol
+definition. You can also find it in KNX standard v2.1, but KNXnet/IP
+specification is not the same as KNX specification.
+
+For instance, "tunneling requests" carry KNX data to be transferred to KNX
+devices. When you want to write a value to a KNX object, the tunneling request
+has to carry a specific cEMI message for value write on addresses.
+
+This cEMI message has a type (here, the data link layer message format) and a
+set of properties of values to indicate what is the expected behavior.
+
+Here is one way to write a KNX write request on a group address with BOF. There
+are higher-level functions in BOF to do the same thing.  For this one you can
+also just call the ``group_write()`` function.
+
+.. code-block:: python
+
+   # Create cEMI block (KNX data)
+   cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req) # Link layer request
+   cemi.cemi_data.source_address = knx_source # Retrieved from a connect request
+   cemi.cemi_data.destination_address = "1/1/1"
+   cemi.cemi_data.acpi = ACPI.groupvaluewrite # Type of command
+   cemi.cemi_data.data = value
+   # Insert it to a tunneling request
+   tun_req = KNXPacket(type=SID.tunneling_request)
+   tun_req.communication_channel_id = channel # Retrieved from a connect request
+   tun_req.cemi = cemi
+   tun_req.show2()
 
 .. code-block::
 
-   frame = knx.KnxFrame()
-   frame.header.service_identifier.value = b"\x02\x03"
-   hpai = knx.KnxBlock(type="HPAI")
-   frame.body.append(hpai)
-   print(frame)
+   ###[ KNXnet/IP ]### 
+    header_length= 6
+    protocol_version= 0x10
+    service_identifier= TUNNELING_REQUEST
+    total_length= 21
+   ###[ TUNNELING_REQUEST ]### 
+     structure_length= 4
+     communication_channel_id= 1
+     sequence_counter= 0
+     reserved  = 0
+     \cemi      \
+      |###[ CEMI ]### 
+      |  message_code= L_Data.req
+      |  \cemi_data \
+      |   |###[ L_cEMI ]### 
+      |   |  additional_information_length= 0
+      |   |  additional_information= ''
+      |   |  frame_type= standard
+      |   |  reserved  = 0
+      |   |  repeat_on_error= 1
+      |   |  broadcast_type= domain
+      |   |  priority  = low
+      |   |  ack_request= 0
+      |   |  confirmation_error= 0
+      |   |  address_type= group
+      |   |  hop_count = 6
+      |   |  extended_frame_format= 0
+      |   |  source_address= 15.15.255
+      |   |  destination_address= 1/1/1
+      |   |  npdu_length= 1
+      |   |  packet_type= data
+      |   |  sequence_type= unnumbered
+      |   |  reserved  = 0
+      |   |  acpi      = GroupValueWrite
+      |   |  data      = 1
 
 
-Modify frames
--------------
+Testing KNXnet/IP implementations with BOF
+------------------------------------------
 
-Modify fields
-+++++++++++++
-
-As explained previously, blocks and fields are attributes within a frame or
-block object and can be reached using a syntax such as::
-
-  request.body.communication_channel_id
-
-.. tip:: Use ``print(request)`` and ``request.fields`` to locate the fields
-	 you need to change.
-
-Terminal parts of a frame are KnxField objects, when you want to modify field
-values, you need to refer to the field's attributes::
-
-  request.body.communication_channel_id.value = "test"
-
-Value accepts different types of values, which will be converted to bytes:
-``str``, ``int`` and ``bytes``. ``str`` with the following format have a
-different conversion strategy;
-
-:IPv4: ``A.B.C.D`` is converted to 4 corresponding bytes.
-:KNX address: *Not implemented yet*
-
-Values you set change the size (the total size is recalculated anyway) of the
-field if they do not match. You may need to resize manually, e.g. with
-``byte.resize()``. Else you can set the size yourself beforehand::
-
-  request.body.communication_channel_id.size = 1
-
-When you do so, the size parameter switches to a "manual" mode, and will not
-change until the end user manually changes it.
-
-Modify blocks (and frames)
-++++++++++++++++++++++++++
-
-Blocks order, types and names are based on the JSON specification file
-``knxnet.json``, which has been written according to KNX Standard v2.1. That
-said, please note that we had to made some very small adaptations, and that some
-types of messages, blocks and codes are still missing.
-
-There are two ways to modify blocks within a frame:
-
-:From the objects:
-
-   Blocks in a frame can be added, removed, or changed using ``append`` and
-   ``remove`` and by manipulating directly ``KnxBlock`` objects. For instance::
-
-     block = knx.KnxBlock(name="atoll")
-     block.append(knx.KnxField(name="pom-"))
-     block.append(knx.KnxField(name="pom")) ``
-
-:From the specification file:
-
-   You can obviously replace, change or extend the specification file. BOF
-   should not comply, unless the JSON parser can't read it, or unless it does
-   not contain the 3 required sections ``frame``, ``blocks`` and ``codes``.
-   Please refer to section "Extend BOF" for more information.
+BOF provides means to add fields, change their values, even if that does not
+comply with the protocol.  Please refer to the protocol-independent
+documentation to know how.
 
 .. warning::
 

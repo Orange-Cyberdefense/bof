@@ -5,8 +5,12 @@ transport protocols, to be used by higher-level protocol implementation classes.
 Relies on module ``asyncio``.
 
 :UDP: Implementation of asynchronous UDP communication and packet crafting.
+:TCP: Implementation of asynchronous TCP communication and packet crafting.
 
-Network connection and example example with raw UDP::
+Both classes rely on internal class ``_Transport``, which should not be
+instantiated.
+
+Network connection and exchange example with raw UDP::
 
     from bof import UDP
     udp = UDP()
@@ -14,22 +18,22 @@ Network connection and example example with raw UDP::
     udp.send(b"Hi!")
     udp.disconnect()
 
-.. warning:: Direct initialization of UDP object is not recommended. The user
-             should use classes inherited from UDP, such as the KNX protocol
-             implementation class (``bof.knx.KnxNet``). Regular network usage
-             is the same except for protocol-specific actions and attributes.
-             Details are given in the chapter dedicated to the chosen protocol.
+Usage is the same with raw TCP.
+
+.. warning:: Direct initialization of TCP/UDP object is not recommended.
+             The user should use BOF network classes inherited from
+             TCP/UDP (e.g. ``KNXnet`` for the ``KNX`` protocol).
 """
 
 import asyncio
 from ipaddress import ip_address, IPv4Address
 from concurrent import futures
 from socket import AF_INET, gaierror
+# Internal
 from .base import BOFNetworkError, BOFProgrammingError, log
-from . import byte
 
 ###############################################################################
-# UDP                                                                         #
+# Asyncio classes for UDP and TCP                                             #
 ###############################################################################
 
 class _UDP(asyncio.DatagramProtocol):
@@ -56,38 +60,217 @@ class _UDP(asyncio.DatagramProtocol):
         """Send received datagram to endpond for processing."""
         self.__endpoint._receive(data, address)
 
-    def error_received(self, e):
-        """Send disconnect order if error is connection refused.
-        Else we let the error occur, it will be logged if logging is enabled.
-        """
-        if isinstance(e, ConnectionRefusedError) and self.__endpoint:
-            self.__endpoint.disconnect(in_error=e)
-
-class UDP(object):
-    """UDP protocol endpoint.
-
-    This is the parent class to higher-lever network protocol implementation.
-    It can be instantiated as is, however this is not the expected behavior.
-    Uses protected ``_UDP`` classes implementing ``asyncio`` UDP handler.
+class _TCP(asyncio.Protocol):
+    """TCP protocol implementation interface from asyncio builtin TCP handler.
+    Will be called from protocol implementation class.
+    Not to be instantiated outside module (and outside TCP class).
     """
-    _transport: object # SelectorDatagramTransport
-    _address: tuple # (ip, port)
-    _socket:tuple # local (ip, port)
-    _queue: object
-    _loop: object
+    __endpoint = None
 
+    def __init__(self, endpoint):
+        """Register instance of endpoint to process received data."""
+        self.__endpoint = endpoint
+
+    def connection_made(self, transport):
+        """Register transport information after connection is established."""
+        self.__endpoint.transport = transport
+
+    def connection_lost(self, exception):
+        """Request endpoint to disconnect when connection is lost."""
+        if self.__endpoint:
+            self.__endpoint.disconnect()
+
+    def data_received(self, data):
+        """Send received data to endpoint for processing."""
+        self.__endpoint._receive(data, None)
+    
+    def eof_received(self):
+        """Send disconnect order when the other end reaches EOF"""
+        if self.__endpoint:
+            self.__endpoint.disconnect()
+
+###############################################################################
+# Transport base class                                                        #
+###############################################################################
+
+class _Transport(object):
+    """Transport protocol endpoint. UDP and TCP endpoint are inheriting it.
+    Relies on _TCP and _UDP asyncio classes, specified in the constructor.
+    Transport class shall never be instantiated directly.
+    """
     def __init__(self):        
         self._queue = asyncio.Queue()
         self._source = None
         self._transport = None
+        self._socket = None
 
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
     def connect(self, ip:str, port:int) -> object:
-        """Initialize asynchronous connection using UDP transport on remote
-        address specified with `ip` and `port`.
+        """Connect to a server at address ``ip``:``port``. (ABSTRACT)
+        As asyncio classes have different methods to initialize a connection
+        depending on the protocol, this method should be always implemented
+        in subclasses.
+        """
+        raise NotImplementedError("Method must be implemented in subclasses")
+
+    def disconnect(self) -> None:
+        """Closes the transport link if it exists."""
+        if self._transport:
+            self._transport.close()
+            self._transport = None
+            log("Disconnected.")
+
+    def send(self, data:bytes, address:tuple=None) -> int:
+        """Sends ``data`` to ``address``. (ABSTRACT)
+        As asyncio classes have different methods to send data depending on
+        the protocol, this method should always be implemented in subclasses.
+        """
+        raise NotImplementedError("Method must be implemented in subclasses")
+
+    def receive(self, timeout:float=1.0) -> (bytes, tuple):
+        """Listen on the network until receiving a packet or until ``timeout``.
+
+        :param timeout: Time out value in seconds,  as a float (default is 1.0s).
+        :returns: A tuple ``(data:bytes, address:tuple)`` where address is the
+                  remote address and has format ``(ip, port)``.
+        :raises BOFProgrammingError: if ``timeout`` is invalid.
+        :raises BOFNetworkError: if connection timed out before receiving a packet.
+
+        Example::
+
+            response, address = tcp.receive()
+            response, address = udp.receive()
+        """
+        data, address = self._loop.run_until_complete(self.__listen_once(timeout))
+        log("Received from {0}:{1} : {2}".format(address[0], address[1], data))
+        return data, address
+
+    def send_receive(self, data:bytes, address:tuple=None, timeout:float=1.0) -> (bytes, tuple):
+        """Sends a packet to ``address``, wait for a response until ``timeout``.
+
+        :param data: Raw byte array or string to send.
+        :param address: Remote network address with format tuple ``(ip, port)``.
+        :param timeout: Time out value in seconds,  as a float (default is 1.0s).
+        :returns: a tuple ``(data:bytes, address:tuple)`` where address is the
+                  remote address and has format ``(ip, port)``.
+        :raises BOFProgrammingError: if ``timeout`` is invalid.
+        :raises BOFNetworkError: if connection timed out before receiving a packet.
+
+        Example::
+
+            result, _ = udp.send_receive("test_send_receive", timeout=10)
+            result = result.decode('utf-8') # with echo server: "test_send_receive"
+        """
+        self.send(data, address)
+        data, address = self.receive(timeout)
+        return data, address
+
+    def sr(self, data:bytes, address:tuple=None, timeout:float=1.0) -> (bytes, tuple):
+        """Shortcut to ``send_receive()`` method. Arguments are the same."""
+        return self.send_receive(data, address, timeout)
+
+    #-------------------------------------------------------------------------#
+    # Protected                                                               #
+    #-------------------------------------------------------------------------#
+
+    def _handle_exception(self, loop:object, context) -> None:
+        """Log exception and raise BOF-defined network exception instead.
+
+        .. seealso:: bof.base.BOFNetworkError"""
+        message = context if isinstance(context, str) else context.get("exception", context["message"])
+        log("Exception occurred: {0}".format(message), "ERROR")
+        self.disconnect()
+        raise BOFNetworkError(message) from None
+
+    def _receive(self, data:bytes, address:tuple) -> None:
+        """Receives a raw datagram and adds it to queue for processing.
+        
+        .. warning:: Should not be called directly.
+        """
+        try:
+            self._queue.put_nowait((data, address))
+        except asyncio.QueueFull:
+            log("Queue is full", "ERROR")
+            raise BOFNetworkError("Queue is full")
+
+    #-------------------------------------------------------------------------#
+    # Private                                                                 #
+    #-------------------------------------------------------------------------#
+
+    async def __listen_once(self, timeout:float=1.0) -> (bytes, tuple):
+        """Listen until a packet is received or until ``timeout``."""
+        if not isinstance(timeout, float) and not isinstance(timeout, int):
+            raise BOFProgrammingError("Timeout expects a float (seconds)")
+        try:
+            data, address = await asyncio.wait_for(self._queue.get(), timeout=float(timeout))
+            address = address if address else self._address
+        except futures._base.TimeoutError as te:
+            self._handle_exception(te, "Connection timeout")
+        return data, address
+
+    #-------------------------------------------------------------------------#
+    # Properties                                                              #
+    #-------------------------------------------------------------------------#
+
+    @property
+    def transport(self):
+        """Get transport object depending on the protocol.
+        Relies on Python's builtin ``asyncio`` module.
+        """
+        return self._transport
+    @transport.setter
+    def transport(self, value):
+        """Set transport object depending on the protocol.
+        Relies on Python's builtin ``asyncio`` module.
+        """
+        self._transport = value
+
+    @property
+    def source(self):
+        """Get source information on a socket with format tuple
+        ``(ipv4_source_address:str, source_port:int)``.
+        Requires the connection to be established.
+        Relies on Python's builtin ``socket`` module.
+        """
+        return self._socket.getsockname()
+
+    @property
+    def source_address(self) -> str:
+        """Get source IPv4 address information using source property.
+        Requires the connection to be established.
+        """
+        return self.source[0]
+
+    @property
+    def source_port(self) -> int:
+        """Get source port information using source property.
+        Requires the connection to be established.
+        """
+        return self.source[1]
+
+###############################################################################
+# UDP                                                                         #
+###############################################################################
+
+class UDP(_Transport):
+    """UDP protocol endpoint, inheriting from Transport base class.
+
+    This is the parent class to higher-lever network protocol implementation.
+    It can be instantiated as is, however this is not the expected behavior.
+    Uses protected ``_UDP`` classes implementing ``asyncio`` UDP handler.
+
+    .. warning:: Should not be instantiated directly.
+    """
+
+    #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#
+
+    def connect(self, ip:str, port:int) -> object:
+        """Initialize asynchronous connection using UDP on ``ip``:``port``.
 
         :param ip: IPv4 address as a string with format ``A.B.C.D``.
         :param port: Port number as an integer.
@@ -102,12 +285,13 @@ class UDP(object):
         if isinstance(ip, IPv4Address):
             ip = str(ip)
         self._loop = asyncio.get_event_loop()
+        self._loop.set_exception_handler(self._handle_exception)
         try:
             ip_address(ip) # Check if IP is valid
             connect = self._loop.create_datagram_endpoint(lambda: _UDP(self),
-                                                           remote_addr=((ip, port)),
-                                                           family=AF_INET,
-                                                           allow_broadcast=True)
+                                                          remote_addr=((ip, port)),
+                                                          family=AF_INET,
+                                                          allow_broadcast=True)
             transport, protocol = self._loop.run_until_complete(connect)
         except (gaierror, OverflowError, ValueError) as e:
             self._handle_exception(e, "Connection failed")
@@ -115,7 +299,6 @@ class UDP(object):
         self._address = (ip, port)
         self._socket = self._transport.get_extra_info('socket')
         log("Connected to {0}:{1}".format(ip, port))
-
         return self
 
     def send(self, data:bytes, address:tuple=None) -> int:
@@ -147,138 +330,81 @@ class UDP(object):
         log("Send to {0}:{1} : {2}".format(address[0], address[1], data))
         return len(bdata)
 
-    def receive(self, timeout:float=1.0) -> (bytes, tuple):
-        """Listen on the network until receiving a packet on the socket or until
-        ``timeout``.
+###############################################################################
+# TCP                                                                         #
+###############################################################################
 
-        :param timeout: Time out value in seconds,  as a float (default is 1.0s).
-        :returns: a tuple ``(data:bytes, address:tuple)`` where address is the
-                  remote address and has format ``(ip, port)``.
-        :raises BOFProgrammingError: if ``timeout`` is invalid.
-        :raises BOFNetworkError: if connection timed out before receiving a packet.
+class TCP(_Transport):
+    """TCP protocol endpoint.
 
-        Example::
+    This is the parent class to higher-lever network protocol implementation.
+    It can be instantiated as is, however this is not the expected behavior.
+    Uses protected ``_TCP`` classes implementing ``asyncio`` TCP handler.
 
-            response, address = udp.receive()
-        """
-        data, address = self._loop.run_until_complete(self.__listen_once(timeout))
-        log("Received from {0}:{1} : {2}".format(address[0], address[1], data))
-        return data, address
+    .. warning:: Should not be instantiated directly.
+    """
 
-    def send_receive(self, data:bytes, address:tuple=None, timeout:float=1.0) -> (bytes, tuple):
-        """sends a packet to ``address`` and wait for a response until
-        ``timeout``. Clever implementation of TCP over UDP, because this is
-        exactly what some BMS network protocols do (yay, KNX!).
-        
-        :param data: Raw byte array or string to send.
-        :param address: Remote network address with format tuple ``(ip, port)``.
-        :param timeout: Time out value in seconds,  as a float (default is 1.0s).
-        :returns: a tuple ``(data:bytes, address:tuple)`` where address is the
-                  remote address and has format ``(ip, port)``.
-        :raises BOFProgrammingError: if ``timeout`` is invalid.
-        :raises BOFNetworkError: if connection timed out before receiving a packet.
+    #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#
+
+    def connect(self, ip:str, port:int) -> object:
+        """Initialize asynchronous connection using TCP on ``ip``:``port``.
+
+        :param ip: IPv4 address as a string with format ``A.B.C.D``.
+        :param port: Port number as an integer.
+        :returns: The instance of the TCP class created,
+        :raises BOFNetworkError: if connection fails.
 
         Example::
 
-            result, _ = udp.send_receive("test_send_receive", timeout=10)
-            result = result.decode('utf-8') # with echo server: "test_send_receive"
+            tcp = bof.TCP().connect("127.0.0.1", 4840)
         """
-        self.send(data, address)
-        data, address = self.receive(timeout)
-        return data, address
+        ip = "127.0.0.1" if ip == "localhost" else ip
+        if isinstance(ip, IPv4Address):
+            ip = str(ip)
+        self._loop = asyncio.get_event_loop()
+        self._loop.set_exception_handler(self._handle_exception)
+        try:
+            ip_address(ip) # Check if IP is valid
+            connect = self._loop.create_connection(lambda: _TCP(self),
+                                                           host=ip,
+                                                           port=port,
+                                                           family=AF_INET)
+            transport, protocol = self._loop.run_until_complete(connect)
+        except (gaierror, OverflowError, ValueError, ConnectionRefusedError) as e:
+            self._handle_exception(e, "Connection failed")
+            return None
+        self._address = (ip, port)
+        self._socket = self._transport.get_extra_info('socket')
+        log("Connected to {0}:{1}".format(ip, port))
+        return self
 
-    def disconnect(self, in_error:bool=False) -> None:
-        """Closes the transport link.
+    def send(self, data:bytes, address:tuple=None) -> int:
+        """Send ``data`` to ``address`` over TCP.
 
-        :param in_error: Boolean to specify whether or not the connection was
-                         closed on error, as this method can be called from
-                         within the module in case of a network error.
-        :raises BOFNetworkError: if `in_error` is set to `True`.
+        :param data: Raw byte array or string to send. 
+        :param address: Address to send ``data`` to, with format
+                        tuple ``(ipv4_address, port)``.  If address is not 
+                        specified, uses the address given to ``connect``.
+        :returns: The number of bytes sent, as an integer.
+
+        Example::
+
+            tcp.send("test_send")
+            tcp.send(b'\x06\x10\x02\x03')
         """
-        if self._transport:
-            self._transport.close()
-            self._transport = None
-        if in_error:
-            self._handle_exception(in_error, "Connection ended unexpectedly")
+        if type(data) == str: # allow send('str') as well as send(b'str')
+            bdata = data.encode('utf-8')
         else:
-            log("Disconnected.")
-
-    #-------------------------------------------------------------------------#
-    # Protected                                                               #
-    #-------------------------------------------------------------------------#
-
-    def _receive(self, data:bytes, address:tuple) -> None:
-        """Receives raw datagram and adds it to queue for processing.
-        
-        .. warning:: Should not be called directly.
-        """
+            bdata = data
+        address = address if address else self._address
+        if not self._transport:
+            log("Cannot send data to {0}:{1}".format(address[0], address[1]))
+            return 0
         try:
-            self._queue.put_nowait((data, address))
-        except asyncio.QueueFull:
-            log("Queue is full", "ERROR")
-            raise BOFNetworkError("Queue is full")
-
-    def _handle_exception(self, exception:object, message:str) -> None:
-        """Log exception and raise BOF-defined network exception instead.
-
-        .. seealso:: bof.base.BOFNetworkError"""
-        log("Exception occurred: {0}".format(repr(exception)), "ERROR")
-        message = "{0} ({1})".format(message, repr(exception))
-        raise BOFNetworkError(message) from None
-
-    #-------------------------------------------------------------------------#
-    # Private                                                                 #
-    #-------------------------------------------------------------------------#
-
-    async def __listen_once(self, timeout:float=1.0) -> (bytes, tuple):
-        """Listen until a packet is received from UDP connection or
-        until ``timeout`` (default: 1 second).
-        """
-        if not isinstance(timeout, float) and not isinstance(timeout, int):
-            raise BOFProgrammingError("Timeout expects a float (seconds)")
-        try:
-            data, address = await asyncio.wait_for(self._queue.get(),
-                                                   timeout=float(timeout))
-        except futures._base.TimeoutError as te:
-            self._handle_exception(te, "Connection timeout")
-        return data, address
-
-    #-------------------------------------------------------------------------#
-    # Properties                                                              #
-    #-------------------------------------------------------------------------#
-
-    @property
-    def transport(self):
-        """Get UDP transport object ``SelectorDatagramTransport``.
-        Relies on Python's builtin ``asyncio`` module.
-        """
-        return self._transport
-    @transport.setter
-    def transport(self, value):
-        """Set UDP transport object ``SelectorDatagramTransport``.
-        Relies on Python's builtin ``asyncio`` module.
-        """
-        self._transport = value
-
-    @property
-    def source(self):
-        """Get source information on a socket with format tuple
-        ``(ipv4_source_address:str, source_port:int)``.
-        Requires the connection to be established.
-        Relies on Python's builtin ``socket`` module.
-        """
-        return self._socket.getsockname()
-
-    @property
-    def source_address(self) -> str:
-        """Get source IPv4 address information using source property.
-        Requires the connection to be established.
-        """
-        return self.source[0]
-
-    @property
-    def source_port(self) -> int:
-        """Get source port information using source property.
-        Requires the connection to be established.
-        """
-        return self.source[1]
+            self._transport.write(bdata)
+        except TypeError as te:
+            raise BOFNetworkError(str(te)) from None
+        log("Send to {0}:{1} : {2}".format(address[0], address[1], data))
+        return len(bdata)

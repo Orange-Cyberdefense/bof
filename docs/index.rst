@@ -8,6 +8,11 @@ Boiboite Opener Framework's documentation
    :caption: User manual
 
    man/user
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Protocols
+
    man/knx
 
 .. toctree::
