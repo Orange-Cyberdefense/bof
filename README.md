@@ -53,12 +53,12 @@ Now you can start using BOF!
 TL;DR
 -----
 
-### Send prepared requests
+### Discover devices on a network
 
 ```python
 from bof.layers.knx import search
 
-devices = search("192.168.1.242")
+devices = search()
 for device in devices:
     print(device)
 ```
@@ -75,9 +75,8 @@ Device: "boiboite" @ 192.168.1.242:3671 - KNX address: 15.15.255 - Hardware: 00:
 from bof.layers.knx import KNXnet, KNXPacket, SID
 from bof import BOFNetworkError
 
-knxnet = KNXnet()
 try:
-    knxnet.connect("192.168.1.242", 3671)
+    knxnet = KNXnet().connect("192.168.1.242", 3671)
     pkt = KNXPacket(type=SID.description_request,
                     ip_address=knxnet.source_address,
                     port=knxnet.source_port)

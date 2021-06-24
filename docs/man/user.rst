@@ -93,7 +93,18 @@ Now you can start using BOF!
 Discover devices on a network
 -----------------------------
 
-.. warning:: Higher-level features are not implemented yet!
+.. code-block:: python
+
+   from bof.layers.knx import search
+
+   devices = search()
+   for device in devices:
+       print(device)
+
+Should output something like::
+
+  Device: "boiboite" @ 192.168.1.242:3671 - KNX address: 15.15.255 - Hardware: 00:00:ff:ff:ff:ff (SN: 0123456789)
+
 
 Send and receive packets
 ------------------------
@@ -103,9 +114,8 @@ Send and receive packets
    from bof.layers.knx import KNXnet, KNXPacket, SID
    from bof import BOFNetworkError
 
-   knxnet = KNXnet()
    try:
-       knxnet.connect("192.168.1.242", 3671)
+       knxnet = KNXnet().connect("192.168.1.242", 3671)
        pkt = KNXPacket(type=SID.description_request,
                        ip_address=knxnet.source_address,
                        port=knxnet.source_port)
@@ -122,11 +132,14 @@ Craft your own packets!
 
 .. code-block:: python
 
-    pkt = KNXPacket(type=SID.description_request)
-    pkt.ip_address = b"\x01\x01"
-    pkt.port = 9999999
-    pkt.append(LcEMI())
-    pkt.show2() # This may output something strange
+   from bof.layers.knx import KNXPacket, SID
+   from bof.layers.raw_scapy.knx import LcEMI
+
+   pkt = KNXPacket(type=SID.description_request)
+   pkt.ip_address = b"\x01\x01"
+   pkt.port = 99999 # Yes it's too large
+   pkt.append(LcEMI())
+   pkt.show2() # This may output something strange
 
 .. note:: A recipient device will probably not respond to that, but at least
 	  now you know that BOF won't stop you from messing with your packets.
@@ -147,7 +160,8 @@ Getting started with BOF Packets
 
 Protocol-dependent packets you may manipulate in BOF all inherit from
 ``BOFPacket``. For instance, ``KNXPacket`` is the BOF packet from the protocol
-KNX. ``BOFPacket`` is not supposed to be instantiated directly.
+KNX. ``BOFPacket`` is not supposed to be instantiated directly, however it can
+be useful when you start interacting with unknown/unimplemented protocols.
 
 You can instantiate a packet inheriting from ``BOFPacket`` as follows::
 

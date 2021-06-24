@@ -5,10 +5,10 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="boiboite-opener-framework",
-    version="0.4.0",
+    version="1.0.0",
     author="Claire Vacherot",
     author_email="claire.vacherot@orange.com",
-    description="Industrial network protocols communication and packet crafting framework",
+    description="Industrial network protocols testing framework",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Orange-Cyberdefense/bof",
