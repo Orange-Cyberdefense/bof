@@ -160,13 +160,13 @@ class Test04KNXCEMIFrameConstructor(unittest.TestCase):
     def test0402_knx_req_cemi_from_construct_dict(self):
         """Test that we can create a KNX packet using cEMI from a dict."""
         frame = knx.KNXPacket(type=knx.SID.configuration_request,
-                              cemi=knx.CEMI.propread_req)
+                              cemi=knx.CEMI.m_propread_req)
         self.assertEqual(frame.message_code, 0xfc)
 
     def test0403_knx_req_cemi_from_construct_str(self):
         """Test that we can create a KNX packet using cEMI type as a string."""
         frame = knx.KNXPacket(type="CONFIGURATION REQUEST",
-                              cemi="PropWrite.req")
+                              cemi="M_PropWrite.req")
         self.assertEqual(frame.message_code, 0xf6)
 
     def test0404_knx_req_cemi_from_construct_bytes(self):
@@ -178,7 +178,7 @@ class Test04KNXCEMIFrameConstructor(unittest.TestCase):
         """Test that we cannot create a KNX packet if cEMI not in type."""
         with self.assertRaises(BOFProgrammingError):
             frame = knx.KNXPacket(type=knx.SID.description_response,
-                              cemi=knx.CEMI.propread_con)
+                              cemi=knx.CEMI.m_propread_con)
 
     def test0406_knx_req_cemi_from_construct_invalid_str(self):
         """Test that we cannot create a KNX packet with invalid cemi as string."""

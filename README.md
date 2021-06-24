@@ -53,6 +53,22 @@ Now you can start using BOF!
 TL;DR
 -----
 
+### Send prepared requests
+
+```python
+from bof.layers.knx import search
+
+devices = search("192.168.1.242")
+for device in devices:
+    print(device)
+```
+
+Should output something like:
+
+```
+Device: "boiboite" @ 192.168.1.242:3671 - KNX address: 15.15.255 - Hardware: 00:00:ff:ff:ff:ff (SN: 0123456789)
+```
+
 ### Send and receive packets
 
 ```python
@@ -82,7 +98,7 @@ from bof.layers.raw_scapy.knx import LcEMI
 
 pkt = KNXPacket(type=SID.description_request)
 pkt.ip_address = b"\x01\x01"
-pkt.port = 99999
+pkt.port = 99999 # Yes it's too large
 pkt.append(LcEMI())
 pkt.show2() # This may output something strange
 ```

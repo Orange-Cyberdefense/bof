@@ -45,10 +45,10 @@ CONNECTION_TYPE_CODES = {
 MESSAGE_CODES = {
     0x11: "L_Data.req",
     0x2e: "L_Data.con",
-    0xFC: "PropRead.req",
-    0xFB: "PropRead.con",
-    0xF6: "PropWrite.req",
-    0xF5: "PropWrite.con"
+    0xFC: "M_PropRead.req",
+    0xFB: "M_PropRead.con",
+    0xF6: "M_PropWrite.req",
+    0xF5: "M_PropWrite.con"
 }
 
 KNX_MEDIUM_CODES = {
@@ -65,6 +65,42 @@ KNX_ACPI_CODES = {
     5: "IndAddrResp",
     6: "AdcRead",
     7: "AdcResp"
+}
+
+CEMI_OBJECT_TYPES = {
+    0: "DEVICE",
+    11: "IP PARAMETER_OBJECT"
+}
+
+CEMI_PROPERTIES = {
+    12: "PID_MANUFACTURER_ID",
+    51: "PID_PROJECT_INSTALLATION_ID",
+    52: "PID_KNX_INDIVIDUAL_ADDRESS",
+    53: "PID_ADDITIONAL_INDIVIDUAL_ADDRESSES",
+    54: "PID_CURRENT_IP_ASSIGNMENT_METHOD",
+    55: "PID_IP_ASSIGNMENT_METHOD",
+    56: "PID_IP_CAPABILITIES",
+    57: "PID_CURRENT_IP_ADDRESS",
+    58: "PID_CURRENT_SUBNET_MASK",
+    59: "PID_CURRENT_DEFAULT_GATEWAY",
+    60: "PID_IP_ADDRESS",
+    61: "PID_SUBNET_MASK",
+    62: "PID_DEFAULT_GATEWAY",
+    63: "PID_DHCP_BOOTP_SERVER",
+    64: "PID_MAC_ADDRESS",
+    65: "PID_SYSTEM_SETUP_MULTICAST_ADDRESS",
+    66: "PID_ROUTING_MULTICAST_ADDRESS",
+    67: "PID_TTL",
+    68: "PID_KNXNETIP_DEVICE_CAPABILITIES",
+    69: "PID_KNXNETIP_DEVICE_STATE",
+    70: "PID_KNXNETIP_ROUTING_CAPABILITIES",
+    71: "PID_PRIORITY_FIFO_ENABLED",
+    72: "PID_QUEUE_OVERFLOW_TO_IP",
+    73: "PID_QUEUE_OVERFLOW_TO_KNX",
+    74: "PID_MSG_TRANSMIT_TO_IP",
+    75: "PID_MSG_TRANSMIT_TO_KNX",
+    76: "PID_FRIENDLY_NAME",
+    78: "PID_ROUTING_BUSY_WAIT_TIME"
 }
 
 
@@ -263,9 +299,9 @@ class DPcEMI(Packet):
     fields_desc = [
         # see if best representation is str or hex
         ShortField("object_type", None),
-        ByteField("object_instance", None),
+        ByteField("object_instance", 1),
         ByteField("property_id", None),
-        BitField("number_of_elements", None, 4),
+        BitField("number_of_elements", 1, 4),
         BitField("start_index", None, 12)
     ]
 
