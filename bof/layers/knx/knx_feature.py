@@ -250,7 +250,7 @@ def connect_request_tunneling(knxnet: KNXnet) -> (int, str):
     fields, which will be used during the tunneling exchange.
     """
     conn_req = KNXPacket(type=SID.connect_request,
-                         connection_type=CONNECTION_TYPE_CODES.tunneling_connection)
+                         connection_type=CONNECTION_TYPE_CODES.tunnel_connection)
     conn_req.scapy_pkt.control_endpoint.ip_address, conn_req.scapy_pkt.control_endpoint.port = knxnet.source
     conn_req.scapy_pkt.data_endpoint.ip_address, conn_req.scapy_pkt.data_endpoint.port = knxnet.source
     response, _ = knxnet.sr(conn_req)
@@ -325,7 +325,8 @@ def cemi_group_write(knx_source: str, knx_group_addr: str, value) -> Packet:
     """Builds a KNX message (cEMI) to write a value to a group address."""
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
     cemi.cemi_data.source_address = knx_source
-    cemi.cemi_data.destination_address = "1/1/1"
+    cemi.cemi_data.destination_address = knx_group_addr
+    cemi.show2()
     cemi.cemi_data.acpi = ACPI.groupvaluewrite
     cemi.cemi_data.data = int(value)
     return cemi

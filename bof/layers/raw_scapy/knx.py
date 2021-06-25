@@ -1,15 +1,44 @@
+# This file is part of Scapy
+# Scapy is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# any later version.
+#
+# Scapy is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Scapy. If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright (C) 2021 Julien BEDEL <contact[at]julienbedel.com>, Claire VACHEROT <lex[at]lex.os>
+
+# This module provides Scapy layers for KNXNet/IP communications over UDP
+# according to KNX specifications v2.1 / ISO-IEC 14543-3.
+# Specifications can be downloaded for free here : https://my.knx.org/en/shop/knx-specifications
+#
+# Currently, the module (partially) supports the following services :
+#   * SEARCH REQUEST/RESPONSE
+#   * DESCRIPTION REQUEST/RESPONSE
+#   * CONNECT, DISCONNECT, CONNECTION_STATE REQUEST/RESPONSE
+#   * CONFIGURATION REQUEST/RESPONSE
+#   * TUNNELING REQUEST/RESPONSE
+
+# scapy.contrib.description = KNX Protocol
+# scapy.contrib.status = loads
+
 from scapy.fields import PacketField, MultipleTypeField, ByteField, XByteField, \
     ShortEnumField, ShortField, \
     ByteEnumField, IPField, StrFixedLenField, MACField, XBitField, \
-    PacketListField, IntField, FieldLenField, \
+    PacketListField, FieldLenField, \
     StrLenField, BitEnumField, BitField, ConditionalField
-from scapy.packet import Packet, bind_layers, bind_top_down, Padding
-from scapy.packet import Packet, bind_layers, bind_bottom_up, Padding, \
-    bind_top_down
+from scapy.packet import Packet, bind_layers, bind_bottom_up, Padding
 from scapy.layers.inet import UDP
 
 ### KNX CODES
 
+# KNX Standard v2.1 - 03_08_02 p20
 SERVICE_IDENTIFIER_CODES = {
     0x0201: "SEARCH_REQUEST",
     0x0202: "SEARCH_RESPONSE",
@@ -27,21 +56,34 @@ SERVICE_IDENTIFIER_CODES = {
     0x0421: "TUNNELING_ACK"
 }
 
+# KNX Standard v2.1 - 03_08_02 p39
 HOST_PROTOCOL_CODES = {
-    0x01: "IPV4_UDP"
+    0x01: "IPV4_UDP",
+    0x02: "IPV4_TCP"
 }
 
+# KNX Standard v2.1 - 03_08_02 p23
 DESCRIPTION_TYPE_CODES = {
     0x01: "DEVICE_INFO",
-    0x02: "SUPP_SVC_FAMILIES"
+    0x02: "SUPP_SVC_FAMILIES",
+    0x03: "IP_CONFIG",
+    0x04: "IP_CUR_CONFIG",
+    0x05: "KNX_ADDRESSES",
+    0x06: "Reserved",
+    0xFE: "MFR_DATA",
+    0xFF: "not used"
 }
 
-# uses only 1 code collection for connection type, differentiates between CRI and CRD tunneling in classes (!= BOF)
+# KNX Standard v2.1 - 03_08_02 p30
 CONNECTION_TYPE_CODES = {
     0x03: "DEVICE_MANAGEMENT_CONNECTION",
-    0x04: "TUNNELING_CONNECTION"
+    0x04: "TUNNEL_CONNECTION",
+    0x06: "REMLOG_CONNECTION",
+    0x07: "REMCONF_CONNECTION",
+    0x08: "OBJSVR_CONNECTION"
 }
 
+# KNX Standard v2.1 - 03_08_04
 MESSAGE_CODES = {
     0x11: "L_Data.req",
     0x2e: "L_Data.con",
@@ -51,8 +93,14 @@ MESSAGE_CODES = {
     0xF5: "M_PropWrite.con"
 }
 
+# KNX Standard v2.1 - 03_08_02 p24
 KNX_MEDIUM_CODES = {
-    0x02: "KNX_TP"
+    0x01: "reserved",
+    0x02: "TP1",
+    0x04: "PL110",
+    0x08: "reserved",
+    0x10: "RF",
+    0x20: "KNX IP"
 }
 
 # KNX Standard v2.1 - 03_03_07 p9
@@ -72,6 +120,7 @@ CEMI_OBJECT_TYPES = {
     11: "IP PARAMETER_OBJECT"
 }
 
+# KNX Standard v2.1 - 03_05_01 p25
 CEMI_PROPERTIES = {
     12: "PID_MANUFACTURER_ID",
     51: "PID_PROJECT_INSTALLATION_ID",
@@ -106,6 +155,7 @@ CEMI_PROPERTIES = {
 
 ### KNX SPECIFIC FIELDS
 
+# KNX Standard v2.1 - 03_05_01 p.17
 class KNXAddressField(ShortField):
     def i2repr(self, pkt, x):
         if x is None:
@@ -122,7 +172,7 @@ class KNXAddressField(ShortField):
                 raise ValueError(x)
         return ShortField.any2i(self, pkt, x)
 
-
+# KNX Standard v2.1 - 03_05_01 p.18
 class KNXGroupField(ShortField):
     def i2repr(self, pkt, x):
         return "%d/%d/%d" % ((x >> 11) & 0x1f, (x >> 8) & 0x7, (x & 0xff))
@@ -137,9 +187,9 @@ class KNXGroupField(ShortField):
         return ShortField.any2i(self, pkt, x)
 
 
-### KNX BASE BLOCKS
+### KNX PLACEHOLDERS
 
-
+# KNX Standard v2.1 - 03_08_02 p21
 class HPAI(Packet):
     name = "HPAI"
     fields_desc = [
@@ -154,8 +204,7 @@ class HPAI(Packet):
         return p + pay
 
 
-# DIB blocks
-
+# DIB, KNX Standard v2.1 - 03_08_02 p22
 class ServiceFamily(Packet):
     name = "Service Family"
     fields_desc = [
@@ -164,7 +213,7 @@ class ServiceFamily(Packet):
     ]
 
 
-# DIB are differentiated using the "description_type_code" field
+# Different DIB types depends on the "description_type_code" field
 # Defining a generic DIB packet and differentiating with `dispatch_hook` or `MultipleTypeField` may better fit KNX specs
 class DIBDeviceInfo(Packet):
     name = "DIB: DEVICE_INFO"
@@ -203,7 +252,7 @@ class DIBSuppSvcFamilies(Packet):
         return p + pay
 
 
-# CRI and CRD blocks
+# CRI and CRD, KNX Standard v2.1 - 03_08_02 p21
 
 class TunnelingConnection(Packet):
     name = "Tunneling Connection"
@@ -332,6 +381,7 @@ class CEMI(Packet):
 
 ### KNX SERVICES
 
+# KNX Standard v2.1 - 03_08_02 p28
 class KNXSearchRequest(Packet):
     name = "SEARCH_REQUEST",
     fields_desc = [
@@ -339,6 +389,7 @@ class KNXSearchRequest(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p28
 class KNXSearchResponse(Packet):
     name = "SEARCH_RESPONSE",
     fields_desc = [
@@ -349,6 +400,7 @@ class KNXSearchResponse(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p29
 class KNXDescriptionRequest(Packet):
     name = "DESCRIPTION_REQUEST"
     fields_desc = [
@@ -356,6 +408,7 @@ class KNXDescriptionRequest(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p29
 class KNXDescriptionResponse(Packet):
     name = "DESCRIPTION_RESPONSE"
     fields_desc = [
@@ -367,6 +420,7 @@ class KNXDescriptionResponse(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p30
 class KNXConnectRequest(Packet):
     name = "CONNECT_REQUEST"
     fields_desc = [
@@ -376,6 +430,7 @@ class KNXConnectRequest(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p31
 class KNXConnectResponse(Packet):
     name = "CONNECT_RESPONSE"
     fields_desc = [
@@ -386,6 +441,7 @@ class KNXConnectResponse(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p32
 class KNXConnectionstateRequest(Packet):
     name = "CONNECTIONSTATE_REQUEST"
     fields_desc = [
@@ -395,6 +451,7 @@ class KNXConnectionstateRequest(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p32
 class KNXConnectionstateResponse(Packet):
     name = "CONNECTIONSTATE_RESPONSE"
     fields_desc = [
@@ -403,6 +460,7 @@ class KNXConnectionstateResponse(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p33
 class KNXDisconnectRequest(Packet):
     name = "DISCONNECT_REQUEST"
     fields_desc = [
@@ -412,6 +470,7 @@ class KNXDisconnectRequest(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_02 p34
 class KNXDisconnectResponse(Packet):
     name = "DISCONNECT_RESPONSE"
     fields_desc = [
@@ -420,6 +479,7 @@ class KNXDisconnectResponse(Packet):
     ]
 
 
+# KNX Standard v2.1 - 03_08_03 p22
 class KNXConfigurationRequest(Packet):
     name = "CONFIGURATION_REQUEST"
     fields_desc = [
@@ -435,6 +495,7 @@ class KNXConfigurationRequest(Packet):
         return p + pay
 
 
+# KNX Standard v2.1 - 03_08_03 p22
 class KNXConfigurationACK(Packet):
     name = "CONFIGURATION_ACK"
     fields_desc = [
@@ -449,6 +510,7 @@ class KNXConfigurationACK(Packet):
         return p + pay
 
 
+# KNX Standard v2.1 - 03_08_04 p.17
 class KNXTunnelingRequest(Packet):
     name = "TUNNELING_REQUEST"
     fields_desc = [
@@ -464,6 +526,7 @@ class KNXTunnelingRequest(Packet):
         return p + pay
 
 
+# KNX Standard v2.1 - 03_08_04 p.18
 class KNXTunnelingACK(Packet):
     name = "TUNNELING_ACK"
     fields_desc = [
@@ -480,6 +543,9 @@ class KNXTunnelingACK(Packet):
 
 ### KNX FRAME
 
+# we made the choice to define a KNX service as a payload for a KNX Header
+# it could also be possible to define the body as a conditionnal PacketField contained after the header
+
 class KNX(Packet):
     name = "KNXnet/IP"
     fields_desc = [
@@ -493,13 +559,8 @@ class KNX(Packet):
         # computes header_length
         p = (len(p)).to_bytes(1, byteorder='big') + p[1:]
         # computes total_length
-        p = p[:-2] + (len(p) + len(pay)).to_bytes(2,
-                                                  byteorder='big')  # TODO: get the whole frame instead of payload
+        p = p[:-2] + (len(p) + len(pay)).to_bytes(2, byteorder='big')
         return p + pay
-
-
-class KNXHeader(KNX):
-    name = "KNXHeader"
 
 
 ### LAYERS BINDING
@@ -524,9 +585,15 @@ bind_layers(KNX, KNXConfigurationACK, service_identifier=0x0311)
 bind_layers(KNX, KNXTunnelingRequest, service_identifier=0x0420)
 bind_layers(KNX, KNXTunnelingACK, service_identifier=0x0421)
 
-# for now we bind every layer used as PacketField to Padding in order to delete its payload
-# (solution inspired by https://github.com/secdev/scapy/issues/360)
-# we could also define a new Packet class with no payload (or does it already exists as NoPayload ???)
+# we bind every layer to Padding in order to delete their payloads
+# (from https://github.com/secdev/scapy/issues/360)
+# we could also define a new Packet class with no payload and inherit every KNX packet from it :
+"""
+class _KNXBodyNoPayload(Packet):
+
+    def extract_padding(self, s):
+        return b"", None
+"""
 
 bind_layers(HPAI, Padding)
 bind_layers(ServiceFamily, Padding)
@@ -555,8 +622,3 @@ bind_layers(KNXConfigurationACK, Padding)
 bind_layers(KNXTunnelingRequest, Padding)
 bind_layers(KNXTunnelingACK, Padding)
 
-bind_layers(KNXHeader, Padding)
-
-# TODO: add ByteEnumField with status list (see KNX specifications)
-# TODO: replace MultipleTypeField in CEMI with Scapy bindings
-# TODO: compute length, see if could be done with dedicated field
