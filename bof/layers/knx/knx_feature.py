@@ -254,9 +254,9 @@ def connect_request_tunneling(knxnet: KNXnet) -> (int, str):
     conn_req.scapy_pkt.control_endpoint.ip_address, conn_req.scapy_pkt.control_endpoint.port = knxnet.source
     conn_req.scapy_pkt.data_endpoint.ip_address, conn_req.scapy_pkt.data_endpoint.port = knxnet.source
     response, _ = knxnet.sr(conn_req)
-    # FIX: we can't access knx_individual_address directly
     knx_source = response.scapy_pkt.connection_response_data_block.connection_data.knx_individual_address
-    return response.communication_channel_id, knx_source
+    channel_id = response.scapy_pkt.communication_channel_id
+    return channel_id, knx_source
 
 #-----------------------------------------------------------------------------#
 # DISCONNECT REQUEST (0x020A)                                                 #
