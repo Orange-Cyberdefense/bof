@@ -53,7 +53,8 @@ SERVICE_IDENTIFIER_CODES = {
     0x0310: "CONFIGURATION_REQUEST",
     0x0311: "CONFIGURATION_ACK",
     0x0420: "TUNNELING_REQUEST",
-    0x0421: "TUNNELING_ACK"
+    0x0421: "TUNNELING_ACK",
+    0x0530: "ROUTING_INDICATION"
 }
 
 # KNX Standard v2.1 - 03_08_02 p39
@@ -105,14 +106,20 @@ KNX_MEDIUM_CODES = {
 
 # KNX Standard v2.1 - 03_03_07 p9
 KNX_ACPI_CODES = {
-    0: "GroupValueRead",
-    1: "GroupValueResp",
-    2: "GroupValueWrite",
-    3: "IndAddrWrite",
-    4: "IndAddrRead",
-    5: "IndAddrResp",
-    6: "AdcRead",
-    7: "AdcResp"
+    0x0: "GroupValueRead",
+    0x1: "GroupValueResp",
+    0x2: "GroupValueWrite",
+    0x3: "IndAddrWrite",
+    0x4: "IndAddrRead",
+    0x5: "IndAddrResp",
+    0x6: "AdcRead",
+    0x7: "AdcResp",
+    0x8: "MemRead",
+    0xa: "MemWrite",
+    0xc: "DevDescrRead",
+    0x0380: "Restart",
+    0x03D1: "AuthReq",
+    0x03D5: "PropValueRead"
 }
 
 CEMI_OBJECT_TYPES = {
@@ -540,6 +547,16 @@ class KNXTunnelingACK(Packet):
         p = (len(p)).to_bytes(1, byteorder='big') + p[1:]
         return p + pay
 
+class KNXRoutingIndication(Packet):
+    name = "ROUTING_INDICATION"
+    fields_desc = [
+        PacketField("cemi", CEMI(), CEMI)
+    ]
+
+    def post_build(self, p, pay):
+        p = (len(p[:4])).to_bytes(1, byteorder='big') + p[1:]
+        return p + pay
+
 
 ### KNX FRAME
 
@@ -584,6 +601,7 @@ bind_layers(KNX, KNXConfigurationRequest, service_identifier=0x0310)
 bind_layers(KNX, KNXConfigurationACK, service_identifier=0x0311)
 bind_layers(KNX, KNXTunnelingRequest, service_identifier=0x0420)
 bind_layers(KNX, KNXTunnelingACK, service_identifier=0x0421)
+bind_layers(KNX, KNXRoutingIndication, service_identifier=0x0530)
 
 # we bind every layer to Padding in order to delete their payloads
 # (from https://github.com/secdev/scapy/issues/360)
