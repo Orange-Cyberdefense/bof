@@ -326,7 +326,6 @@ def cemi_group_write(knx_source: str, knx_group_addr: str, value) -> Packet:
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
     cemi.cemi_data.source_address = knx_source
     cemi.cemi_data.destination_address = knx_group_addr
-    cemi.show2()
     cemi.cemi_data.acpi = ACPI.groupvaluewrite
     cemi.cemi_data.data = int(value)
     return cemi
@@ -340,6 +339,5 @@ def cemi_property_read(object_type: int, property_id: int) -> Packet:
     cemi = scapy_knx.CEMI(message_code=CEMI.m_propread_req)
     cemi.cemi_data.object_type = object_type
     cemi.cemi_data.property_id = property_id
-    cemi.show2()
     return cemi
 
