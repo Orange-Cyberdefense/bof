@@ -323,6 +323,7 @@ class LcEMI(Packet):
             1: "domain"
         }),
         BitEnumField("priority", 3, 2, {
+            0: "system",
             3: "low"
         }),
         BitField("ack_request", 0, 1),
