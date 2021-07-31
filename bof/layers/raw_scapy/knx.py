@@ -350,7 +350,8 @@ class LcEMI(Packet):
         }),
         BitField("reserved", 0, 4),
         BitEnumField("acpi", 2, 4, KNX_ACPI_CODES),
-        BitField("data", 0, 6)
+        ConditionalField(BitField("data", 0, 6),
+                         lambda pkt:pkt.packet_type==0)
 
     ]
 
