@@ -329,6 +329,7 @@ class LcEMI(Packet):
         BitField("confirmation_error", 0, 1),
         # Controlfield 2 (1 byte made of 1+3+4 bits)
         BitEnumField("address_type", 1, 1, {
+            0: "individual",
             1: "group"
         }),
         BitField("hop_count", 6, 3),
@@ -338,7 +339,8 @@ class LcEMI(Packet):
         FieldLenField("npdu_length", 0x01, fmt="B", length_of="data"),
         # TPCI and APCI (2 byte made of 1+1+4+4+6 bits)
         BitEnumField("packet_type", 0, 1, {
-            0: "data"
+            0: "data",
+            1: "control"
         }),
         BitEnumField("sequence_type", 0, 1, {
             0: "unnumbered"
