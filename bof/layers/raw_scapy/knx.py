@@ -335,7 +335,10 @@ class LcEMI(Packet):
         BitField("hop_count", 6, 3),
         BitField("extended_frame_format", 0, 4),
         KNXAddressField("source_address", None),
-        KNXGroupField("destination_address", "1/2/3"),
+        ConditionalField(KNXGroupField("destination_address", "1/2/3"),
+                         lambda pkt:pkt.address_type==1),
+        ConditionalField(KNXAddressField("destination_address", "1.2.3"),
+                         lambda pkt:pkt.address_type==0),
         FieldLenField("npdu_length", 0x01, fmt="B", length_of="data"),
         # TPCI and APCI (2 byte made of 1+1+4+4+6 bits)
         BitEnumField("packet_type", 0, 1, {
