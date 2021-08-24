@@ -339,7 +339,10 @@ class BOFPacket(object):
         """
         for field, parent in self._field_generator(start_packet):
             if field.name == name:
-                field_and_val = parent.getfield_and_val(name)
+                try:
+                    field_and_val = parent.getfield_and_val(name)
+                except ValueError:
+                    field_and_val = None
                 # We do not return packetfields directly because we should not
                 # manipulate them outside direct call to Scapy or direct access
                 # to the fields they contain.
