@@ -323,6 +323,8 @@ class BOFPacket(object):
             for field in packet.fields_desc:
                 if isinstance(field, MultipleTypeField):
                     field = field._find_fld()
+                elif isinstance(field, ConditionalField) and field._evalcond(packet):
+                    field = field.fld
                 if isinstance(field, PacketField) or isinstance(field, Packet):
                     yield from self._field_generator(getattr(packet, field.name))
                 if isinstance(field, Field):

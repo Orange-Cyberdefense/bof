@@ -142,7 +142,7 @@ if len(argv) < 2:
 # Open log file
 LOG_FD = open(LOG_FILENAME, "w+")
 # Create the base frame to mutate during fuzzing
-base_pkt = KNXPacket(type=SID.configuration_request, cemi=CEMI.propread_req)
+base_pkt = KNXPacket(type=SID.configuration_request, cemi=CEMI.m_propread_req)
 base_pkt.number_of_elements = 1
 base_pkt.show2()
 
