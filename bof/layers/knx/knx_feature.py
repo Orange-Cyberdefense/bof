@@ -254,9 +254,9 @@ def connect_request_tunneling(knxnet: KNXnet) -> (int, str):
     conn_req.scapy_pkt.control_endpoint.ip_address, conn_req.scapy_pkt.control_endpoint.port = knxnet.source
     conn_req.scapy_pkt.data_endpoint.ip_address, conn_req.scapy_pkt.data_endpoint.port = knxnet.source
     response, _ = knxnet.sr(conn_req)
-    # FIX: we can't access knx_individual_address directly
     knx_source = response.scapy_pkt.connection_response_data_block.connection_data.knx_individual_address
-    return response.communication_channel_id, knx_source
+    channel_id = response.scapy_pkt.communication_channel_id
+    return channel_id, knx_source
 
 #-----------------------------------------------------------------------------#
 # DISCONNECT REQUEST (0x020A)                                                 #
@@ -326,7 +326,6 @@ def cemi_group_write(knx_source: str, knx_group_addr: str, value) -> Packet:
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
     cemi.cemi_data.source_address = knx_source
     cemi.cemi_data.destination_address = knx_group_addr
-    cemi.show2()
     cemi.cemi_data.acpi = ACPI.groupvaluewrite
     cemi.cemi_data.data = int(value)
     return cemi
@@ -340,6 +339,5 @@ def cemi_property_read(object_type: int, property_id: int) -> Packet:
     cemi = scapy_knx.CEMI(message_code=CEMI.m_propread_req)
     cemi.cemi_data.object_type = object_type
     cemi.cemi_data.property_id = property_id
-    cemi.show2()
     return cemi
 
