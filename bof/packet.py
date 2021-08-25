@@ -323,6 +323,8 @@ class BOFPacket(object):
             for field in packet.fields_desc:
                 if isinstance(field, MultipleTypeField):
                     field = field._find_fld()
+                elif isinstance(field, ConditionalField) and field._evalcond(packet):
+                    field = field.fld
                 if isinstance(field, PacketField) or isinstance(field, Packet):
                     yield from self._field_generator(getattr(packet, field.name))
                 if isinstance(field, Field):
@@ -339,7 +341,10 @@ class BOFPacket(object):
         """
         for field, parent in self._field_generator(start_packet):
             if field.name == name:
-                field_and_val = parent.getfield_and_val(name)
+                try:
+                    field_and_val = parent.getfield_and_val(name)
+                except ValueError:
+                    field_and_val = None
                 # We do not return packetfields directly because we should not
                 # manipulate them outside direct call to Scapy or direct access
                 # to the fields they contain.
@@ -402,7 +407,7 @@ class BOFPacket(object):
             self._setattr(parent, field, new_value)
             raw(parent)
             return True
-        except struct_error:
+        except (ValueError, struct_error):
             pass # Any other exception is unexpected and we let it happen
         return False
 
