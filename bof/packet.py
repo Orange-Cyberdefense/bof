@@ -407,7 +407,7 @@ class BOFPacket(object):
             self._setattr(parent, field, new_value)
             raw(parent)
             return True
-        except struct_error:
+        except (ValueError, struct_error):
             pass # Any other exception is unexpected and we let it happen
         return False
 
