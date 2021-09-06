@@ -343,7 +343,7 @@ class LcEMI(Packet):
             ],
                 ShortField("destination_address", "")
             ),
-        FieldLenField("npdu_length", 0, fmt="B", length_of="data"),
+        FieldLenField("npdu_length", 0x01, fmt="B", length_of="data"),
         # TPCI and APCI (2 byte made of 1+1+4+4+6 bits)
         BitEnumField("packet_type", 0, 1, {
             0: "data",

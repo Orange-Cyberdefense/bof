@@ -306,6 +306,8 @@ def tunneling_request(knxnet: KNXnet, channel: int, cemi: Packet) -> (KNXPacket,
     tun_req.cemi = cemi
     ack, _ = knxnet.sr(tun_req)
     response, source = knxnet.receive()
+    tun_req.show2()
+    response.show2()
     # We have to ACK when we receive tunneling requests
     if response.sid == SID.tunneling_request and \
        response.message_code == CEMI.l_data_con:
