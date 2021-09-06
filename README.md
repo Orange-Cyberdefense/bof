@@ -153,8 +153,9 @@ Here a few things to know beforehand:
   easily and maintainable. And remember: if you need to use "and" while
   explaining what your function does, then you can probably split it.
 
-* Please write Unit tests! They are in `tests/`. You can run all unit tests
-  with: `python -m unittest discover -s tests`
+* Please write Unit tests and make sure existing ones still pass! They are in
+  `tests/`. You can run all unit tests with: `python -m unittest discover -s
+  tests`
 
 Reporting issues
 ----------------

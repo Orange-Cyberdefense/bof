@@ -46,14 +46,13 @@ free to interact with the Scapy packet directly as well.**
 	    :width: 450
 	    :align: center
 
-For instance, in the code sample below, lines 2 and 3 do the same
-thing and modify the same packet object. However for line 2, you set a
-value to the ``field1`` from **BOF**'s packet, applying any change
-provided by BOF when setting a value. In line 3, the field is modified
-directly in **Scapy**'s packet, BOF does not interfer. In other words,
-a ``BOFPacket`` object (here ``KNXPacket``) acts as a wrapper around a
-Scapy object representing the actual packet using the specified
-protocol.
+For instance, in the code sample below, lines 2 and 3 do the same thing and
+modify the same packet object. However for line 2, you set a value to the
+``field1`` from **BOF**'s packet, applying any change provided by BOF when
+setting a value. In line 3, the field is modified directly in **Scapy**'s
+packet, BOF does not interfer. In other words, a ``BOFPacket`` object (here
+``KNXPacket``) acts as a wrapper around a Scapy object representing the actual
+packet using the specified protocol.
 
 .. code-block:: python
    :linenos:
@@ -62,36 +61,34 @@ protocol.
    packet.field1 = 1
    packet.scapy_pkt.field1 = 1
 
-The reason we did that is because there is nothing
-better than Scapy to handle protocol implementations, and by using
-Scapy we can also use all the implementations that were written for
-it. But BOF and Scapy do not have the same usage and aim: First, we
-made some choices about BOF's script syntax and sometimes Scapy's
-syntax don't follow these choices. But most of all, we sometimes can't
-rely on Scapy's behavior for what we want to do with BOF because they
-are not compatible. Just to mention a few:
+The reason we did that is because there is nothing better than Scapy to handle
+protocol implementations, and by using Scapy we can also use all the
+implementations that were written for it. But BOF and Scapy do not have the same
+usage and aim: First, we made some choices about BOF's script syntax and
+sometimes Scapy's syntax doesn't follow these choices. But most of all, we
+sometimes can't rely on Scapy's behavior for what we want to do with BOF because
+they are not compatible. Just to mention a few:
 
 :Field-oriented usage:
-   BOF's preferred usage when altering packets is to change specific
-   fields directly. Why? Because BOF has been written to write attack
-   scripts, including fuzzers. In these fuzzers, we want to stick to
-   the protocol's specification because if we don't, devices we target
-   may just drop our frames. And to stick to the specification, we
-   have to keep a valid frame format, and to do that we just modify
-   specific fields. Scapy does not work this way and, although we can
-   modify isolated fields, it's hard to get and set values in a
-   script, mostly because we can't refer to a field without referring
-   to its parent packet holding its value.
+   BOF's preferred usage when altering packets is to change specific fields
+   directly. Why? Because BOF has been written to write attack scripts,
+   including fuzzers. In these fuzzers, we want to stick to the protocol's
+   specification because if we don't, devices we target may just drop our
+   frames. And to stick to the specification, we have to keep a valid frame
+   format, and to do that we just modify specific fields. Scapy does not work
+   this way and, although we can modify isolated fields, it's hard to get and
+   set values in a script, mostly because we can't refer to a field without
+   referring to its parent packet holding its value.
 :BOF does not care about types:
-  But Scapy does. Field objects in Scapy have a type and you can't
-  change it easily or just use a field objectthat doesn't have a type
-  without losing some capabilities. For us, packets are just a bunch
-  of bytes so we might as well set values directly as bytes to fields,
-  and Scapy won't allow that. It won't allow setting a value with the
-  wrong type either, and we don't want field types to be a thing in
-  BOF: a user should not need to know the type of a field, or she may
-  be able to implicitly change it. That's what BOF's wrapper around
-  the Scapy object does.
+  But Scapy does. Field objects in Scapy have a type and you can't change it
+  easily or just use a field objectthat doesn't have a type without losing some
+  capabilities. For us, packets are just a bunch of bytes so we might as well
+  set values directly as bytes to fields, and Scapy won't allow that (unless
+  using RawVal, which does not provide all of Scapy's Fields capabilities). It
+  won't allow setting a value with the wrong type either, and we don't want
+  field types to be a thing in BOF: a user should not need to know the type of a
+  field, or she may be able to implicitly change it. That's what BOF's wrapper
+  around the Scapy object does.
 
 .. code-block:: python
 
