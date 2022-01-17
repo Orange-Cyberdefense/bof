@@ -28,7 +28,8 @@ Usage is the same with raw TCP.
 import asyncio
 from ipaddress import ip_address, IPv4Address
 from concurrent import futures
-from socket import AF_INET, SOCK_DGRAM, IPPROTO_IP, IP_MULTICAST_TTL
+from socket import AF_INET, SOCK_DGRAM, IPPROTO_IP, IP_MULTICAST_TTL, \
+    SOL_SOCKET, SO_BROADCAST
 from socket import socket, timeout as sotimeout, gaierror
 from struct import pack
 # Internal
@@ -268,9 +269,9 @@ class UDP(_Transport):
     """
 
     #-------------------------------------------------------------------------#
-    # Public                                                                  #
-    #-------------------------------------------------------------------------#
-
+    # Static                                                                  #
+    #-------------------------------------------------------------------------#    
+    
     @staticmethod
     def multicast(data:bytes, address:tuple, timeout:float=1.0) -> list:
         """Sends a multicast request to specified ip address and port (UDP).
@@ -281,12 +282,12 @@ class UDP(_Transport):
         :param data: Raw byte array or string to send.
         :param address: Remote network address with format tuple ``(ip, port)``.
         :param timeout: Time out value in seconds,  as a float (default is 1.0s).
-        :returns: A list of tuple with format (response, (ip, port)).
+        :returns: A list of tuples with format ``(response, (ip, port))``.
         :raises BOFNetworkError: If multicast parameters are invalid.
 
         Example::
 
-           devices = UDP.send_multicast(b'\x06\x10...', ('224.0.23.12', 3671))
+           devices = UDP.multicast(b'\x06\x10...', ('224.0.23.12', 3671))
         """
         responses = []
         ttl = pack('b', 1)
@@ -302,7 +303,38 @@ class UDP(_Transport):
             pass
         sock.close()
         return responses
-    
+
+    @staticmethod
+    def broadcast(data:bytes, address:tuple, timeout:float=1.0) -> list:
+        """Broadcasts a request and waits for responses from devices (UDP).
+
+        :param data: Raw byte array or string to send.
+        :param address: Remote network address with format tuple ``(ip, port)``.
+        :param timeout: Time out value in seconds, as a float (default is 1.0s).
+        :returns: A list of tuples with format ``(response, (ip, port))``.
+        :raises BOFNetworkError: If multicast parameters are invalid.
+
+        Example::
+
+           devices = UDP.broadcast(b'\x06\x10...', ('192.168.1.255', 3671))
+        """
+        responses = []
+        try:
+            sock = socket(AF_INET, SOCK_DGRAM)
+            sock.settimeout(timeout)
+            sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+            sock.sendto(bytes(data), address)
+            while True:
+                response, sender = sock.recvfrom(1024)
+                responses.append((response, sender))
+        except sotimeout as te:
+            pass
+        sock.close()
+        return responses
+        
+    #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#    
 
     def connect(self, ip:str, port:int) -> object:
         """Initialize asynchronous connection using UDP on ``ip``:``port``.
