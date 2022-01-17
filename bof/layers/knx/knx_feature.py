@@ -89,15 +89,18 @@ class KNXDevice(object):
         :param response: Search Response provided by a device as a KNXPacket.
         :returns: A KNXDevice object.
         """
-        args = {
-            "name": response.device_friendly_name.decode('utf-8'),
-            "ip_address": response.ip_address,
-            "port": response.port,
-            "knx_address": scapy_knx.KNXAddressField.i2repr(None, None, response.knx_address),
-            "mac_address": response.device_mac_address,
-            "multicast_address": response.device_multicast_address,
-            "serial_number": response.device_serial_number
-        }
+        try:
+            args = {
+                "name": response.device_friendly_name.decode('utf-8'),
+                "ip_address": response.ip_address,
+                "port": response.port,
+                "knx_address": scapy_knx.KNXAddressField.i2repr(None, None, response.knx_address),
+                "mac_address": response.device_mac_address,
+                "multicast_address": response.device_multicast_address,
+                "serial_number": response.device_serial_number
+            }
+        except AttributeError:
+            raise BOFNetworkError("Search Response has invalid format.") from None
         return cls(**args)
 
     @classmethod
@@ -127,34 +130,26 @@ class KNXDevice(object):
 #-----------------------------------------------------------------------------#
 
 def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> list:
-    """Search for KNX devices on an network (multicast, unicast address(es).
-    Sends a SEARCH REQUEST per IP and expects one SEARCH RESPONSE per device.
+    """Search for KNX devices on an network using multicast.
+    Sends a SEARCH REQUEST and expects one SEARCH RESPONSE per device.
     **KNX Standard v2.1**
 
-    :param ip: Multicast, unicast IPv4 address or list of such addresses to
-               search for.  Default value is default KNXnet/IP multicast
-               address 224.0.23.12.
+    :param ip: Multicast IPv4 address. Default value is default KNXnet/IP
+               multicast address 224.0.23.12.
     :param port: KNX port, default is 3671.
     :returns: The list of responding KNXnet/IP devices in the network as
               KNXDevice objects.
     :raises BOFProgrammingError: if IP is invalid.
     """
+    IS_IP(ip)
+    # knxnet = KNXnet().connect(i, port)
     devices = []
-    if isinstance(ip, str):
-        ip = [ip]
-    for i in ip:
-        IS_IP(i)
-        knxnet = KNXnet().connect(i, port)
-        search_req = KNXPacket(type=SID.search_request)
-        search_req.ip_address, search_req.port = knxnet.source
-        try:
-            knxnet.send(search_req)
-            while 1:
-                response, _ = knxnet.receive()
-                devices.append(KNXDevice.init_from_search_response(response))
-        except BOFNetworkError:
-            pass
-        knxnet.disconnect()
+    search_req = KNXPacket(type=SID.search_request)
+    # search_req.ip_address, search_req.port = knxnet.source
+    responses = KNXnet.multicast(search_req, (ip, port))
+    for response, source in responses:
+        device = KNXDevice.init_from_search_response(KNXPacket(response))
+        devices.append(device)
     return devices
 
 def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
