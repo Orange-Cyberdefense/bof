@@ -142,10 +142,8 @@ def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> list:
     :raises BOFProgrammingError: if IP is invalid.
     """
     IS_IP(ip)
-    # knxnet = KNXnet().connect(i, port)
     devices = []
     search_req = KNXPacket(type=SID.search_request)
-    # search_req.ip_address, search_req.port = knxnet.source
     responses = KNXnet.multicast(search_req, (ip, port))
     for response, source in responses:
         device = KNXDevice.init_from_search_response(KNXPacket(response))
@@ -168,9 +166,6 @@ def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
     channel = connect_request_management(knxnet)
     response, source = description_request(knxnet)
     device = KNXDevice.init_from_description_response(response, source)
-    # cemi = cemi_property_read(CEMI_OBJECT_TYPES.ip_parameter_object,
-    #                           CEMI_PROPERTIES.pid_additional_individual_addresses)
-    # response = configuration_request(knxnet, channel, cemi)
     disconnect_request(knxnet, channel)
     knxnet.disconnect()
     return device
@@ -297,6 +292,7 @@ def tunneling_request(knxnet: KNXnet, channel: int, cemi: Packet) -> (KNXPacket,
     We need to ack back after receiving the response.
     """
     tun_req = KNXPacket(type=SID.tunneling_request)
+    tun_req.sequence_counter = knxnet.sequence_number
     tun_req.communication_channel_id = channel
     tun_req.cemi = cemi
     ack, _ = knxnet.sr(tun_req)
@@ -306,6 +302,7 @@ def tunneling_request(knxnet: KNXnet, channel: int, cemi: Packet) -> (KNXPacket,
        response.message_code == CEMI.l_data_con:
         ack = KNXPacket(type=SID.tunneling_ack, communication_channel_id=channel)
         knxnet.send(ack)
+    knxnet.sequence_number += 1
     return response, source
 
 ###############################################################################

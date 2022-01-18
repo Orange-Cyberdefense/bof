@@ -1,6 +1,6 @@
-from sys import argv, path
 path.append('../../')
-from bof.layers.knx import discover
+from bof.layers.knx import search
 
-if len(argv) > 1:
-    print(discover(argv[1]))
+devices = search()
+for device in devices:
+    print(device)
