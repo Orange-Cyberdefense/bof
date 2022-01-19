@@ -87,6 +87,7 @@ CONNECTION_TYPE_CODES = {
 # KNX Standard v2.1 - 03_08_04
 MESSAGE_CODES = {
     0x11: "L_Data.req",
+    0x29: "L_data.ind",
     0x2e: "L_Data.con",
     0xFC: "M_PropRead.req",
     0xFB: "M_PropRead.con",

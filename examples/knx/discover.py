@@ -1,3 +1,4 @@
+from sys import path
 path.append('../../')
 from bof.layers.knx import search
 
