@@ -105,7 +105,7 @@ def tunneling_ack(channel: int, sequence_counter:int) -> KNXPacket:
     """Creates a tunneling ack to reply to avoid upsetting KNX servers."""
     ack = KNXPacket(type=SID.tunneling_ack)
     ack.communication_channel_id=channel
-    ack.sequence_counter = response.sequence_counter
+    ack.sequence_counter = sequence_counter
     return ack
 
 ###############################################################################
@@ -113,10 +113,21 @@ def tunneling_ack(channel: int, sequence_counter:int) -> KNXPacket:
 ###############################################################################
 
 #-----------------------------------------------------------------------------#
+# M_PropRead.req (0x11) with ACPI GroupValueWrite                                 #
+#-----------------------------------------------------------------------------#
+
+def cemi_property_read(object_type: int, property_id: int) -> Packet:
+    """Builds a KNX message (cEMI) to write a value to a group address."""
+    cemi = scapy_knx.CEMI(message_code=CEMI.m_propread_req)
+    cemi.cemi_data.object_type = object_type
+    cemi.cemi_data.property_id = property_id
+    return cemi
+
+#-----------------------------------------------------------------------------#
 # L_data.req (0x11) with ACPI GroupValueWrite                                 #
 #-----------------------------------------------------------------------------#
 
-def cemi_group_write(knx_source: str, knx_group_addr: str, value) -> Packet:
+def cemi_group_write(knx_group_addr: str, value, knx_source: str="0.0.0") -> Packet:
     """Builds a KNX message (cEMI) to write a value to a group address."""
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
     cemi.cemi_data.source_address = knx_source
@@ -129,10 +140,63 @@ def cemi_group_write(knx_source: str, knx_group_addr: str, value) -> Packet:
 # L_data.req (0x11) with ACPI GroupValueWrite                                 #
 #-----------------------------------------------------------------------------#
 
-def cemi_property_read(object_type: int, property_id: int) -> Packet:
+def cemi_dev_descr_read(knx_indiv_addr: str, seq_num: int=0, knx_source: str="0.0.0") -> Packet:
     """Builds a KNX message (cEMI) to write a value to a group address."""
-    cemi = scapy_knx.CEMI(message_code=CEMI.m_propread_req)
-    cemi.cemi_data.object_type = object_type
-    cemi.cemi_data.property_id = property_id
+    cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
+    cemi.cemi_data.priority = 0 # system
+    cemi.cemi_data.address_type = 0 # individual
+    cemi.cemi_data.source_address = knx_source
+    cemi.cemi_data.destination_address = knx_indiv_addr
+    cemi.cemi_data.npdu_length = 1 # size of data
+    cemi.cemi_data.packet_type = 0 # data
+    cemi.cemi_data.sequence_type = 1 # numbered
+    cemi.cemi_data.sequence_number = seq_num
+    cemi.cemi_data.acpi = ACPI.devdescrread
     return cemi
 
+#-----------------------------------------------------------------------------#
+# L_data.req (0x11) with type Control, service Connect                        #
+#-----------------------------------------------------------------------------#
+
+def cemi_connect(address: str, knx_source: str="0.0.0") -> Packet:
+    """Builds a KNX message (cEMI) to connect to an individual address."""
+    cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
+    cemi.cemi_data.priority = 0 # system
+    cemi.cemi_data.address_type = 0 # individual
+    cemi.cemi_data.destination_address = address
+    cemi.cemi_data.npdu_length = 0 # no data
+    cemi.cemi_data.packet_type = 1 # control
+    cemi.cemi_data.service = 0 # connect
+    return cemi
+
+#-----------------------------------------------------------------------------#
+# L_data.req (0x11) with type Control, service Disconnect                     #
+#-----------------------------------------------------------------------------#
+
+def cemi_disconnect(address: str, knx_source: str="0.0.0") -> Packet:
+    """Builds a KNX message (cEMI) to disconnect from an individual address."""
+    cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
+    cemi.cemi_data.priority = 0 # system
+    cemi.cemi_data.address_type = 0 # individual
+    cemi.cemi_data.destination_address = address
+    cemi.cemi_data.npdu_length = 0 # no data
+    cemi.cemi_data.packet_type = 1 # control
+    cemi.cemi_data.service = 1 # disconnect
+    return cemi
+
+#-----------------------------------------------------------------------------#
+# L_data.req (0x11) with type Control, service ACK                            #
+#-----------------------------------------------------------------------------#
+
+def cemi_ack(address: str, seq_num: int=0, knx_source: str="0.0.0") -> Packet:
+    """Builds a KNX message (cEMI) to disconnect from an individual address."""
+    cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
+    cemi.cemi_data.priority = 0 # system
+    cemi.cemi_data.address_type = 0 # individual
+    cemi.cemi_data.destination_address = address
+    cemi.cemi_data.npdu_length = 0 # no data
+    cemi.cemi_data.packet_type = 1 # control
+    cemi.cemi_data.sequence_type = 1 # numbered
+    cemi.cemi_data.sequence_number = seq_num
+    cemi.cemi_data.service = 2 # ack
+    return cemi
