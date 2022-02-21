@@ -185,7 +185,7 @@ class _Transport(object):
         .. seealso:: bof.base.BOFNetworkError"""
         message = context if isinstance(context, str) else context.get("exception", context["message"])
         log("Exception occurred: {0}".format(message), "ERROR")
-        self.disconnect()
+        # self.disconnect()
         raise BOFNetworkError(message) from None
 
     def _receive(self, data:bytes, address:tuple) -> None:

@@ -43,6 +43,14 @@ def IS_IP(ip: str):
         raise BOFProgrammingError("Invalid IP {0}".format(ip)) from None
 
 
+def INDIV_ADDR(x: int) -> str:
+    """Converts an int to KNX individual address."""
+    return "%d.%d.%d" % ((x >> 12) & 0xf, (x >> 8) & 0xf, (x & 0xff))
+
+def GROUP_ADDR(x: int) -> str:
+    """Converts an int to KNX group address."""
+    return "%d/%d/%d" % ((x >> 11) & 0x1f, (x >> 8) & 0x7, (x & 0xff))
+
 ###############################################################################
 # KNX DEVICE REPRESENTATION                                                   #
 ###############################################################################
@@ -195,95 +203,90 @@ def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> KNXPacke
     knxnet.disconnect()
     return response
 
-def individual_address_scan(ip: str, address: str="1.1.1", port: str=3671) -> bool:
+def individual_address_scan(ip: str, addresses: object, port: str=3671) -> bool:
     """Scans KNX gateway to find if individual address exists.
     We first need to establish a tunneling connection and use cemi connect
     messages on each address to find out which one responds.
     As the gateway will answer positively for each address (L_data.con), we
     also wait for L_data.ind which seems to indicate existing addresses.
 
-    The ******* exchange required is (all this full udp obviously):
-    01. -> tunnel connect request
-    02. <- tunnel connect response
-    03. -> tunnel req l_data.req connect
-    04. <- tunnel ack
-    05. <- tunnel req l_data.con connect
-    06. -> tunnel ack
-    07. -> tunnel req l_data.req dev descr req
-    08. <- tunnel ack
-    09. <- tunnel req l_data.con dev descr req
-    10. -> tunnel ack
-    11. <- tunnel req l_data.ind ack
-    12. -> tunnel ack
-    13. <- tunnel req l_data.ind dev descr resp
-    14. -> tunnel ack
-    15. -> tunnel req l_data.req ack
-    16. <- tunnel ack
-    17. <- tunnel req l_data.con ack
-    18. -> tunnel ack
-    19. -> tunnel req l_data.req disconnect
-    20. <- tunnel ack
-    21. <- tunnel req _ldata.con disconnect
-    22. -> tunnel ack
-    23. -> disconnect request
-    24. <- disconnect response
-    When device does not exists, frames 11 > 18 are replaced with whatever,
-    I just don't get it.
+    :param ip: IPv4 address of KNX device.
+    :param address: KNx individual addresses as a string or a list.
+    :param port: KNX port, default is 3671.
+    :returns: A list of existing individual address.
+    :raises BOFProgrammingError: if IP is invalid.
+
+    Does not work for KNX gateways' individual addresses.
+    Not reliable: Crashes after 60 addresses... Plz send help ;_;
     """
     IS_IP(ip)
+    exists = []
+    if not isinstance(addresses, list) and not isinstance(addresses, tuple):
+        addresses = [addresses]
+
     knxnet = KNXnet().connect(ip, port)
     # Start tunneling connection
     response, source = knxnet.sr(connect_request_tunneling(knxnet))
     channel = response.communication_channel_id
     # Send cemi connect request, wait for ack and response, ack back
-    cemi = cemi_connect(address)
-    ack, source = knxnet.sr(tunneling_request(channel, 0, cemi))
-    response, source = knxnet.receive()
-    knxnet.send(tunneling_ack(channel, 0))
-
-    # Sends cemi device description read, wait for ack and response
-    cemi = cemi_dev_descr_read(address)
-    ack, source = knxnet.sr(tunneling_request(channel, 1, cemi))
-    response, source = knxnet.receive() # dev descr resp
-    knxnet.send(tunneling_ack(channel, response.sequence_counter))
-    try:
-        # If device exists, we should get a cemi ACK, to which we ack
-        # Else, timeout (BOFNetworkError) is raised
+    seq = 0
+    for address in addresses:
+        print(address)
+        c_connect = cemi_connect(address)
+        ack, source = knxnet.sr(tunneling_request(channel, seq, c_connect)); seq+=1
         response, source = knxnet.receive()
         knxnet.send(tunneling_ack(channel, response.sequence_counter))
-        # And then we get the answer we want which is a devdescrresp, and we ack
-        response, source = knxnet.receive()
-        knxnet.send(tunneling_ack(channel, response.sequence_counter))
-        # And then we send a cemi ACK because why not and then we get an ack
-        # and then a cemi ack to which we ack ffs
-        cemi = cemi_ack(address)
-        ack, source = knxnet.sr(tunneling_request(channel, 2, cemi))
-        response, source = knxnet.receive()
-        knxnet.send(tunneling_ack(channel, 4))
-        # Send cemi disconnect request, wait for ack and response, ack back
-        cemi = cemi_disconnect(address)
-        ack, source = knxnet.sr(tunneling_request(channel, 3, cemi))
-        response, source = knxnet.receive()
-        knxnet.send(tunneling_ack(channel, 5))
-        # End tunneling connection
-        response, source = knxnet.sr(disconnect_request(knxnet, channel))
-        exists = True
-    except BOFNetworkError:
-        exists = False
-    finally:
-        # We should send disconnect cemi and tunneling here but it times
-        # out, i don't know why. now it works but the boiboite hates it
-        # this should be changed and refactored because wtf knx seriously
-        knxnet.disconnect()
+        # Sends cemi device description read, wait for ack and response
+        c_read = cemi_dev_descr_read(address)
+        ack, source = knxnet.sr(tunneling_request(channel, seq, c_read)); seq+=1
+        response, source = knxnet.receive() # dev descr read con
+        knxnet.send(tunneling_ack(channel, ack.sequence_counter))
+        try:
+            # If device exists, we should get a cemi ACK, to which we ack
+            # Else, timeout (BOFNetworkError) is raised
+            response, source = knxnet.receive()
+            knxnet.send(tunneling_ack(channel, response.sequence_counter))
+            # And then we get the answer we want which is a devdescrresp, and we ack
+            response, source = knxnet.receive()
+            knxnet.send(tunneling_ack(channel, response.sequence_counter))
+            # And then we send a cemi ACK because why not and then we get an ack
+            # and then a cemi ack to which we ack ffs
+            c_ack = cemi_ack(address)
+            ack, source = knxnet.sr(tunneling_request(channel, seq, c_ack)); seq+=1
+            response, source = knxnet.receive()
+            knxnet.send(tunneling_ack(channel, response.sequence_counter))
+            exists.append(address)
+        except BOFNetworkError:
+            # Boiboite did not reply with descr resp == device does not exist
+            pass
+        finally:
+            # Send cemi disconnect request, wait for ack and response, ack back
+            c_disco = cemi_disconnect(address)
+            ack, source = knxnet.sr(tunneling_request(channel, seq, c_disco)); seq+=1
+            response, source = knxnet.receive()
+            knxnet.send(tunneling_ack(channel, response.sequence_counter))
+    # End tunneling connection
+    response, source = knxnet.sr(disconnect_request(knxnet, channel))
+    knxnet.disconnect()
     return exists
     
-def line_scan(ip: str, line: str="1.1.0", port: int=3671) -> list:
+def line_scan(ip: str, line: str="", port: int=3671) -> list:
     """Scans KNX gateway to find existing individual addresses on a line.
     We first need to establish a tunneling connection and use cemi connect
     messages on each address to find out which one responds.
     As the gateway will answer positively for each address (L_data.con), we
     also wait for L_data.ind which seems to indicate existing addresses.
+
+    :param ip: IPv4 address of KNX device.
+    :param line: KNX backbone to scan (default == empty == scan all lines)
+    :param port: KNX port, default is 3671.
+    :returns: A list of existing individual address.
+    :raises BOFProgrammingError: if IP is invalid.
     """
-    # TODO: we need to re-implement and not call indiv_addr_scan
-    # because it makes no sense to open a tunneling connection everytime.
-    raise NotImplementedError("line_scan")
+    # TODO: Handle more than one line x)
+    if line.startswith("1.1."):
+        begin, end = 4352, 4352+255
+    else:
+        begin, end = 0, 65635
+    addr = [INDIV_ADDR(x) for x in range(begin, end)]
+    return individual_address_scan(ip, addr, port)

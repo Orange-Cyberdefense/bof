@@ -166,6 +166,7 @@ def cemi_connect(address: str, knx_source: str="0.0.0") -> Packet:
     cemi.cemi_data.destination_address = address
     cemi.cemi_data.npdu_length = 0 # no data
     cemi.cemi_data.packet_type = 1 # control
+    cemi.cemi_data.sequence_type = 0 # unnumbered
     cemi.cemi_data.service = 0 # connect
     return cemi
 
@@ -181,6 +182,7 @@ def cemi_disconnect(address: str, knx_source: str="0.0.0") -> Packet:
     cemi.cemi_data.destination_address = address
     cemi.cemi_data.npdu_length = 0 # no data
     cemi.cemi_data.packet_type = 1 # control
+    cemi.cemi_data.sequence_type = 0 # unnumbered
     cemi.cemi_data.service = 1 # disconnect
     return cemi
 
