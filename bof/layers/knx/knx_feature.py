@@ -13,11 +13,8 @@ Contents:
 :Features:
     High-level functions to interact with a device: search, discover, read,
     write, etc.
-:KNXnet/IP requests:
-    Direct methods to send initialized requests from the standard.
-:CEMI:
-    Methods to create specific type of cEMI messages (protocol-independent
-    KNX messages.
+
+Relies on **KNX Standard v2.1**
 """
 
 from ipaddress import ip_address
@@ -36,7 +33,7 @@ MULTICAST_ADDR = "224.0.23.12"
 KNX_PORT = 3671
 
 def IS_IP(ip: str):
-    """Check that ip is a recognized IPv4 address."""
+    """Check that ip is a valid IPv4 address."""
     try:
         ip_address(ip)
     except ValueError:
@@ -58,9 +55,16 @@ def GROUP_ADDR(x: int) -> str:
 class KNXDevice(object):
     """Object representing a KNX device.
 
-    Information contained in the object are the one returned by SEARCH
-    RESPONSE and DESCRIPTION RESPONSE messages.
-    May be completed, improved later.
+    Data stored to the object is the one returned by SEARCH RESPONSE and
+    DESCRIPTION RESPONSE messages, stored to public attributes::
+
+      Device name, IPv4 address, KNXnet/IP port, KNX individual address, MAC
+      address, KNX multicast address used, device serial number.
+
+    This class provides two factory class methods to build a KNXDevice object
+    from search responses and description responses::
+
+    The information gathered from devices may be completed, improved later.
     """
     def __init__(self, name: str, ip_address: str, port: int, knx_address: str,
                  mac_address: str, multicast_address: str=MULTICAST_ADDR,
@@ -88,6 +92,12 @@ class KNXDevice(object):
 
         :param response: Search Response provided by a device as a KNXPacket.
         :returns: A KNXDevice object.
+
+        Uage example::
+
+          responses = KNXnet.multicast(search_request(), (ip, port))
+          for response, source in responses:
+            device = KNXDevice.init_from_search_response(KNXPacket(response))
         """
         try:
             args = {
@@ -108,7 +118,14 @@ class KNXDevice(object):
         """Set appropriate values according to the content of description response.
 
         :param response: Description Response provided by a device as a KNXPacket.
+        :param source: Source of the response, usually provided in KNXnet's receive()
+                       and sr() return values.
         :returns: A KNXDevice object.
+
+        Usage example::
+
+          response, source = knxnet.sr(description_request(knxnet))
+          device = KNXDevice.init_from_description_response(response, source)
         """
         args = {
             "name": response.device_friendly_name.decode('utf-8'),
@@ -132,7 +149,6 @@ class KNXDevice(object):
 def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> list:
     """Search for KNX devices on an network using multicast.
     Sends a SEARCH REQUEST and expects one SEARCH RESPONSE per device.
-    **KNX Standard v2.1**
 
     :param ip: Multicast IPv4 address. Default value is default KNXnet/IP
                multicast address 224.0.23.12.
@@ -151,7 +167,7 @@ def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> list:
 
 def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
     """Returns discovered information about a device.
-    SO far, only sends a DESCRIPTION REQUEST and uses the DESCRIPTION RESPONSE.
+    So far, only sends a DESCRIPTION REQUEST and uses the DESCRIPTION RESPONSE.
     This function may evolve to gather data on underlying devices.
 
     :param ip: IPv4 address of KNX device.
@@ -177,10 +193,19 @@ def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
 # Read and write operations                                                   #
 #-----------------------------------------------------------------------------#
 
-def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> KNXPacket:
+def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> None:
     """Writes value to KNX group address via the server at address ip.
     We first need to establish a tunneling connection so that we can reach
     underlying device groups.
+
+    :param ip: IPv4 address of KNX device.
+    :param knx_group_addr: KNX group address targeted (with format X/Y/Z)
+                           Group addresses are defined in KNX project settings.
+    :param value: Value to set the group address' content to.
+    :param port: KNX port, default is 3671.
+    :returns: Nothing
+    :raises BOFProgrammingError: if IP is invalid.
+    :raises BOFNetworkError: if device cannot be reached.
     """
     IS_IP(ip)
     knxnet = KNXnet().connect(ip, port)
@@ -201,7 +226,6 @@ def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> KNXPacke
     # End tunneling connection
     response, source = knxnet.sr(disconnect_request(knxnet, channel))
     knxnet.disconnect()
-    return response
 
 def individual_address_scan(ip: str, addresses: object, port: str=3671) -> bool:
     """Scans KNX gateway to find if individual address exists.
@@ -213,11 +237,12 @@ def individual_address_scan(ip: str, addresses: object, port: str=3671) -> bool:
     :param ip: IPv4 address of KNX device.
     :param address: KNx individual addresses as a string or a list.
     :param port: KNX port, default is 3671.
-    :returns: A list of existing individual address.
+    :returns: A list of existing individual addresses.
     :raises BOFProgrammingError: if IP is invalid.
 
-    Does not work for KNX gateways' individual addresses.
+    Does not work (yet) for KNX gateways' individual addresses.
     Not reliable: Crashes after 60 addresses... Plz send help ;_;
+    Also requires heavy refactoring after fixing issues.
     """
     IS_IP(ip)
     exists = []
@@ -278,12 +303,15 @@ def line_scan(ip: str, line: str="", port: int=3671) -> list:
     also wait for L_data.ind which seems to indicate existing addresses.
 
     :param ip: IPv4 address of KNX device.
-    :param line: KNX backbone to scan (default == empty == scan all lines)
+    :param line: KNX backbone to scan (default == empty == scan all lines
+                 from 0.0.0 to 15.15.255)
     :param port: KNX port, default is 3671.
-    :returns: A list of existing individual address.
-    :raises BOFProgrammingError: if IP is invalid.
+    :returns: A list of existing individual addresses on the KNX bus.
+
+    Methods require smart detection of line, so far only line 1.1.X is
+    supported and it is dirty.
     """
-    # TODO: Handle more than one line x)
+    # TODO: decent line parsing and handling
     if line.startswith("1.1."):
         begin, end = 4352, 4352+255
     else:
