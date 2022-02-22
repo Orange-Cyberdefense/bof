@@ -219,6 +219,7 @@ def cemi_group_write(knx_group_addr: str, value, knx_source: str="0.0.0") -> Pac
 
 def cemi_dev_descr_read(knx_indiv_addr: str, seq_num: int=0, knx_source: str="0.0.0") -> Packet:
     """Builds a KNX message (cEMI) to write a value to a group address.
+
     :param knx_indiv_addr: KNX individual address of device (with format X.Y.Z)
     :param seq_num: Sequence number to use, applies to cEMI when sequence_type
                     is set to "numbered". So far I haven't seen seq_num > 0.

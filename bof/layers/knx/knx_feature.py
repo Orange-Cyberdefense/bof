@@ -62,7 +62,7 @@ class KNXDevice(object):
       address, KNX multicast address used, device serial number.
 
     This class provides two factory class methods to build a KNXDevice object
-    from search responses and description responses::
+    from search responses and description responses.
 
     The information gathered from devices may be completed, improved later.
     """
