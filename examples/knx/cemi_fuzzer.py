@@ -1,7 +1,21 @@
-# BOF usage example using KNXnet/IP
-# THis script is a basic fuzzer focussing on "cEMI", which are set of fields
-# within a packet that will be transmitted to the KNX bus.
-# Usage: python cemi_fuzzer.py IP_ADDRESS
+# BOF KNX example
+# Fuzz the cEMI part (KNX message) on a KNXnetIP Configuration Request.
+# Usage: python cemi_fuzzer.py IP
+# Example: python cemi_fuzzer 192.168.1.242
+#
+# The aim is to field implementation flaws on KNXnet/IP servers.
+# Not all fields are fuzzed so that they are not ignored by devices.
+# Frames that did not get a response from the devices are logged to a file.
+#
+# *********************************************************************
+# *                              WARNING                              *
+# *     Fuzzing industrial devices can have very bad side effects     *
+# *                 (possibly endangering human lives)                *
+# *                                                                   *
+# * Please do not use this script on devices and bus when you are not *
+# * absolutely sure what will happen (and preferably, use it on your  *
+# * own devices...)                                                   *
+# *********************************************************************
 
 from sys import path, argv
 from datetime import datetime
@@ -137,7 +151,7 @@ def fuzz(ip:str, generator:object, base_pkt:KNXPacket) -> None:
 
 if len(argv) < 2:
     print("Usage: python {0} IP_ADDRESS".format(argv[0]))
-    quit()
+    exit(-1)
 
 # Open log file
 LOG_FD = open(LOG_FILENAME, "w+")
