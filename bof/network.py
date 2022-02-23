@@ -36,6 +36,17 @@ from struct import pack
 from .base import BOFNetworkError, BOFProgrammingError, log
 
 ###############################################################################
+# Global network-related constants and functions                              #
+###############################################################################
+
+def IS_IP(ip: str):
+    """Check that ip is a valid IPv4 address."""
+    try:
+        ip_address(ip)
+    except ValueError:
+        raise BOFProgrammingError("Invalid IP {0}".format(ip)) from None
+
+###############################################################################
 # Asyncio classes for UDP and TCP                                             #
 ###############################################################################
 
@@ -199,6 +210,25 @@ class _Transport(object):
             log("Queue is full", "ERROR")
             raise BOFNetworkError("Queue is full")
 
+    def _argument_check(data:bytes, address:tuple) -> None:
+        """Check that parameters to send ``data`` to an ``address`` are valid.
+        If so, they are changed to appropriate format for sockets.
+
+        :param data: Raw byte array or string to send.
+        :param address: Remote network address with format tuple ``(ip, port)``.
+        :returns: data, address
+        :raises BOFNetworkError: If either parameter is invalid.
+        """
+        try:
+            data = bytes(data)
+        except TypeError:
+            raise BOFProgrammingError("Invalid data type (must be bytes).") from None
+        try:
+            address = str(ip_address(address[0])), address[1]
+        except (ValueError, TypeError):
+            raise BOFProgrammingError("Invalid address {0}".format(address)) from None
+        return data, address
+        
     #-------------------------------------------------------------------------#
     # Private                                                                 #
     #-------------------------------------------------------------------------#
@@ -291,14 +321,18 @@ class UDP(_Transport):
         """
         responses = []
         ttl = pack('b', 1)
+        data, address = UDP._argument_check(data, address)
         try:
             sock = socket(AF_INET, SOCK_DGRAM)
             sock.settimeout(timeout)
             sock.setsockopt(IPPROTO_IP, IP_MULTICAST_TTL, ttl)
-            sock.sendto(bytes(data), address)
+            sock.sendto(data, address)
             while True:
                 response, sender = sock.recvfrom(1024)
                 responses.append((response, sender))
+        except OverflowError as exc: # Raised when port invalid
+            sock.close()
+            raise BOFProgrammingError(str(exc))
         except sotimeout as te:
             pass
         sock.close()
@@ -319,14 +353,19 @@ class UDP(_Transport):
            devices = UDP.broadcast(b'\x06\x10...', ('192.168.1.255', 3671))
         """
         responses = []
+        data, address = UDP._argument_check(data, address)
+        # Broadcast request
         try:
             sock = socket(AF_INET, SOCK_DGRAM)
             sock.settimeout(timeout)
             sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-            sock.sendto(bytes(data), address)
+            sock.sendto(data, address)
             while True:
                 response, sender = sock.recvfrom(1024)
                 responses.append((response, sender))
+        except OverflowError as exc: # Raised when port invalid
+            sock.close()
+            raise BOFProgrammingError(str(exc))
         except sotimeout as te:
             pass
         sock.close()
