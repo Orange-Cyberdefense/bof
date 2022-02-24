@@ -220,7 +220,10 @@ class _Transport(object):
         :raises BOFNetworkError: If either parameter is invalid.
         """
         try:
-            data = bytes(data)
+            if isinstance(data, str):
+                data = data.encode('utf-8')
+            else:
+                data = bytes(data)
         except TypeError:
             raise BOFProgrammingError("Invalid data type (must be bytes).") from None
         try:
@@ -247,6 +250,13 @@ class _Transport(object):
     #-------------------------------------------------------------------------#
     # Properties                                                              #
     #-------------------------------------------------------------------------#
+
+    @property
+    def is_connected(self):
+        """Returns true if a connection has been established.
+        Relies on the values of _socket and _transport to find out.
+        """
+        return True if self._socket and self._transport else False
 
     @property
     def transport(self):

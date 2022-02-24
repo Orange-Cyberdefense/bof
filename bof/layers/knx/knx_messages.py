@@ -36,7 +36,7 @@ def search_request(knxnet: KNXnet=None) -> KNXPacket:
     :returns: A search request as a KNXPacket.
     """
     search_req = KNXPacket(type=SID.search_request)
-    if knxnet:
+    if knxnet and isinstance(knxnet, KNXnet) and knxnet.is_connected:
         search_req.ip_address, search_req.port = knxnet.source
     return search_req
 
@@ -53,7 +53,7 @@ def description_request(knxnet: KNXnet=None) -> KNXPacket:
     :returns: A description request as a KNXPacket.
     """
     descr_req = KNXPacket(type=SID.description_request)
-    if knxnet:
+    if knxnet and isinstance(knxnet, KNXnet) and knxnet.is_connected:
         descr_req.ip_address, descr_req.port = knxnet.source
     return descr_req
 
@@ -61,7 +61,7 @@ def description_request(knxnet: KNXnet=None) -> KNXPacket:
 # CONNECT REQUEST (0x0205)                                                    #
 #-----------------------------------------------------------------------------#
 
-def connect_request_management(knxnet: KNXnet) -> KNXPacket:
+def connect_request_management(knxnet: KNXnet=None) -> KNXPacket:
     """Creates a connect request with device management connection type.
 
     :param knxnet: The KNXnet connection object to use. We only need the 
@@ -71,13 +71,14 @@ def connect_request_management(knxnet: KNXnet) -> KNXPacket:
     """
     conn_req = KNXPacket(type=SID.connect_request,
                          connection_type=CONNECTION_TYPE_CODES.device_management_connection)
-    conn_req.scapy_pkt.control_endpoint.ip_address = knxnet.source_address
-    conn_req.scapy_pkt.control_endpoint.port = knxnet.source_port
-    conn_req.scapy_pkt.data_endpoint.ip_address = knxnet.source_address
-    conn_req.scapy_pkt.data_endpoint.port = knxnet.source_port
+    if knxnet and isinstance(knxnet, KNXnet) and knxnet.is_connected:
+        conn_req.scapy_pkt.control_endpoint.ip_address = knxnet.source_address
+        conn_req.scapy_pkt.control_endpoint.port = knxnet.source_port
+        conn_req.scapy_pkt.data_endpoint.ip_address = knxnet.source_address
+        conn_req.scapy_pkt.data_endpoint.port = knxnet.source_port
     return conn_req
 
-def connect_request_tunneling(knxnet: KNXnet) -> KNXPacket:
+def connect_request_tunneling(knxnet: KNXnet=None) -> KNXPacket:
     """Creates a connect request with tunneling connection type.
 
     :param knxnet: The KNXnet connection object to use. We only need the 
@@ -87,17 +88,18 @@ def connect_request_tunneling(knxnet: KNXnet) -> KNXPacket:
     """
     conn_req = KNXPacket(type=SID.connect_request,
                          connection_type=CONNECTION_TYPE_CODES.tunnel_connection)
-    conn_req.scapy_pkt.control_endpoint.ip_address = knxnet.source_address
-    conn_req.scapy_pkt.control_endpoint.port = knxnet.source_port
-    conn_req.scapy_pkt.data_endpoint.ip_address = knxnet.source_address
-    conn_req.scapy_pkt.data_endpoint.port = knxnet.source_port
+    if knxnet and isinstance(knxnet, KNXnet) and knxnet.is_connected:
+        conn_req.scapy_pkt.control_endpoint.ip_address = knxnet.source_address
+        conn_req.scapy_pkt.control_endpoint.port = knxnet.source_port
+        conn_req.scapy_pkt.data_endpoint.ip_address = knxnet.source_address
+        conn_req.scapy_pkt.data_endpoint.port = knxnet.source_port
     return conn_req
 
 #-----------------------------------------------------------------------------#
 # DISCONNECT REQUEST (0x020A)                                                 #
 #-----------------------------------------------------------------------------#
 
-def disconnect_request(knxnet: KNXnet, channel: int) -> KNXPacket:
+def disconnect_request(knxnet: KNXnet=None, channel: int=1) -> KNXPacket:
     """Creates a disconnect request to close connection on given channel.
 
     :param knxnet: The KNXnet connection object to use. We only need the 
@@ -109,7 +111,8 @@ def disconnect_request(knxnet: KNXnet, channel: int) -> KNXPacket:
     :returns: A disconnect request as a KNXPacket.
     """
     disco_req = KNXPacket(type=SID.disconnect_request)
-    disco_req.ip_address, disco_req.port = knxnet.source
+    if knxnet and isinstance(knxnet, KNXnet) and knxnet.is_connected:
+        disco_req.ip_address, disco_req.port = knxnet.source
     disco_req.communication_channel_id = channel
     return disco_req
 
@@ -214,7 +217,7 @@ def cemi_group_write(knx_group_addr: str, value, knx_source: str="0.0.0") -> Pac
     return cemi
 
 #-----------------------------------------------------------------------------#
-# L_data.req (0x11) with ACPI GroupValueWrite                                 #
+# L_data.req (0x11) with ACPI DevDescrRead                                    #
 #-----------------------------------------------------------------------------#
 
 def cemi_dev_descr_read(knx_indiv_addr: str, seq_num: int=0, knx_source: str="0.0.0") -> Packet:

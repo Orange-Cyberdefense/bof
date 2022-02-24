@@ -86,8 +86,7 @@ class Test02UDPExchange(unittest.TestCase):
             bof.UDP.multicast(b"", 1)
         with (self.assertRaises(bof.BOFProgrammingError)):
             bof.UDP.multicast(b"", ("192.168.1.252", -4))
-        with (self.assertRaises(bof.BOFProgrammingError)):
-            bof.UDP.multicast("str", ("192.168.1.252", 40000))
+        bof.UDP.multicast("str", ("192.168.1.252", 40000))
 
     def test_0205_broadcast_error_handling(self):
         """Test that broadcast request parameters are handled correctly."""
@@ -95,8 +94,7 @@ class Test02UDPExchange(unittest.TestCase):
             bof.UDP.broadcast(b"", 1)
         with (self.assertRaises(bof.BOFProgrammingError)):
             bof.UDP.broadcast(b"", ("192.168.1.252", -4))
-        with (self.assertRaises(bof.BOFProgrammingError)):
-            bof.UDP.broadcast("str", ("192.168.1.252", 40000))
+        bof.UDP.broadcast("str", ("192.168.1.252", 40000))
             
 #-----------------------------------------------------------------------------#
 # TCP                                                                         #
