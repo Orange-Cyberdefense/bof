@@ -203,6 +203,11 @@ class BOFPacket(object):
         """
         return [field for field, parent in self._field_generator()]
 
+    @property
+    def length(self) -> int:
+        """Returns the length of the packet (number of bytes)."""
+        return len(self._scapy_pkt)
+    
     #-------------------------------------------------------------------------#
     # Public                                                                  #
     #-------------------------------------------------------------------------#
@@ -326,7 +331,10 @@ class BOFPacket(object):
                 elif isinstance(field, ConditionalField) and field._evalcond(packet):
                     field = field.fld
                 if isinstance(field, PacketField) or isinstance(field, Packet):
-                    yield from self._field_generator(getattr(packet, field.name))
+                    pkt = getattr(packet, field.name)
+                    # if pkt = None, next call restarts at start_packet (1st line)
+                    # and causes infinite loop, so we replace with empty packet.
+                    yield from self._field_generator(pkt if pkt else Packet())
                 if isinstance(field, Field):
                     yield field, start_packet
 

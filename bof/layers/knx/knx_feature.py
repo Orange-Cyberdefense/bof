@@ -13,11 +13,8 @@ Contents:
 :Features:
     High-level functions to interact with a device: search, discover, read,
     write, etc.
-:KNXnet/IP requests:
-    Direct methods to send initialized requests from the standard.
-:CEMI:
-    Methods to create specific type of cEMI messages (protocol-independent
-    KNX messages.
+
+Relies on **KNX Standard v2.1**
 """
 
 from ipaddress import ip_address
@@ -25,6 +22,7 @@ from ipaddress import ip_address
 from ... import BOFNetworkError, BOFProgrammingError
 from .knx_network import *
 from .knx_packet import *
+from .knx_messages import *
 from ...layers.raw_scapy import knx as scapy_knx 
 
 ###############################################################################
@@ -34,22 +32,21 @@ from ...layers.raw_scapy import knx as scapy_knx
 MULTICAST_ADDR = "224.0.23.12"
 KNX_PORT = 3671
 
-CONNECTION_TYPE_CODES = type('CONNECTION_TYPE_CODES', (object,),
-                             {to_property(v):k for k,v in scapy_knx.CONNECTION_TYPE_CODES.items()})()
-
-CEMI_OBJECT_TYPES = type('CEMI_OBJECT_TYPES', (object,),
-                         {to_property(v):k for k,v in scapy_knx.CEMI_OBJECT_TYPES.items()})()
-
-CEMI_PROPERTIES = type('CEMI_PROPERTIES', (object,),
-                       {to_property(v):k for k,v in scapy_knx.CEMI_PROPERTIES.items()})()
-
 def IS_IP(ip: str):
-    """Check that ip is a recognized IPv4 address."""
+    """Check that ip is a valid IPv4 address."""
     try:
         ip_address(ip)
     except ValueError:
         raise BOFProgrammingError("Invalid IP {0}".format(ip)) from None
 
+
+def INDIV_ADDR(x: int) -> str:
+    """Converts an int to KNX individual address."""
+    return "%d.%d.%d" % ((x >> 12) & 0xf, (x >> 8) & 0xf, (x & 0xff))
+
+def GROUP_ADDR(x: int) -> str:
+    """Converts an int to KNX group address."""
+    return "%d/%d/%d" % ((x >> 11) & 0x1f, (x >> 8) & 0x7, (x & 0xff))
 
 ###############################################################################
 # KNX DEVICE REPRESENTATION                                                   #
@@ -58,9 +55,16 @@ def IS_IP(ip: str):
 class KNXDevice(object):
     """Object representing a KNX device.
 
-    Information contained in the object are the one returned by SEARCH
-    RESPONSE and DESCRIPTION RESPONSE messages.
-    May be completed, improved later.
+    Data stored to the object is the one returned by SEARCH RESPONSE and
+    DESCRIPTION RESPONSE messages, stored to public attributes::
+
+      Device name, IPv4 address, KNXnet/IP port, KNX individual address, MAC
+      address, KNX multicast address used, device serial number.
+
+    This class provides two factory class methods to build a KNXDevice object
+    from search responses and description responses.
+
+    The information gathered from devices may be completed, improved later.
     """
     def __init__(self, name: str, ip_address: str, port: int, knx_address: str,
                  mac_address: str, multicast_address: str=MULTICAST_ADDR,
@@ -88,16 +92,25 @@ class KNXDevice(object):
 
         :param response: Search Response provided by a device as a KNXPacket.
         :returns: A KNXDevice object.
+
+        Uage example::
+
+          responses = KNXnet.multicast(search_request(), (ip, port))
+          for response, source in responses:
+            device = KNXDevice.init_from_search_response(KNXPacket(response))
         """
-        args = {
-            "name": response.device_friendly_name.decode('utf-8'),
-            "ip_address": response.ip_address,
-            "port": response.port,
-            "knx_address": scapy_knx.KNXAddressField.i2repr(None, None, response.knx_address),
-            "mac_address": response.device_mac_address,
-            "multicast_address": response.device_multicast_address,
-            "serial_number": response.device_serial_number
-        }
+        try:
+            args = {
+                "name": response.device_friendly_name.decode('utf-8'),
+                "ip_address": response.ip_address,
+                "port": response.port,
+                "knx_address": scapy_knx.KNXAddressField.i2repr(None, None, response.knx_address),
+                "mac_address": response.device_mac_address,
+                "multicast_address": response.device_multicast_address,
+                "serial_number": response.device_serial_number
+            }
+        except AttributeError:
+            raise BOFNetworkError("Search Response has invalid format.") from None
         return cls(**args)
 
     @classmethod
@@ -105,7 +118,14 @@ class KNXDevice(object):
         """Set appropriate values according to the content of description response.
 
         :param response: Description Response provided by a device as a KNXPacket.
+        :param source: Source of the response, usually provided in KNXnet's receive()
+                       and sr() return values.
         :returns: A KNXDevice object.
+
+        Usage example::
+
+          response, source = knxnet.sr(description_request(knxnet))
+          device = KNXDevice.init_from_description_response(response, source)
         """
         args = {
             "name": response.device_friendly_name.decode('utf-8'),
@@ -127,40 +147,28 @@ class KNXDevice(object):
 #-----------------------------------------------------------------------------#
 
 def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> list:
-    """Search for KNX devices on an network (multicast, unicast address(es).
-    Sends a SEARCH REQUEST per IP and expects one SEARCH RESPONSE per device.
-    **KNX Standard v2.1**
+    """Search for KNX devices on an network using multicast.
+    Sends a SEARCH REQUEST and expects one SEARCH RESPONSE per device.
 
-    :param ip: Multicast, unicast IPv4 address or list of such addresses to
-               search for.  Default value is default KNXnet/IP multicast
-               address 224.0.23.12.
+    :param ip: Multicast IPv4 address. Default value is default KNXnet/IP
+               multicast address 224.0.23.12.
     :param port: KNX port, default is 3671.
     :returns: The list of responding KNXnet/IP devices in the network as
               KNXDevice objects.
     :raises BOFProgrammingError: if IP is invalid.
     """
+    IS_IP(ip)
     devices = []
-    if isinstance(ip, str):
-        ip = [ip]
-    for i in ip:
-        IS_IP(i)
-        knxnet = KNXnet().connect(i, port)
-        search_req = KNXPacket(type=SID.search_request)
-        search_req.ip_address, search_req.port = knxnet.source
-        try:
-            knxnet.send(search_req)
-            while 1:
-                response, _ = knxnet.receive()
-                devices.append(KNXDevice.init_from_search_response(response))
-        except BOFNetworkError:
-            pass
-        knxnet.disconnect()
+    responses = KNXnet.multicast(search_request(), (ip, port))
+    for response, source in responses:
+        device = KNXDevice.init_from_search_response(KNXPacket(response))
+        devices.append(device)
     return devices
 
 def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
     """Returns discovered information about a device.
-    SO far, only sends a DESCRIPTION REQUEST and uses the DESCRIPTION RESPONSE.
-    This function may evolve to include all underlying devices.
+    So far, only sends a DESCRIPTION REQUEST and uses the DESCRIPTION RESPONSE.
+    This function may evolve to gather data on underlying devices.
 
     :param ip: IPv4 address of KNX device.
     :param port: KNX port, default is 3671.
@@ -170,13 +178,14 @@ def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
     """
     IS_IP(ip)
     knxnet = KNXnet().connect(ip, port)
-    channel = connect_request_management(knxnet)
-    response, source = description_request(knxnet)
+    # Initiate session
+    response, source = knxnet.sr(connect_request_management(knxnet))
+    channel = response.communication_channel_id
+    # Information gathering
+    response, source = knxnet.sr(description_request(knxnet))
     device = KNXDevice.init_from_description_response(response, source)
-    # cemi = cemi_property_read(CEMI_OBJECT_TYPES.ip_parameter_object,
-    #                           CEMI_PROPERTIES.pid_additional_individual_addresses)
-    # response = configuration_request(knxnet, channel, cemi)
-    disconnect_request(knxnet, channel)
+    # End session
+    response, source = knxnet.sr(disconnect_request(knxnet, channel))
     knxnet.disconnect()
     return device
 
@@ -184,162 +193,128 @@ def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
 # Read and write operations                                                   #
 #-----------------------------------------------------------------------------#
 
-def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> KNXPacket:
+def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> None:
     """Writes value to KNX group address via the server at address ip.
     We first need to establish a tunneling connection so that we can reach
     underlying device groups.
+
+    :param ip: IPv4 address of KNX device.
+    :param knx_group_addr: KNX group address targeted (with format X/Y/Z)
+                           Group addresses are defined in KNX project settings.
+    :param value: Value to set the group address' content to.
+    :param port: KNX port, default is 3671.
+    :returns: Nothing
+    :raises BOFProgrammingError: if IP is invalid.
+    :raises BOFNetworkError: if device cannot be reached.
     """
     IS_IP(ip)
     knxnet = KNXnet().connect(ip, port)
     # Start tunneling connection
-    channel, knx_source = connect_request_tunneling(knxnet)
-    cemi = cemi_group_write(knx_source, knx_group_addr, value)
-    response, _ = tunneling_request(knxnet, channel, cemi)
+    response, source = knxnet.sr(connect_request_tunneling(knxnet))
+    try:
+        # TODO: why no direct access?
+        response_data_block = response.scapy_pkt.connection_response_data_block
+        knx_source_address = response_data_block.connection_data.knx_individual_address
+        channel = response.scapy_pkt.communication_channel_id
+    except AttributeError:
+        raise BOFNetworkError("Cannot extract required data from response.") from None
+    # Send group write request, wait for ack and response, ack back
+    cemi = cemi_group_write(knx_group_addr, value, knx_source_address)
+    ack, source = knxnet.sr(tunneling_request(channel, 0, cemi))
+    response, source = knxnet.receive()
+    knxnet.send(tunneling_ack(channel, 0))
     # End tunneling connection
-    disconnect_request(knxnet, channel)
+    response, source = knxnet.sr(disconnect_request(knxnet, channel))
     knxnet.disconnect()
-    return response
 
-###############################################################################
-# KNXnet/IP REQUESTS                                                          #
-###############################################################################
+def individual_address_scan(ip: str, addresses: object, port: str=3671) -> bool:
+    """Scans KNX gateway to find if individual address exists.
+    We first need to establish a tunneling connection and use cemi connect
+    messages on each address to find out which one responds.
+    As the gateway will answer positively for each address (L_data.con), we
+    also wait for L_data.ind which seems to indicate existing addresses.
 
-#-----------------------------------------------------------------------------#
-# SEARCH REQUEST (0x0201)                                                     #
-#-----------------------------------------------------------------------------#
+    :param ip: IPv4 address of KNX device.
+    :param address: KNx individual addresses as a string or a list.
+    :param port: KNX port, default is 3671.
+    :returns: A list of existing individual addresses.
+    :raises BOFProgrammingError: if IP is invalid.
 
-def search_request(knxnet: KNXnet) -> KNXPacket:
-    """Sends a basic search request with appropriate source."""
-    search_req = KNXPacket(type=SID.search_request)
-    search_req.ip_address, search_req.port = knxnet.source
-    response, source = knxnet.sr(search_req)
-    return response, source
-
-#-----------------------------------------------------------------------------#
-# DESCRIPTION REQUEST (0x0203)                                                #
-#-----------------------------------------------------------------------------#
-
-def description_request(knxnet: KNXnet) -> (KNXPacket, tuple):
-    """Sends a basic description request with appropriate source."""
-    descr_req = KNXPacket(type=SID.description_request)
-    descr_req.ip_address, descr_req.port = knxnet.source
-    response, source = knxnet.sr(descr_req)
-    return response, source
-
-#-----------------------------------------------------------------------------#
-# CONNECT REQUEST (0x0205)                                                    #
-#-----------------------------------------------------------------------------#
-
-def connect_request_management(knxnet: KNXnet) -> int:
-    """Connect to a device with device management connection mode.
-    Sends a CONNECT REQUEST with device management connection type.
-    We want to retrieve the "channel" field, which will be used during the 
-    device management exchange.
+    Does not work (yet) for KNX gateways' individual addresses.
+    Not reliable: Crashes after 60 addresses... Plz send help ;_;
+    Also requires heavy refactoring after fixing issues.
     """
-    conn_req = KNXPacket(type=SID.connect_request,
-                         connection_type=CONNECTION_TYPE_CODES.device_management_connection)
-    conn_req.scapy_pkt.control_endpoint.ip_address, conn_req.scapy_pkt.control_endpoint.port = knxnet.source
-    conn_req.scapy_pkt.data_endpoint.ip_address, conn_req.scapy_pkt.data_endpoint.port = knxnet.source
-    response, _ = knxnet.sr(conn_req)
-    return response.communication_channel_id
+    IS_IP(ip)
+    exists = []
+    if not isinstance(addresses, list) and not isinstance(addresses, tuple):
+        addresses = [addresses]
 
-def connect_request_tunneling(knxnet: KNXnet) -> (int, str):
-    """Connect to a device with tunneling connection mode.
-    Sends a CONNECT REQUEST with tunneling connection type.
-    We want to retrieve the "channel" and source "KNX individual address"
-    fields, which will be used during the tunneling exchange.
+    knxnet = KNXnet().connect(ip, port)
+    # Start tunneling connection
+    response, source = knxnet.sr(connect_request_tunneling(knxnet))
+    channel = response.communication_channel_id
+    # Send cemi connect request, wait for ack and response, ack back
+    seq = 0
+    for address in addresses:
+        print(address)
+        c_connect = cemi_connect(address)
+        ack, source = knxnet.sr(tunneling_request(channel, seq, c_connect)); seq+=1
+        response, source = knxnet.receive()
+        knxnet.send(tunneling_ack(channel, response.sequence_counter))
+        # Sends cemi device description read, wait for ack and response
+        c_read = cemi_dev_descr_read(address)
+        ack, source = knxnet.sr(tunneling_request(channel, seq, c_read)); seq+=1
+        response, source = knxnet.receive() # dev descr read con
+        knxnet.send(tunneling_ack(channel, ack.sequence_counter))
+        try:
+            # If device exists, we should get a cemi ACK, to which we ack
+            # Else, timeout (BOFNetworkError) is raised
+            response, source = knxnet.receive()
+            knxnet.send(tunneling_ack(channel, response.sequence_counter))
+            # And then we get the answer we want which is a devdescrresp, and we ack
+            response, source = knxnet.receive()
+            knxnet.send(tunneling_ack(channel, response.sequence_counter))
+            # And then we send a cemi ACK because why not and then we get an ack
+            # and then a cemi ack to which we ack ffs
+            c_ack = cemi_ack(address)
+            ack, source = knxnet.sr(tunneling_request(channel, seq, c_ack)); seq+=1
+            response, source = knxnet.receive()
+            knxnet.send(tunneling_ack(channel, response.sequence_counter))
+            exists.append(address)
+        except BOFNetworkError:
+            # Boiboite did not reply with descr resp == device does not exist
+            pass
+        finally:
+            # Send cemi disconnect request, wait for ack and response, ack back
+            c_disco = cemi_disconnect(address)
+            ack, source = knxnet.sr(tunneling_request(channel, seq, c_disco)); seq+=1
+            response, source = knxnet.receive()
+            knxnet.send(tunneling_ack(channel, response.sequence_counter))
+    # End tunneling connection
+    response, source = knxnet.sr(disconnect_request(knxnet, channel))
+    knxnet.disconnect()
+    return exists
+    
+def line_scan(ip: str, line: str="", port: int=3671) -> list:
+    """Scans KNX gateway to find existing individual addresses on a line.
+    We first need to establish a tunneling connection and use cemi connect
+    messages on each address to find out which one responds.
+    As the gateway will answer positively for each address (L_data.con), we
+    also wait for L_data.ind which seems to indicate existing addresses.
+
+    :param ip: IPv4 address of KNX device.
+    :param line: KNX backbone to scan (default == empty == scan all lines
+                 from 0.0.0 to 15.15.255)
+    :param port: KNX port, default is 3671.
+    :returns: A list of existing individual addresses on the KNX bus.
+
+    Methods require smart detection of line, so far only line 1.1.X is
+    supported and it is dirty.
     """
-    conn_req = KNXPacket(type=SID.connect_request,
-                         connection_type=CONNECTION_TYPE_CODES.tunnel_connection)
-    conn_req.scapy_pkt.control_endpoint.ip_address, conn_req.scapy_pkt.control_endpoint.port = knxnet.source
-    conn_req.scapy_pkt.data_endpoint.ip_address, conn_req.scapy_pkt.data_endpoint.port = knxnet.source
-    response, _ = knxnet.sr(conn_req)
-    knx_source = response.scapy_pkt.connection_response_data_block.connection_data.knx_individual_address
-    channel_id = response.scapy_pkt.communication_channel_id
-    return channel_id, knx_source
-
-#-----------------------------------------------------------------------------#
-# DISCONNECT REQUEST (0x020A)                                                 #
-#-----------------------------------------------------------------------------#
-
-def disconnect_request(knxnet: KNXnet, channel: int) -> None:
-    """Sends a disconnect request to close initiated connection on channel."""
-    disco_req = KNXPacket(type=SID.disconnect_request)
-    disco_req.ip_address, disco_req.port = knxnet.source
-    disco_req.communication_channel_id = channel
-    response, _ = knxnet.sr(disco_req)
-
-#-----------------------------------------------------------------------------#
-# CONFIGURATION REQUEST (0x0310)                                              #
-#-----------------------------------------------------------------------------#
-
-def configuration_request(knxnet: KNXnet, channel: int, cemi: Packet) -> (KNXPacket, tuple):
-    """Sends a configuration request with a specified cEMI message.
-    The server first replies with an ach, then the response (or at least we
-    home it will arrive in the order x)).
-    We need to ack back after receiving the response.
-    """
-    config_req = KNXPacket(type=SID.configuration_request)
-    config_req.communication_channel_id = channel
-    config_req.cemi = cemi
-    ack, _ = knxnet.sr(config_req)
-    response, source = knxnet.receive()
-    # We have to ACK when we receive tunneling requests
-    if response.sid == SID.configuration_request and \
-       response.message_code == CEMI.m_propread_con:
-        ack = KNXPacket(type=SID.configuration_ack, communication_channel_id=channel)
-        knxnet.send(ack)
-    return response, source
-
-#-----------------------------------------------------------------------------#
-# TUNNELING REQUEST (0x0420)                                                  #
-#-----------------------------------------------------------------------------#
-
-def tunneling_request(knxnet: KNXnet, channel: int, cemi: Packet) -> (KNXPacket, tuple):
-    """Sends a tunneling request with a specified cEMI message.
-    The server first replies with an ack, then the response (or at least we 
-    hope it will arrive in this order x)).
-    We need to ack back after receiving the response.
-    """
-    tun_req = KNXPacket(type=SID.tunneling_request)
-    tun_req.communication_channel_id = channel
-    tun_req.cemi = cemi
-    ack, _ = knxnet.sr(tun_req)
-    response, source = knxnet.receive()
-    tun_req.show2()
-    response.show2()
-    # We have to ACK when we receive tunneling requests
-    if response.sid == SID.tunneling_request and \
-       response.message_code == CEMI.l_data_con:
-        ack = KNXPacket(type=SID.tunneling_ack, communication_channel_id=channel)
-        knxnet.send(ack)
-    return response, source
-
-###############################################################################
-# KNX FIELD MESSAGES (cEMI)                                                   #
-###############################################################################
-
-#-----------------------------------------------------------------------------#
-# L_data.req (0x11) with ACPI GroupValueWrite                                 #
-#-----------------------------------------------------------------------------#
-
-def cemi_group_write(knx_source: str, knx_group_addr: str, value) -> Packet:
-    """Builds a KNX message (cEMI) to write a value to a group address."""
-    cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
-    cemi.cemi_data.source_address = knx_source
-    cemi.cemi_data.destination_address = knx_group_addr
-    cemi.cemi_data.acpi = ACPI.groupvaluewrite
-    cemi.cemi_data.data = int(value)
-    return cemi
-
-#-----------------------------------------------------------------------------#
-# L_data.req (0x11) with ACPI GroupValueWrite                                 #
-#-----------------------------------------------------------------------------#
-
-def cemi_property_read(object_type: int, property_id: int) -> Packet:
-    """Builds a KNX message (cEMI) to write a value to a group address."""
-    cemi = scapy_knx.CEMI(message_code=CEMI.m_propread_req)
-    cemi.cemi_data.object_type = object_type
-    cemi.cemi_data.property_id = property_id
-    return cemi
-
+    # TODO: decent line parsing and handling
+    if line.startswith("1.1."):
+        begin, end = 4352, 4352+255
+    else:
+        begin, end = 0, 65635
+    addr = [INDIV_ADDR(x) for x in range(begin, end)]
+    return individual_address_scan(ip, addr, port)

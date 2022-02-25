@@ -80,7 +80,22 @@ class Test02UDPExchange(unittest.TestCase):
         with (self.assertRaises(bof.BOFNetworkError)):
             result, _ = udp.send_receive("test_send_receive", timeout=0.1)
         udp.disconnect()
+    def test_0204_multicast_error_handling(self):
+        """Test that multicast request parameters are handled correctly."""
+        with (self.assertRaises(bof.BOFProgrammingError)):
+            bof.UDP.multicast(b"", 1)
+        with (self.assertRaises(bof.BOFProgrammingError)):
+            bof.UDP.multicast(b"", ("192.168.1.252", -4))
+        bof.UDP.multicast("str", ("192.168.1.252", 40000))
 
+    def test_0205_broadcast_error_handling(self):
+        """Test that broadcast request parameters are handled correctly."""
+        with (self.assertRaises(bof.BOFProgrammingError)):
+            bof.UDP.broadcast(b"", 1)
+        with (self.assertRaises(bof.BOFProgrammingError)):
+            bof.UDP.broadcast(b"", ("192.168.1.252", -4))
+        bof.UDP.broadcast("str", ("192.168.1.252", 40000))
+            
 #-----------------------------------------------------------------------------#
 # TCP                                                                         #
 #-----------------------------------------------------------------------------#

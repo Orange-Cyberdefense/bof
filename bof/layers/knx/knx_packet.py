@@ -43,6 +43,14 @@ CEMI = type('CEMI', (object,),
 ACPI = type('ACPI', (object,),
            {to_property(v):k for k,v in scapy_knx.KNX_ACPI_CODES.items()})()
 
+CONNECTION_TYPE_CODES = type('CONNECTION_TYPE_CODES', (object,),
+                             {to_property(v):k for k,v in scapy_knx.CONNECTION_TYPE_CODES.items()})()
+CEMI_OBJECT_TYPES = type('CEMI_OBJECT_TYPES', (object,),
+                         {to_property(v):k for k,v in scapy_knx.CEMI_OBJECT_TYPES.items()})()
+
+CEMI_PROPERTIES = type('CEMI_PROPERTIES', (object,),
+                       {to_property(v):k for k,v in scapy_knx.CEMI_PROPERTIES.items()})()
+
 TYPE_FIELD = "service_identifier"
 CEMI_FIELD = "cemi"
 

@@ -1,5 +1,7 @@
 *~
 __pycache__
 *.pyc
+dist
 docs/_build
 bof.log
+examples/*/drafts

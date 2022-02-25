@@ -27,16 +27,33 @@ buildings and people and that BOF must be used carefully.**
 [![GitHub license](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://github.com/Orange-Cyberdefense/bof/blob/master/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Orange-Cyberdefense/bof.svg)](https://gitHub.com/Orange-Cyberdefense/bof/releases/)
 
-Getting started
----------------
+Install
+-------
+
+### From PyPI
+
+```
+pip install boiboite-opener-framework
+```
+
+https://pypi.org/project/boiboite-opener-framework/
+
+### Manual install
 
 ```
 git clone https://github.com/Orange-Cyberdefense/bof.git
 ```
 
-Requirements (Protocol implementations use
-[Scapy](https://scapy.readthedocs.io/en/latest/)'s format): ``` pip install
-scapy ```
+Install requirements with:
+
+```
+pip install -r requirements.txt
+```
+
+Protocol implementations use [Scapy](https://scapy.readthedocs.io/en/latest/)'s format.
+
+Getting started
+---------------
 
 BOF is a Python 3.6+ library that should be imported in scripts.  It has no
 installer yet so you need to refer to the `bof` subdirectory which contains the

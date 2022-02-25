@@ -112,13 +112,18 @@ class Test03PacketBuiltins(unittest.TestCase):
         """Test that bof_pkt[field] prints the content of field as bytes."""
         self.assertEqual(self.bof_pkt["basic_otter_1_1"], b'\x01')
 
-    def test_0304_bofpacket_setitem(self):
+    def test_0305_bofpacket_setitem(self):
         """Test that bof_pkt[field] prints the content of field as bytes."""
         self.bof_pkt["basic_otter_1_1"] = b"\x2a"
         self.assertEqual(self.bof_pkt["basic_otter_1_1"], b'\x2a')
         self.assertEqual(self.bof_pkt.basic_otter_1_1, 42)
         raw(self.bof_pkt)  # Should raise Exception if wrong
 
+    def test_0306_bofpacket_length_prop(self):
+        """Test that length property returns the number of bytes in pkt."""
+        self.assertEqual(self.bof_pkt.length, len(self.bof_pkt))
+        self.assertEqual(len(self.bof_pkt), 2)
+        
 class Test04BasicFields(unittest.TestCase):
     """Test class for Scapy Fields' management from ``BOFPacket``."""
 
