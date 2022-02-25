@@ -472,7 +472,7 @@ class Test08Features(unittest.TestCase):
             devices = knx.discover("lol")
         with self.assertRaises(BOFProgrammingError):
             devices = knx.discover(["lol", "wut"])
-    def test_0804_search_valid_nonetwork(self):
-        """Test that using valid arguments for search does not raise expcetion."""
+    def test_0804_discover_valid_nonetwork(self):
+        """Test that using wrong network parameter for discover raises exception."""
         with self.assertRaises(BOFNetworkError):
             devices = knx.discover("192.168.1.0")

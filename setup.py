@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="boiboite-opener-framework",
-    version="1.0.3",
+    version="1.0.4",
     author="Claire Vacherot",
     author_email="claire.vacherot@orange.com",
     description="Industrial network protocols testing framework",
