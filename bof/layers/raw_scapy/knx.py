@@ -87,6 +87,7 @@ CONNECTION_TYPE_CODES = {
 # KNX Standard v2.1 - 03_08_04
 MESSAGE_CODES = {
     0x11: "L_Data.req",
+    0x29: "L_data.ind",
     0x2e: "L_Data.con",
     0xFC: "M_PropRead.req",
     0xFB: "M_PropRead.con",
@@ -120,6 +121,11 @@ KNX_ACPI_CODES = {
     0x0380: "Restart",
     0x03D1: "AuthReq",
     0x03D5: "PropValueRead"
+}
+
+KNX_SERVICE_CODES = {
+    0x00: "Connect",
+    0x01: "Disconnect"
 }
 
 CEMI_OBJECT_TYPES = {
@@ -352,10 +358,13 @@ class LcEMI(Packet):
         BitEnumField("sequence_type", 0, 1, {
             0: "unnumbered"
         }),
-        BitField("reserved2", 0, 4),
-        BitEnumField("acpi", 2, 4, KNX_ACPI_CODES),
+        BitField("sequence_number", 0, 4), # Not used when sequence_type = unnumbered
+        ConditionalField(BitEnumField("acpi", 2, 4, KNX_ACPI_CODES),
+                        lambda pkt:pkt.packet_type==0),
+        ConditionalField(BitEnumField("service", 0, 2, KNX_SERVICE_CODES),
+                         lambda pkt:pkt.packet_type==1),        
         ConditionalField(BitField("data", 0, 6),
-                         lambda pkt:pkt.packet_type==0)
+                         lambda pkt:pkt.packet_type==0),
     ]
 
 

@@ -28,9 +28,23 @@ Usage is the same with raw TCP.
 import asyncio
 from ipaddress import ip_address, IPv4Address
 from concurrent import futures
-from socket import AF_INET, gaierror
+from socket import AF_INET, SOCK_DGRAM, IPPROTO_IP, IP_MULTICAST_TTL, \
+    SOL_SOCKET, SO_BROADCAST
+from socket import socket, timeout as sotimeout, gaierror
+from struct import pack
 # Internal
 from .base import BOFNetworkError, BOFProgrammingError, log
+
+###############################################################################
+# Global network-related constants and functions                              #
+###############################################################################
+
+def IS_IP(ip: str):
+    """Check that ip is a valid IPv4 address."""
+    try:
+        ip_address(ip)
+    except ValueError:
+        raise BOFProgrammingError("Invalid IP {0}".format(ip)) from None
 
 ###############################################################################
 # Asyncio classes for UDP and TCP                                             #
@@ -182,7 +196,7 @@ class _Transport(object):
         .. seealso:: bof.base.BOFNetworkError"""
         message = context if isinstance(context, str) else context.get("exception", context["message"])
         log("Exception occurred: {0}".format(message), "ERROR")
-        self.disconnect()
+        # self.disconnect()
         raise BOFNetworkError(message) from None
 
     def _receive(self, data:bytes, address:tuple) -> None:
@@ -196,6 +210,28 @@ class _Transport(object):
             log("Queue is full", "ERROR")
             raise BOFNetworkError("Queue is full")
 
+    def _argument_check(data:bytes, address:tuple) -> None:
+        """Check that parameters to send ``data`` to an ``address`` are valid.
+        If so, they are changed to appropriate format for sockets.
+
+        :param data: Raw byte array or string to send.
+        :param address: Remote network address with format tuple ``(ip, port)``.
+        :returns: data, address
+        :raises BOFNetworkError: If either parameter is invalid.
+        """
+        try:
+            if isinstance(data, str):
+                data = data.encode('utf-8')
+            else:
+                data = bytes(data)
+        except TypeError:
+            raise BOFProgrammingError("Invalid data type (must be bytes).") from None
+        try:
+            address = str(ip_address(address[0])), address[1]
+        except (ValueError, TypeError):
+            raise BOFProgrammingError("Invalid address {0}".format(address)) from None
+        return data, address
+        
     #-------------------------------------------------------------------------#
     # Private                                                                 #
     #-------------------------------------------------------------------------#
@@ -214,6 +250,13 @@ class _Transport(object):
     #-------------------------------------------------------------------------#
     # Properties                                                              #
     #-------------------------------------------------------------------------#
+
+    @property
+    def is_connected(self):
+        """Returns true if a connection has been established.
+        Relies on the values of _socket and _transport to find out.
+        """
+        return True if self._socket and self._transport else False
 
     @property
     def transport(self):
@@ -266,8 +309,81 @@ class UDP(_Transport):
     """
 
     #-------------------------------------------------------------------------#
-    # Public                                                                  #
+    # Static                                                                  #
+    #-------------------------------------------------------------------------#    
+    
+    @staticmethod
+    def multicast(data:bytes, address:tuple, timeout:float=1.0) -> list:
+        """Sends a multicast request to specified ip address and port (UDP).
+
+        Expects devices subscribed to the address to respond and return
+        responses as a list of frames with their source. Opens its own socket.
+
+        :param data: Raw byte array or string to send.
+        :param address: Remote network address with format tuple ``(ip, port)``.
+        :param timeout: Time out value in seconds,  as a float (default is 1.0s).
+        :returns: A list of tuples with format ``(response, (ip, port))``.
+        :raises BOFNetworkError: If multicast parameters are invalid.
+
+        Example::
+
+           devices = UDP.multicast(b'\x06\x10...', ('224.0.23.12', 3671))
+        """
+        responses = []
+        ttl = pack('b', 1)
+        data, address = UDP._argument_check(data, address)
+        try:
+            sock = socket(AF_INET, SOCK_DGRAM)
+            sock.settimeout(timeout)
+            sock.setsockopt(IPPROTO_IP, IP_MULTICAST_TTL, ttl)
+            sock.sendto(data, address)
+            while True:
+                response, sender = sock.recvfrom(1024)
+                responses.append((response, sender))
+        except OverflowError as exc: # Raised when port invalid
+            sock.close()
+            raise BOFProgrammingError(str(exc))
+        except sotimeout as te:
+            pass
+        sock.close()
+        return responses
+
+    @staticmethod
+    def broadcast(data:bytes, address:tuple, timeout:float=1.0) -> list:
+        """Broadcasts a request and waits for responses from devices (UDP).
+
+        :param data: Raw byte array or string to send.
+        :param address: Remote network address with format tuple ``(ip, port)``.
+        :param timeout: Time out value in seconds, as a float (default is 1.0s).
+        :returns: A list of tuples with format ``(response, (ip, port))``.
+        :raises BOFNetworkError: If multicast parameters are invalid.
+
+        Example::
+
+           devices = UDP.broadcast(b'\x06\x10...', ('192.168.1.255', 3671))
+        """
+        responses = []
+        data, address = UDP._argument_check(data, address)
+        # Broadcast request
+        try:
+            sock = socket(AF_INET, SOCK_DGRAM)
+            sock.settimeout(timeout)
+            sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+            sock.sendto(data, address)
+            while True:
+                response, sender = sock.recvfrom(1024)
+                responses.append((response, sender))
+        except OverflowError as exc: # Raised when port invalid
+            sock.close()
+            raise BOFProgrammingError(str(exc))
+        except sotimeout as te:
+            pass
+        sock.close()
+        return responses
+        
     #-------------------------------------------------------------------------#
+    # Public                                                                  #
+    #-------------------------------------------------------------------------#    
 
     def connect(self, ip:str, port:int) -> object:
         """Initialize asynchronous connection using UDP on ``ip``:``port``.

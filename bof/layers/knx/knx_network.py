@@ -39,6 +39,8 @@ class KNXnet(UDP):
 
     ..seealso:: Details on data exchange: **KNX Standard v2.1 - 03_03_04**.
     """
+    sequence_counter = None
+    
     def connect(self, ip:str, port:int=3671) -> object:
         """Connect to a KNX device (opens socket). Default port is ``3671``.
 
@@ -48,6 +50,7 @@ class KNXnet(UDP):
         :raises BOFNetworkError: if connection fails.
         """
         super().connect(ip, port)
+        self.sequence_counter = 0
         return self
 
     def send(self, data:object, address:tuple=None) -> int:
