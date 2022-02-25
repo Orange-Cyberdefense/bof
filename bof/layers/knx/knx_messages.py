@@ -208,10 +208,16 @@ def cemi_group_write(knx_group_addr: str, value, knx_source: str="0.0.0") -> Pac
                        individual address, but it works fine with 0.0.0.
     :returns: A raw cEMI object from Scapy's implementation to be inserted in
               a KNXPacket object.
+    :raises BOFProgrammingError: if KNX addresses are invalid because the Scapy
+                                 object does not allow that. You should change
+                                 the field type if you want to set somethig else.
     """
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
-    cemi.cemi_data.source_address = knx_source
-    cemi.cemi_data.destination_address = knx_group_addr
+    try:
+        cemi.cemi_data.source_address = knx_source
+        cemi.cemi_data.destination_address = knx_group_addr
+    except ValueError:
+        raise BOFProgrammingError("Values given to addresses are not supported.")
     cemi.cemi_data.acpi = ACPI.groupvaluewrite
     cemi.cemi_data.data = int(value)
     return cemi
@@ -231,12 +237,18 @@ def cemi_dev_descr_read(knx_indiv_addr: str, seq_num: int=0, knx_source: str="0.
                        individual address, but it works fine with 0.0.0.
     :returns: A raw cEMI object from Scapy's implementation to be inserted in
               a KNXPacket object.
+    :raises BOFProgrammingError: if KNX addresses are invalid because the Scapy
+                                 object does not allow that. You should change
+                                 the field type if you want to set somethig else.
     """
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
     cemi.cemi_data.priority = 0 # system
     cemi.cemi_data.address_type = 0 # individual
-    cemi.cemi_data.source_address = knx_source
-    cemi.cemi_data.destination_address = knx_indiv_addr
+    try:
+        cemi.cemi_data.source_address = knx_source
+        cemi.cemi_data.destination_address = knx_indiv_addr
+    except ValueError:
+        raise BOFProgrammingError("Values given to addresses are not supported.")
     cemi.cemi_data.npdu_length = 1 # size of data
     cemi.cemi_data.packet_type = 0 # data
     cemi.cemi_data.sequence_type = 1 # numbered
@@ -257,11 +269,18 @@ def cemi_connect(knx_indiv_addr: str, knx_source: str="0.0.0") -> Packet:
                        individual address, but it works fine with 0.0.0.
     :returns: A raw cEMI object from Scapy's implementation to be inserted in
               a KNXPacket object.
+    :raises BOFProgrammingError: if KNX addresses are invalid because the Scapy
+                                 object does not allow that. You should change
+                                 the field type if you want to set somethig else.
     """
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
     cemi.cemi_data.priority = 0 # system
     cemi.cemi_data.address_type = 0 # individual
-    cemi.cemi_data.destination_address = knx_indiv_addr
+    try:
+        cemi.cemi_data.source_address = knx_source
+        cemi.cemi_data.destination_address = knx_indiv_addr
+    except ValueError:
+        raise BOFProgrammingError("Values given to addresses are not supported.")
     cemi.cemi_data.npdu_length = 0 # no data
     cemi.cemi_data.packet_type = 1 # control
     cemi.cemi_data.sequence_type = 0 # unnumbered
@@ -281,11 +300,18 @@ def cemi_disconnect(knx_indiv_addr: str, knx_source: str="0.0.0") -> Packet:
                        individual address, but it works fine with 0.0.0.
     :returns: A raw cEMI object from Scapy's implementation to be inserted in
               a KNXPacket object.
+    :raises BOFProgrammingError: if KNX addresses are invalid because the Scapy
+                                 object does not allow that. You should change
+                                 the field type if you want to set somethig else.
     """
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
     cemi.cemi_data.priority = 0 # system
     cemi.cemi_data.address_type = 0 # individual
-    cemi.cemi_data.destination_address = knx_indiv_addr
+    try:
+        cemi.cemi_data.source_address = knx_source
+        cemi.cemi_data.destination_address = knx_indiv_addr
+    except ValueError:
+        raise BOFProgrammingError("Values given to addresses are not supported.")
     cemi.cemi_data.npdu_length = 0 # no data
     cemi.cemi_data.packet_type = 1 # control
     cemi.cemi_data.sequence_type = 0 # unnumbered
@@ -307,11 +333,18 @@ def cemi_ack(knx_indiv_addr: str, seq_num: int=0, knx_source: str="0.0.0") -> Pa
                        individual address, but it works fine with 0.0.0.
     :returns: A raw cEMI object from Scapy's implementation to be inserted in
               a KNXPacket object.
+    :raises BOFProgrammingError: if KNX addresses are invalid because the Scapy
+                                 object does not allow that. You should change
+                                 the field type if you want to set somethig else.
     """
     cemi = scapy_knx.CEMI(message_code=CEMI.l_data_req)
     cemi.cemi_data.priority = 0 # system
     cemi.cemi_data.address_type = 0 # individual
-    cemi.cemi_data.destination_address = knx_indiv_addr
+    try:
+        cemi.cemi_data.source_address = knx_source
+        cemi.cemi_data.destination_address = knx_indiv_addr
+    except ValueError:
+        raise BOFProgrammingError("Values given to addresses are not supported.")
     cemi.cemi_data.npdu_length = 0 # no data
     cemi.cemi_data.packet_type = 1 # control
     cemi.cemi_data.sequence_type = 1 # numbered

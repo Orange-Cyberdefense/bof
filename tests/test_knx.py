@@ -398,30 +398,58 @@ class Test07Messages(unittest.TestCase):
         self.assertEqual(self.bof_pkt.sid, b"\x04\x21")
         self.assertEqual(self.bof_pkt.communication_channel_id, 102)
         self.assertEqual(self.bof_pkt.sequence_counter, 201)
-    @unittest.skip("Not implemented")
     def test0710_cemi_propread(self):
         """Test that PropRead.req cEMI are correctly created."""
-        pass
-    @unittest.skip("Not implemented")
+        cemi = knx.cemi_property_read(1, 10)
+        self.assertEqual(cemi.cemi_data.object_type, 1)
+        self.assertEqual(cemi.cemi_data.property_id, 10)
+        cemi = knx.cemi_property_read(b'\x01', 0)
+        # We don't block the following behavior because bof is not supposed to
+        # prevent anyone from writing anything to packets even if it's stupid
+        self.assertEqual(cemi.cemi_data.object_type, b'\x01') 
+        self.assertEqual(cemi.cemi_data.property_id, 0)
+        with self.assertRaises(ValueError):
+            cemi.show2()
     def test0711_cemi_groupwrite(self):
         """Test that L_data.req GroupValueWrite cEMI are correctly created."""
-        pass
-    @unittest.skip("Not implemented")
+        cemi = knx.cemi_group_write("1/1/1", 1, "1.1.1")
+        self.assertEqual(cemi.cemi_data.destination_address, 2305)
+        self.assertEqual(cemi.cemi_data.source_address, 4353)
+        self.assertEqual(cemi.cemi_data.acpi, 2)
+        with self.assertRaises(BOFProgrammingError):
+            cemi = knx.cemi_group_write("lapin", 1)
     def test0712_cemi_devdescrread(self):
         """Test that L_data.req DevDescrRead cEMI are correctly created."""
-        pass
-    @unittest.skip("Not implemented")
+        cemi = knx.cemi_dev_descr_read("1.1.1", 0, "2.2.2")
+        self.assertEqual(cemi.cemi_data.destination_address, 4353)
+        self.assertEqual(cemi.cemi_data.source_address, 8706)
+        self.assertEqual(cemi.cemi_data.acpi, 12)
+        with self.assertRaises(BOFProgrammingError):
+            cemi = knx.cemi_dev_descr_read("lapin")
     def test0713_cemi_connect(self):
         """Test that L_data.req Connect cEMI (control) are correctly created."""
-        pass
-    @unittest.skip("Not implemented")
+        cemi = knx.cemi_connect("1.1.1", "2.2.2")
+        self.assertEqual(cemi.cemi_data.destination_address, 4353)
+        self.assertEqual(cemi.cemi_data.source_address, 8706)
+        self.assertEqual(cemi.cemi_data.service, 0)
+        with self.assertRaises(BOFProgrammingError):
+            cemi = knx.cemi_connect("lapin")
     def test0714_cemi_disconnect(self):
         """Test that L_data.req Disconnect cEMI (control) are correctly created."""
-        pass
-    @unittest.skip("Not implemented")
+        cemi = knx.cemi_disconnect("1.1.1", "2.2.2")
+        self.assertEqual(cemi.cemi_data.destination_address, 4353)
+        self.assertEqual(cemi.cemi_data.source_address, 8706)
+        self.assertEqual(cemi.cemi_data.service, 1)
+        with self.assertRaises(BOFProgrammingError):
+            cemi = knx.cemi_disconnect("lapin")
     def test0715_cemi_ack(self):
         """Test that L_data.req ACK cEMI (control) are correctly created."""
-        pass
+        cemi = knx.cemi_ack("1.1.1", 0, "2.2.2")
+        self.assertEqual(cemi.cemi_data.destination_address, 4353)
+        self.assertEqual(cemi.cemi_data.source_address, 8706)
+        self.assertEqual(cemi.cemi_data.service, 2)
+        with self.assertRaises(BOFProgrammingError):
+            cemi = knx.cemi_ack("lapin")
 
 class Test08Features(unittest.TestCase):
     """Test class for higher level features."""
