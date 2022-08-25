@@ -41,3 +41,4 @@ from .base import *
 from .network import *
 from .packet import *
 from .layers import *
+from .modules import *
