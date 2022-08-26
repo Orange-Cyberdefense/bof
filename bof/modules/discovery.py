@@ -9,7 +9,7 @@ from os import geteuid
 from scapy.layers.l2 import Ether, srp
 from scapy.packet import Packet
 # Internal
-from .. import BOFProgrammingError
+from .. import BOFProgrammingError, BOFDevice
 from ..layers.knx import MULTICAST_ADDR as KNX_MULTICAST_ADDR, KNX_PORT, \
     search as knx_search
 
@@ -33,9 +33,10 @@ DEFAULT_LLDP_PARAM = {
     "system_desc": "BOF discovery"
     }
 
-class LLDPDevice(object):
+class LLDPDevice(BOFDevice):
     """Object representation of a device responding to LLDP requests."""
-    raw_pkt: Packet = None
+    # TODO: Change some name to match BOFDevice naming.
+    protocol:str = "LLDP"
     mac_addr: str = None
     chassis_id: str = None
     port_id: str = None
@@ -57,7 +58,6 @@ class LLDPDevice(object):
         Uses Scapy's LLDP contrib by Thomas Tannhaeuser (hecke@naberius.de).
         """
         # Not tested yet
-        self.raw_pkt = pkt
         self.mac_addr = pkt["Ether"].src
         self.chassis_id = pkt["LLDPDUChassisID"].id
         self.port_id = pkt["LLDPDUPortID"].id

@@ -19,7 +19,7 @@ Relies on **KNX Standard v2.1**
 
 from ipaddress import ip_address
 # Internal
-from ... import BOFNetworkError, BOFProgrammingError
+from ... import BOFNetworkError, BOFProgrammingError, BOFDevice
 from .knx_network import *
 from .knx_packet import *
 from .knx_messages import *
@@ -52,7 +52,7 @@ def GROUP_ADDR(x: int) -> str:
 # KNX DEVICE REPRESENTATION                                                   #
 ###############################################################################
 
-class KNXDevice(object):
+class KNXDevice(BOFDevice):
     """Object representing a KNX device.
 
     Data stored to the object is the one returned by SEARCH RESPONSE and
@@ -66,6 +66,7 @@ class KNXDevice(object):
 
     The information gathered from devices may be completed, improved later.
     """
+    protocol:str = "KNX"
     def __init__(self, name: str, ip_address: str, port: int, knx_address: str,
                  mac_address: str, multicast_address: str=MULTICAST_ADDR,
                  serial_number: str=""):
