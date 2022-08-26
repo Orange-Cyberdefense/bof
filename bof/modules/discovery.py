@@ -10,6 +10,8 @@ from scapy.layers.l2 import Ether, srp
 from scapy.packet import Packet
 # Internal
 from .. import BOFProgrammingError
+from ..layers.knx import MULTICAST_ADDR as KNX_MULTICAST_ADDR, KNX_PORT, \
+    search as knx_search
 
 ########################################################
 # Should this part be moved to layers? Yes probably!!! #
@@ -157,3 +159,41 @@ def lldp_discovery(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
     for reply in replies:
         devices.append(get_lldp_info(reply))
     return devices
+
+###############################################################################
+# KNX                                                                         #
+###############################################################################
+
+def knx_discovery(ip: str=KNX_MULTICAST_ADDR, port=KNX_PORT):
+    """Search for KNX devices on an network using multicast.
+
+    Implementation in KNX layer.
+    """
+    return knx_search(ip, port)
+
+###############################################################################
+# GLOBAL                                                                      #
+###############################################################################
+
+# Requires refactoring
+def passive_discovery(knx_multicast: str=KNX_MULTICAST_ADDR, knx_port=KNX_PORT,
+                      lldp_multicast: str=LLDP_MULTICAST_MAC,
+                      verbose: bool=False):
+    """Discover devices on an industrial network using passive methods.
+
+    Requests are sent to protocols' multicast addresses or via broadcast.
+    Currently, LLDP and KNX are supported.
+    """
+    vprint = lambda msg: print("[BOF] {0}.".format(msg)) if verbose else None
+    # KNX -------------------------------------------------------------------#
+    vprint("Sending KNX search request via multicast ({0})".format(knx_multicast))
+    knx_devices = knx_discovery()
+    knx_total = len(knx_devices)
+    vprint("{0} KNX {1} found".format(knx_total if knx_total else "No",
+                                      "device" if knx_total < 1 else "devices"))
+    # LLDP -------------------------------------------------------------------#
+    vprint("Sending LLDP request via multicast ({0})".format(lldp_multicast))
+    lldp_devices = lldp_discovery()
+    lldp_total = len(lldp_devices)
+    vprint("{0} LLDP {1} found".format(lldp_total if lldp_total else "No",
+                                      "device" if lldp_total < 1 else "devices"))
