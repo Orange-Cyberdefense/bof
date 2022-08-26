@@ -8,12 +8,20 @@ Functions for passive and active discovery of industrial devices on a network.
 from os import geteuid
 from scapy.layers.l2 import Ether, srp
 from scapy.packet import Packet
-from scapy.contrib.lldp import *
 # Internal
 from .. import BOFProgrammingError
 
-# Should this part and parsing be moved to layers? Yes probably!!! #
-####################################################################
+########################################################
+# Should this part be moved to layers? Yes probably!!! #
+# Todo when completed and fully tested.                #
+# Unit tests to write when moving LLDP stuff to layers #
+########################################################
+
+# LLDP -----------------------------------------------------------------------#
+
+from scapy.contrib.lldp import *
+
+# lldp_feature.py
 
 LLDP_MULTICAST_MAC = "01:80:c2:00:00:0e"
 DEFAULT_LLDP_PARAM = {
@@ -25,6 +33,44 @@ DEFAULT_LLDP_PARAM = {
     "system_desc": "BOF discovery"
     }
 
+class LLDPDevice(object):
+    """Object representation of a device responding to LLDP requests."""
+    raw_pkt: Packet = None
+    mac_addr: str = None
+    chassis_id: str = None
+    port_id: str = None
+    port_desc: str = None
+    system_name: str = None
+    system_desc: str = None
+    capabilities: dict = None
+    ip_addr: str = None
+    
+    def __init__(self, pkt: Packet=None):
+        if pkt:
+            self.parse(pkt)
+
+    def parse(self, pkt: Packet=None) -> None:
+        """Parse LLDP response to store device information.
+
+        :param pkt: LLDP packet, including Ethernet (Ether) layer.
+
+        Uses Scapy's LLDP contrib by Thomas Tannhaeuser (hecke@naberius.de).
+        """
+        # Not tested yet
+        self.raw_pkt = pkt
+        self.mac_addr = pkt["Ether"].src
+        self.chassis_id = pkt["LLDPDUChassisID"].id
+        self.port_id = pkt["LLDPDUPortID"].id
+        self.port_desc = pkt["LLDPDUPortDescription"].description
+        self.system_name = pkt["LLDPDUSystemName"].system_name
+        self.system_desc = pkt["LLDPDUSystemDescription"].description
+        self.capabilities = pkt["LLDPDUSystemCapabilities"] # TODO
+        self.ip_addr = pkt["LLDPDUManagementAddress"].management_address # TODO: subtypes
+        # IP address as a property so that we can return it only if subtype==IPv4
+        # TODO: Profibus stuff (e.g. for Siemens devices)
+
+# lldp_packet.py
+        
 def create_lldp_packet(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
                        lldp_param: dict=None) -> Packet:
     """Create a LLDP packet for discovery to be sent on Ethernet layer.
@@ -57,14 +103,31 @@ def create_lldp_packet(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
         raise BOFProgrammingError("Invalid parameter for LLDP: {0}".format(ke)) from None
 
     return Ether(dst=mac_addr)/LLDPDU()/lldp_chassisid/lldp_portid \
-        /lldp_ttl/lldp_portdesc/lldp_sysname/lldp_sysdesc/lldp_capab/lldp_mgmt/lldp_end
-    
+        /lldp_ttl/lldp_portdesc/lldp_sysname/lldp_sysdesc/lldp_capab \
+        /lldp_mgmt/lldp_end
+
+# lldp_feature.py -- probably
+
+def get_lldp_info(pkt: Packet) -> LLDPDevice:
+    """Parses a LLDP packet to extract information on source device.
+
+    :param pkt: Received packet as a Scapy Packet object.
+
+    Uses Scapy's LLDP contrib by Thomas Tannhaeuser (hecke@naberius.de).
+    """
+    # Should LLDP be detected directly when receiving a packet with srp?
+    # Seen as Raw when created from bytes directly.
+    pkt.show2()
+    return LLDPDevice(pkt)
+
+# End of LLDP ----------------------------------------------------------------#
+
 ###############################################################################
 # LLDP                                                                        #
 ###############################################################################
 
 def lldp_discovery(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
-                   lldp_param: dict=None) -> dict:
+                   lldp_param: dict=None) -> list:
     """Send LLDP (Link Layer Discovery Protocol) packets on Ethernet layer.
 
     Some industrial devices and switches respond to them.
@@ -89,7 +152,8 @@ def lldp_discovery(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
     # Using Scapy's send function on Ethernet, requires super user privilege
     if geteuid() != 0:
         raise BOFProgrammingError("Super user privileges required to send LLDP requests")
-    rep, norep = srp(packet, multi=1, iface="eth0", timeout=1, verbose=False)
-    # Debug
-    for reply in rep:
-        print(rep)
+    replies, norep = srp(packet, multi=1, iface="eth0", timeout=1, verbose=False)
+    devices = []
+    for reply in replies:
+        devices.append(get_lldp_info(reply))
+    return devices
