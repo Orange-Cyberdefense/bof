@@ -9,15 +9,86 @@ from os import geteuid
 from scapy.layers.l2 import Ether, srp
 from scapy.packet import Packet
 # Internal
-from .. import BOFProgrammingError, BOFDevice
+from .. import BOFProgrammingError, BOFDevice, DEFAULT_IFACE
 from ..layers.knx import MULTICAST_ADDR as KNX_MULTICAST_ADDR, KNX_PORT, \
     search as knx_search
 
 ########################################################
-# LLDP-related code will be moved to dedicated layer.  #
+# proto-related code will be moved to dedicated layer. #
 # Todo when completed and fully tested.                #
-# Unit tests to write after moving LLDP.               #
+# Unit tests to write after moving proto               #
 ########################################################
+
+# Profinet - PN-DCP ----------------------------------------------------------#
+
+# This layer raises deprecation warnings, for now we don't care.
+from warnings import filterwarnings
+from cryptography.utils import CryptographyDeprecationWarning
+filterwarnings('ignore', category=SyntaxWarning)
+filterwarnings('ignore', category=CryptographyDeprecationWarning)
+from scapy.contrib.pnio import ProfinetIO
+from scapy.contrib.pnio_dcp import *
+
+PNDCP_MULTICAST_MAC = "01:0e:cf:00:00:00"
+
+class ProfinetDevice(BOFDevice):
+    pass
+
+def create_pndcp_identify_packet(mac_addr: str=PNDCP_MULTICAST_MAC) -> Packet:
+    """Create a Profinet DCP packet for discovery to be sent on Ethernet layer.
+
+    Uses Scapy's Profinet IO contrib by Gauthier Sebaux and Profinet DCP contrib
+    by Stefan Mehner (stefan.mehner@b-tu.de).
+    """
+    pn_io = ProfinetIO(frameID=DCP_IDENTIFY_REQUEST_FRAME_ID)
+    pn_dcp = ProfinetDCP(service_id="Identify", service_type=DCP_REQUEST,
+                         option=255, sub_option=255, dcp_data_length=4)
+    pkt = Ether(dst=mac_addr)/pn_io/pn_dcp
+    pkt.show2()
+    return pkt
+
+def get_pndcp_info(pkt: Packet) -> ProfinetDevice:
+    """Parses a PN-DCP packet to extract information on source device.
+
+    :param pkt: Received packet as a Scapy Packet object.
+
+    Uses Scapy's Profinet IO contrib by Gauthier Sebaux and Profinet DCP contrib
+    by Stefan Mehner (stefan.mehner@b-tu.de).
+    """
+    pkt.show2()
+    return ProfinetDevice(pkt)
+
+def pndcp_identify_request(iface: str=DEFAULT_IFACE,
+                           mac_addr: str=PNDCP_MULTICAST_MAC) -> list:
+    """Send PN-DCP (Profinet Discovery/Config Proto) packets on Ethernet layer.
+
+    Some industrial devices such as PLCs respond to them.
+    Multicast is used by default.
+    Requires super-user privileges to send on Ethernet link.
+
+    :param iface: Network interface to use to send the packet.
+    :param mac_addr: MAC address to send the PN-DCP packet to (default: multicast)
+
+    Example::
+
+      from bof.modules.discovery import *
+
+      devices = pndcp_identify_request()
+      for device in devices:
+        print(device)
+
+    Uses Scapy's Profinet IO contrib by Gauthier Sebaux and Profinet DCP contrib
+    by Stefan Mehner (stefan.mehner@b-tu.de).
+    """
+    packet = create_pndcp_identify_packet(mac_addr)
+    # Using Scapy's send function on Ethernet, requires super user privilege
+    if geteuid() != 0:
+        raise BOFProgrammingError("Super user privileges required to send PN-DCP requests")
+    replies, norep = srp(packet, multi=1, iface=iface, timeout=1, verbose=False)
+    devices = []
+    for reply in replies:
+        devices.append(get_pndcp_info(reply))
+    return devices
 
 # LLDP -----------------------------------------------------------------------#
 
@@ -116,14 +187,15 @@ def get_lldp_info(pkt: Packet) -> LLDPDevice:
     pkt.show2()
     return LLDPDevice(pkt)
 
-def lldp_request(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
-                 lldp_param: dict=None) -> list:
+def lldp_request(iface: str=DEFAULT_IFACE, mac_addr: str=LLDP_MULTICAST_MAC,
+                 mgmt_ip: str="0.0.0.0", lldp_param: dict=None) -> list:
     """Send LLDP (Link Layer Discovery Protocol) packets on Ethernet layer.
 
     Some industrial devices and switches respond to them.
     Multicast is used by default.
     Requires super-user privileges to send on Ethernet link.
 
+    :param iface: Network interface to use to send the packet.
     :param mac_addr: MAC address to send the LLDP packet to (default: multicast)
     :param mgmt_ip: Source IPv4 address to include as management address.
     :param lldp_param: Dictionary containing LLDP info to set. Optional.
@@ -132,7 +204,7 @@ def lldp_request(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
 
       from bof.modules.discovery import *
 
-      devices = lldp_discovery()
+      devices = lldp_request()
       for device in devices:
         print(device)
 
@@ -142,7 +214,7 @@ def lldp_request(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
     # Using Scapy's send function on Ethernet, requires super user privilege
     if geteuid() != 0:
         raise BOFProgrammingError("Super user privileges required to send LLDP requests")
-    replies, norep = srp(packet, multi=1, iface="eth0", timeout=1, verbose=False)
+    replies, norep = srp(packet, multi=1, iface=iface, timeout=1, verbose=False)
     devices = []
     for reply in replies:
         devices.append(get_lldp_info(reply))
@@ -154,19 +226,19 @@ def lldp_request(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
 # LLDP                                                                        #
 ###############################################################################
 
-def lldp_discovery(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
-                   lldp_param: dict=None) -> list:
+def lldp_discovery(iface: str=DEFAULT_IFACE, mac_addr: str=LLDP_MULTICAST_MAC,
+                   mgmt_ip: str="0.0.0.0", lldp_param: dict=None) -> list:
     """Search for devices on an network using multicast LLDP requests.
 
     Implementation in LLDP layer.
     """
-    return lldp_request(mac_addr, mgmt_ip, lldp_param)
+    return lldp_request(iface, mac_addr, mgmt_ip, lldp_param)
     
 ###############################################################################
 # KNX                                                                         #
 ###############################################################################
 
-def knx_discovery(ip: str=KNX_MULTICAST_ADDR, port=KNX_PORT):
+def knx_discovery(ip: str=KNX_MULTICAST_ADDR, port=KNX_PORT, **kwargs):
     """Search for KNX devices on an network using multicast.
 
     Implementation in KNX layer.
@@ -177,13 +249,17 @@ def knx_discovery(ip: str=KNX_MULTICAST_ADDR, port=KNX_PORT):
 # GLOBAL                                                                      #
 ###############################################################################
 
-def passive_discovery(knx_multicast: str=KNX_MULTICAST_ADDR, knx_port=KNX_PORT,
+def passive_discovery(iface: str=DEFAULT_IFACE,
+                      knx_multicast: str=KNX_MULTICAST_ADDR,
                       lldp_multicast: str=LLDP_MULTICAST_MAC,
                       verbose: bool=False):
     """Discover devices on an industrial network using passive methods.
 
     Requests are sent to protocols' multicast addresses or via broadcast.
     Currently, LLDP and KNX are supported.
+
+    :param lldp_multicast: Multicast MAC address for LLDP requests.
+    :param knx_multicast: Multicast IP address for KNXnet/IP requests.
     """
     vprint = lambda msg: print("[BOF] {0}.".format(msg)) if verbose else None
     protocols = {
@@ -195,7 +271,7 @@ def passive_discovery(knx_multicast: str=KNX_MULTICAST_ADDR, knx_port=KNX_PORT,
     for protocol, proto_args in protocols.items():
         discovery_fct, multicast_addr = proto_args
         vprint("Sending {0} request to {1}".format(protocol, multicast_addr))
-        devices = discovery_fct()
+        devices = discovery_fct(mac_addr=multicast_addr, iface=iface)
         nb = len(devices)
         vprint("{0} {1} {2} found".format(nb if nb else "No", protocol,
                                           "device" if nb < 1 else "devices"))

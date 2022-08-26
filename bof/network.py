@@ -39,6 +39,8 @@ from .base import BOFNetworkError, BOFProgrammingError, log
 # Global network-related constants and functions                              #
 ###############################################################################
 
+DEFAULT_IFACE="eth0"
+
 def IS_IP(ip: str):
     """Check that ip is a valid IPv4 address."""
     try:
