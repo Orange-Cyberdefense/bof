@@ -89,6 +89,7 @@ The library has the following structure::
   │   │   ├── knx
   │   │   │   ├── knx_feature.py
   │   │   │   ├── knx_network.py
+  │   │   │   ├── knx_device.py
   │   │   │   ├── knx_packet.py
   │   │   ├── other protocol
   │   │   │   ├── other protocol content
@@ -129,3 +130,6 @@ Here is how to add a new protocol to BOF:
 5. Please refer to ``BOFPacket`` (in ``bof/packet.py``) and to other
    implementations such as ``KNX`` to know how to write the content of the
    class, until I write a better tutorial! :D
+6. Additionnaly, you can create a Python file to write higher-level features
+   (for instance, objects inheriting ``BOFDevice`` and functions that creates
+   it).

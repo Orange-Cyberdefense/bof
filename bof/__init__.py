@@ -1,5 +1,4 @@
-"""
-Introduction
+"""Introduction
 ============
 
 Boiboite Opener Framework / Ouvre-Boiboite Framework contains a set of features
@@ -18,11 +17,16 @@ The following submodules are available:
     new protocol submodule.
 
 :packet:
-    Base classe for specialized BOF packets in layers. Such classes link BOF
+    Base class for specialized BOF packets in layers. Such classes link BOF
     content and usage to protocol implementations in Scapy. In other words,
     they interface BOF's syntax used by the end user with Scapy Packet and
     Field objects used for the packet itself. The base class ``BOFPacket``
     is not supposed to be instantiated directly, but whatever. 
+
+:device:
+    Global object for representing industrial devices. All objects in
+    layers built using data extracted from responses to protocol-specific
+    discovery requests shall inherit ``BOFDevice``.
 
 :layers:
     Protocol implementations to be imported in BOF. Importing ``layers`` gives
@@ -31,6 +35,7 @@ The following submodules are available:
     ``layers/raw_scapy`` may contain protocol implementations in Scapy which
     are not integrated to Scapy's repository (for instance, if you wrote your
     own but did not contribute (yet)).
+
 """
 
 ###############################################################################
@@ -40,4 +45,6 @@ The following submodules are available:
 from .base import *
 from .network import *
 from .packet import *
+from .device import *
 from .layers import *
+from .modules import *
