@@ -14,16 +14,14 @@ from ..layers.knx import MULTICAST_ADDR as KNX_MULTICAST_ADDR, KNX_PORT, \
     search as knx_search
 
 ########################################################
-# Should this part be moved to layers? Yes probably!!! #
+# LLDP-related code will be moved to dedicated layer.  #
 # Todo when completed and fully tested.                #
-# Unit tests to write when moving LLDP stuff to layers #
+# Unit tests to write after moving LLDP.               #
 ########################################################
 
 # LLDP -----------------------------------------------------------------------#
 
 from scapy.contrib.lldp import *
-
-# lldp_feature.py
 
 LLDP_MULTICAST_MAC = "01:80:c2:00:00:0e"
 DEFAULT_LLDP_PARAM = {
@@ -71,8 +69,6 @@ class LLDPDevice(object):
         # IP address as a property so that we can return it only if subtype==IPv4
         # TODO: Profibus stuff (e.g. for Siemens devices)
 
-# lldp_packet.py
-        
 def create_lldp_packet(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
                        lldp_param: dict=None) -> Packet:
     """Create a LLDP packet for discovery to be sent on Ethernet layer.
@@ -108,8 +104,6 @@ def create_lldp_packet(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
         /lldp_ttl/lldp_portdesc/lldp_sysname/lldp_sysdesc/lldp_capab \
         /lldp_mgmt/lldp_end
 
-# lldp_feature.py -- probably
-
 def get_lldp_info(pkt: Packet) -> LLDPDevice:
     """Parses a LLDP packet to extract information on source device.
 
@@ -122,14 +116,8 @@ def get_lldp_info(pkt: Packet) -> LLDPDevice:
     pkt.show2()
     return LLDPDevice(pkt)
 
-# End of LLDP ----------------------------------------------------------------#
-
-###############################################################################
-# LLDP                                                                        #
-###############################################################################
-
-def lldp_discovery(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
-                   lldp_param: dict=None) -> list:
+def lldp_request(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
+                 lldp_param: dict=None) -> list:
     """Send LLDP (Link Layer Discovery Protocol) packets on Ethernet layer.
 
     Some industrial devices and switches respond to them.
@@ -158,8 +146,22 @@ def lldp_discovery(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
     devices = []
     for reply in replies:
         devices.append(get_lldp_info(reply))
-    return devices
+    return devices    
 
+# End of LLDP ----------------------------------------------------------------#
+
+###############################################################################
+# LLDP                                                                        #
+###############################################################################
+
+def lldp_discovery(mac_addr: str=LLDP_MULTICAST_MAC, mgmt_ip: str="0.0.0.0",
+                   lldp_param: dict=None) -> list:
+    """Search for devices on an network using multicast LLDP requests.
+
+    Implementation in LLDP layer.
+    """
+    return lldp_request(mac_addr, mgmt_ip, lldp_param)
+    
 ###############################################################################
 # KNX                                                                         #
 ###############################################################################
@@ -175,7 +177,6 @@ def knx_discovery(ip: str=KNX_MULTICAST_ADDR, port=KNX_PORT):
 # GLOBAL                                                                      #
 ###############################################################################
 
-# Requires refactoring
 def passive_discovery(knx_multicast: str=KNX_MULTICAST_ADDR, knx_port=KNX_PORT,
                       lldp_multicast: str=LLDP_MULTICAST_MAC,
                       verbose: bool=False):
@@ -185,15 +186,22 @@ def passive_discovery(knx_multicast: str=KNX_MULTICAST_ADDR, knx_port=KNX_PORT,
     Currently, LLDP and KNX are supported.
     """
     vprint = lambda msg: print("[BOF] {0}.".format(msg)) if verbose else None
-    # KNX -------------------------------------------------------------------#
-    vprint("Sending KNX search request via multicast ({0})".format(knx_multicast))
-    knx_devices = knx_discovery()
-    knx_total = len(knx_devices)
-    vprint("{0} KNX {1} found".format(knx_total if knx_total else "No",
-                                      "device" if knx_total < 1 else "devices"))
-    # LLDP -------------------------------------------------------------------#
-    vprint("Sending LLDP request via multicast ({0})".format(lldp_multicast))
-    lldp_devices = lldp_discovery()
-    lldp_total = len(lldp_devices)
-    vprint("{0} LLDP {1} found".format(lldp_total if lldp_total else "No",
-                                      "device" if lldp_total < 1 else "devices"))
+    protocols = {
+        # Protocol name: [Discovery function, Multicast address]
+        "LLDP": [lldp_discovery, lldp_multicast],
+        "KNX": [knx_discovery, knx_multicast]
+    }
+    total_devices = []
+    for protocol, proto_args in protocols.items():
+        discovery_fct, multicast_addr = proto_args
+        vprint("Sending {0} request to {1}".format(protocol, multicast_addr))
+        devices = discovery_fct()
+        nb = len(devices)
+        vprint("{0} {1} {2} found".format(nb if nb else "No", protocol,
+                                          "device" if nb < 1 else "devices"))
+        total_devices += devices
+    # TODO: Merge devices based on their address but still keep all their
+    # attributes from different device objects.
+    for device in total_devices:
+        vprint(device)
+    return total_devices
