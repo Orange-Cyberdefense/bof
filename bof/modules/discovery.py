@@ -6,6 +6,8 @@ Functions for passive and active discovery of industrial devices on a network.
 """
 
 from os import geteuid
+from packaging.version import parse as version_parse
+from scapy import VERSION as scapy_version
 from scapy.layers.l2 import Ether, srp
 from scapy.packet import Packet
 # Internal
@@ -153,11 +155,12 @@ def lldp_request(iface: str=DEFAULT_IFACE, mac_addr: str=LLDP_MULTICAST_MAC,
 
 # Profinet - PN-DCP ----------------------------------------------------------#
 
-# This layer raises deprecation warnings, for now we don't care.
-from warnings import filterwarnings
-from cryptography.utils import CryptographyDeprecationWarning
-filterwarnings('ignore', category=SyntaxWarning)
-filterwarnings('ignore', category=CryptographyDeprecationWarning)
+if version_parse(scapy_version) <= version_parse("2.4.5"):
+    # Layer pnio_dcp raises deprecation warnings for Scapy < 2.5.0
+    from warnings import filterwarnings
+    from cryptography.utils import CryptographyDeprecationWarning
+    filterwarnings('ignore', category=SyntaxWarning)
+    filterwarnings('ignore', category=CryptographyDeprecationWarning)
 from scapy.contrib.pnio import ProfinetIO
 from scapy.contrib.pnio_dcp import *
 
