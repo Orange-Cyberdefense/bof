@@ -393,12 +393,12 @@ class BOFPacket(object):
                     # is in payload, and Scapy will search for them only in identified
                     # fields. So if we don't find the field in the frame, we return
                     # the payload instead.
-                    try:
-                        start_packet.getfield_and_val(field.name)
-                    except ValueError:
-                        yield field, start_packet.payload # Not in packet, give payload
-                    else:
-                        yield field, start_packet # Found the packet
+                    # try:
+                    #     start_packet.getfield_and_val(field.name)
+                    # except ValueError:
+                    #     yield field, start_packet.payload # Not in packet, give payload
+                    # else:
+                    yield field, start_packet # Found the packet
 
     def _get_field(self, name:str, start_packet:object=None, packets:bool=False) -> tuple:
         """Extract a field from its name anywhere in a Scapy packet.

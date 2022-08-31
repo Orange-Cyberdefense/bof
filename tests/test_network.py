@@ -28,7 +28,7 @@ class Test01UDPConnection(unittest.TestCase):
         """Test regular UDP connection."""
         udp = bof.UDP()
         udp.connect("localhost", 13671)
-        self.assertEqual(udp.source[0], '127.0.0.1')
+        self.assertEqual(udp._address[0], '127.0.0.1')
         udp.disconnect()
     def test_0103_udp_connect_bad_addr(self):
         """Test error handling for bad address."""

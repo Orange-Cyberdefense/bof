@@ -18,7 +18,7 @@ Relies on **KNX Standard v2.1**
 
 from ipaddress import ip_address
 # Internal
-from ... import BOFNetworkError, BOFProgrammingError, BOFDevice
+from ... import BOFNetworkError, BOFProgrammingError, BOFDevice, IS_IP
 from .knx_network import *
 from .knx_packet import *
 from .knx_messages import *
@@ -30,14 +30,6 @@ from ...layers.raw_scapy import knx as scapy_knx
 
 KNX_MULTICAST_ADDR = MULTICAST_ADDR = "224.0.23.12"
 KNX_PORT = PORT = 3671
-
-def IS_IP(ip: str):
-    """Check that ip is a valid IPv4 address."""
-    try:
-        ip_address(ip)
-    except ValueError:
-        raise BOFProgrammingError("Invalid IP {0}".format(ip)) from None
-
 
 def INDIV_ADDR(x: int) -> str:
     """Converts an int to KNX individual address."""
