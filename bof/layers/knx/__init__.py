@@ -36,4 +36,5 @@ The following files are available in the module:
 
 from .knx_network import *
 from .knx_packet import *
+from .knx_messages import *
 from .knx_feature import *

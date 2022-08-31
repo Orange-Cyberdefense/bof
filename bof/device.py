@@ -28,9 +28,6 @@ class BOFDevice(object):
         self.ip_address = ip_address
 
     def __str__(self):
-        return "{0} device: {1} - {2} (MAC: {3} | IP: {4})".format(self.protocol,
-                                                                   self.name,
-                                                                   self.description,
-                                                                   self.mac_address,
-                                                                   self.ip_address)
-    
+        return "[{0}] Device name: {1}\n\tDescription: {2}\n\tMAC address: {3}" \
+            "\n\tIP address: {4}".format(self.protocol, self.name, self.description,
+                                         self.mac_address, self.ip_address)
