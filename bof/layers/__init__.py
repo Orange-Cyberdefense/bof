@@ -32,3 +32,4 @@ a KNX implementation not integrated to Scapy that should be located in the
 from .knx import *
 from .modbus import *
 from .lldp import *
+from .profinet import *
