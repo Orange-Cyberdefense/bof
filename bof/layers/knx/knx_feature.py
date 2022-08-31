@@ -2,13 +2,12 @@
 KNX features
 ------------
 
-This module contains a set of higher-level functions to interact with devices
-using KNXnet/IP without prior knowledge about the protocol.
+Higher-level functions to interact with devices using KNXnet/IP.
 
 Contents:
 
 :KNXDevice:
-    An object representation of a KNX device with multiple properties. Only
+    Object representation of a KNX device with multiple properties. Only
     supports KNXnet/IP servers so far, but will be extended to KNX devices.
 :Features:
     High-level functions to interact with a device: search, discover, read,
@@ -29,8 +28,8 @@ from ...layers.raw_scapy import knx as scapy_knx
 # CONSTANTS                                                                   #
 ###############################################################################
 
-MULTICAST_ADDR = "224.0.23.12"
-KNX_PORT = 3671
+KNX_MULTICAST_ADDR = MULTICAST_ADDR = "224.0.23.12"
+KNX_PORT = PORT = 3671
 
 def IS_IP(ip: str):
     """Check that ip is a valid IPv4 address."""

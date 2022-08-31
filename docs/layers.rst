@@ -33,3 +33,21 @@ KNX
    :members:
    :undoc-members:
    :show-inheritance:
+
+LLDP
+----
+
+.. automodule:: bof.layers.lldp
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: bof.layers.lldp.lldp_functions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: bof.layers.lldp.lldp_constants
+   :members:
+   :undoc-members:
+   :show-inheritance:
