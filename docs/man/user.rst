@@ -29,8 +29,9 @@ There are three ways to use BOF:
 
 .. figure:: images/bof_levels.png
 
-.. warning:: **Please note that targeting BMS systems can have a severe impact
-	     on buildings and people and that BOF must be used carefully.**
+.. warning:: **Please note that targeting industrial systems can have a severe
+   impact on people, industrial operations and buildings and that BOF must be
+   used carefully.**
 
 Interface with Scapy
 --------------------
@@ -64,31 +65,30 @@ packet using the specified protocol.
 The reason we did that is because there is nothing better than Scapy to handle
 protocol implementations, and by using Scapy we can also use all the
 implementations that were written for it. But BOF and Scapy do not have the same
-usage and aim: First, we made some choices about BOF's script syntax and
-sometimes Scapy's syntax doesn't follow these choices. But most of all, we
-sometimes can't rely on Scapy's behavior for what we want to do with BOF because
-they are not compatible. Just to mention a few:
+usage and aim. Just to mention a few:
 
-:Field-oriented usage:
-   BOF's preferred usage when altering packets is to change specific fields
-   directly. Why? Because BOF has been written to write attack scripts,
-   including fuzzers. In these fuzzers, we want to stick to the protocol's
-   specification because if we don't, devices we target may just drop our
-   frames. And to stick to the specification, we have to keep a valid frame
-   format, and to do that we just modify specific fields. Scapy does not work
-   this way and, although we can modify isolated fields, it's hard to get and
-   set values in a script, mostly because we can't refer to a field without
-   referring to its parent packet holding its value.
-:BOF does not care about types:
-  But Scapy does. Field objects in Scapy have a type and you can't change it
-  easily or just use a field objectthat doesn't have a type without losing some
-  capabilities. For us, packets are just a bunch of bytes so we might as well
-  set values directly as bytes to fields, and Scapy won't allow that (unless
-  using RawVal, which does not provide all of Scapy's Fields capabilities). It
-  won't allow setting a value with the wrong type either, and we don't want
-  field types to be a thing in BOF: a user should not need to know the type of a
-  field, or she may be able to implicitly change it. That's what BOF's wrapper
-  around the Scapy object does.
+* **Field-oriented usage**: BOF's preferred usage when altering packets is to
+   change specific fields directly. Why? Because BOF has been written to write
+   attack scripts, including fuzzers. In these fuzzers, we want to stick to the
+   protocol's specification because if we don't, devices we target may just drop
+   our frames. But we also want to do whatever we want on packets, sticking to
+   the specification or not. So what we usually do is to modify isolated fields
+   in frames. Scapy does not work this way and, although we can modify fields
+   independently, it's hard to get and set values in a script, mostly because we
+   can't refer to a field without referring to its parent packet holding its
+   value. This also implies that Scapy builds packets as a whole, and performs a
+   final computation / cleaning when building the packet before sending it, and
+   sometimes we don't want that in BOF.
+
+* **BOF does not care about types**: But Scapy does. Field objects in Scapy have
+  a type and you can't change it easily or just use a field object that doesn't
+  have a type without losing some capabilities. For us, packets are just a bunch
+  of bytes so we might as well set values directly as bytes to fields, and Scapy
+  won't allow that (unless using RawVal, which does not provide all of Scapy's
+  Fields capabilities). It won't allow setting a value with the wrong type
+  either, and we don't want field types to be a thing in BOF: a user should not
+  need to know the type of a field, or she may be able to implicitly change
+  it. That's what BOF's wrapper around the Scapy object does.
 
 .. code-block:: python
 
@@ -96,9 +96,9 @@ they are not compatible. Just to mention a few:
    bofpacket.host_protocol = "test"
 
    # Setting value to field directly on Scapy packet, type is invalid
-   # and will trigger an error when the packet is reconstructed.
+   # and will trigger an error when the packet is built.
    bofpacket.scapy_pkt.control_endpoint.host_protocol = "test"
-   
+
 TL;DR
 =====
 
@@ -106,10 +106,7 @@ Clone repository::
 
     git clone https://github.com/Orange-Cyberdefense/bof.git
 
-BOF is a Python 3.6+ library that should be imported in scripts.  It has no
-installer yet so you need to refer to the `bof` subdirectory which contains the
-library (inside the repository) in your project or to copy the folder to your
-project's folder. Then, inside your code (or interactively):
+BOF is a Python 3.6+ library that should be imported in scripts.
 
 .. code-block:: python
 
@@ -123,6 +120,7 @@ content is in submodule ``layers`` (ex: ``bof.layers.knx``).
    from bof import BOFProgrammingError
    from bof.layers import knx
    from bof.layers.knx import *
+   from bof.modules import discovery
 
 Now you can start using BOF!
 
@@ -130,9 +128,21 @@ Now you can start using BOF!
 	  the others. Please refer to the **Protocols** section of this
 	  documentation for protocol-specific stuff.
 
-Discover devices on a network
------------------------------
+Several ways to discover devices on a network
+---------------------------------------------
 
+Passive discovery from the discovery module
++++++++++++++++++++++++++++++++++++++++++++
+
+.. code-block:: python
+
+   from bof.modules.discovery import *
+
+   devices = passive_discovery(iface="eth0", verbose=True)
+
+Device discovery using a layer's high-level function
+++++++++++++++++++++++++++++++++++++++++++++++++++++
+   
 .. code-block:: python
 
    from bof.layers.knx import search
@@ -145,6 +155,17 @@ Should output something like::
 
   Device: "boiboite" @ 192.168.1.242:3671 - KNX address: 15.15.255 - Hardware: 00:00:ff:ff:ff:ff (SN: 0123456789)
 
+Create and send your own discovery packet
++++++++++++++++++++++++++++++++++++++++++
+
+.. code-block:: python
+
+   from bof.layers.knx import *
+
+   pkt = KNXPacket(type="search request")
+   responses = KNXnet.multicast(pkt, (KNX_MULTICAST_ADDR, KNX_PORT))
+   for response, _ in responses:
+       print(KNXPacket(response))
 
 Send and receive packets
 ------------------------
@@ -196,7 +217,8 @@ Getting started with BOF Packets
 	       crafting in BOF but does not tell you how to create and
 	       manipulate packets with specific protocols. As there may be
 	       differences depending on the protocol, please refer to the
-	       **Protocols** section for details.
+	       **Protocols** section for details. Please note that not all
+	       layers existing in BOF implement a BOFPacket object.
 
 Protocol-dependent packets you may manipulate in BOF all inherit from
 ``BOFPacket``. For instance, ``KNXPacket`` is the BOF packet from the protocol
@@ -367,6 +389,13 @@ Here is an example on how to establish connection using the ``knx`` submodule
    finally:
        knxnet.disconnect()
 
+There are also various ntework-related functions to use directly. For instance,
+to send requests via multicast:
+
+.. code-block:: python
+
+   responses = KNXnet.multicast(pkt, (KNX_MULTICAST_ADDR, KNX_PORT))
+       
 Error handling and logging
 --------------------------
 

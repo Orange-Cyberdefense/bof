@@ -11,7 +11,8 @@ or industrial network protocols. It also provides passive discovery functions
 for industrial networks relying on KNXnet/IP, LLDP and Profinet DCP.
 
 **Please note that targeting industrial systems can have a severe impact on
-buildings and people and that BOF must be used carefully.**
+people, industrial operations and buildings and that BOF must be used
+carefully.**
 
 [![GitHub license](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://github.com/Orange-Cyberdefense/bof/blob/master/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Orange-Cyberdefense/bof.svg)](https://gitHub.com/Orange-Cyberdefense/bof/releases/)
@@ -68,7 +69,7 @@ layer:
 |--------------|-----------|----------|---------|
 | KNX          | X         | X        | X       |
 | LLDP         | X         |          |         |
-| Modbus       | X         | X        | X       |
+| Modbus       |           | X        | X       |
 | Profinet DCP | X         |          |         |
 
 
@@ -87,7 +88,7 @@ from bof.modules.discovery import *
 devices = passive_discovery(iface="eth0", verbose=True)
 ```
 
-* Device discovery using KNX layer's search function:
+* Device discovery using a layer's high-level function
 
 ```python
 from bof.layers.knx import search
