@@ -5,21 +5,10 @@ BOF (Boiboite Opener Framework) is a testing framework for field protocols
 implementations and devices. It is a Python 3.6+ library that provides means to
 send, receive, create, parse and manipulate frames from supported protocols.
 
-The library currently supports **KNXnet/IP**, which is our focus, but it can be
-extended to other types of BMS or industrial network protocols.
-
-There are three ways to use BOF:
-
-* Automated: Use of higher-level interaction functions to discover devices and
-  start basic exchanges, without requiring to know anything about the protocol.
-
-* Standard: Perform more advanced (legitimate) operations. This requires the end
-  user to know how the protocol works (how to establish connections, what kind
-  of messages to send).
-
-* Playful: Modify every single part of exchanged frames and misuse the protocol
-  instead of using it (we fuzz devices with it). The end user should have
-  started digging into the protocol's specifications.
+The library currently provides discovery and extended testing features for
+**KNXnet/IP**, which is our focus, but it can be extended to other types of BMS
+or industrial network protocols. It also provides passive discovery functions
+for industrial networks relying on KNXnet/IP, LLDP and Profinet DCP.
 
 **Please note that targeting industrial systems can have a severe impact on
 buildings and people and that BOF must be used carefully.**
@@ -55,22 +44,50 @@ Protocol implementations use [Scapy](https://scapy.readthedocs.io/en/latest/)'s 
 Getting started
 ---------------
 
-BOF is a Python 3.6+ library that should be imported in scripts.  It has no
-installer yet so you need to refer to the `bof` subdirectory which contains the
-library (inside the repository) in your project or to copy the folder to your
-project's folder. Then, inside your code (or interactively), you can import the
-library:
+BOF is a Python 3.6+ library that should be imported in scripts.
 
 ```python
 import bof
+from bof.layers import profinet, knx
+from bof.layers.knx import KnxPacket
 ```
+
+There are three ways to use BOF, not all of them are available depending on the
+layer:
+
+* **Automated**: Import or call directly higher-level functions from layers. No
+    knowledge about the protocol required.
+
+* **Standard**: Craft packets from layers to interact with remote devices. Basic
+    knowledge about the protocol requred.
+
+* **Playful**: Play with packets, misuse the protocol (we fuzz devices with it).
+  The end user should have started digging into the protocol's specifications.
+
+|              | Automated | Standard | Playful |
+|--------------|-----------|----------|---------|
+| KNX          | X         | X        | X       |
+| LLDP         | X         |          |         |
+| Modbus       | X         | X        | X       |
+| Profinet DCP | X         |          |         |
+
 
 Now you can start using BOF!
 
 TL;DR
 -----
 
-### Discover devices on a network
+### Several ways yo discover devices on a network
+
+* Passive discovery from the discovery module:
+
+```python
+from bof.modules.discovery import *
+
+devices = passive_discovery(iface="eth0", verbose=True)
+```
+
+* Device discovery using KNX layer's search function:
 
 ```python
 from bof.layers.knx import search
@@ -80,10 +97,15 @@ for device in devices:
     print(device)
 ```
 
-Should output something like:
+* Create and send your own discovery packet:
 
 ```
-Device: "boiboite" @ 192.168.1.242:3671 - KNX address: 15.15.255 - Hardware: 00:00:ff:ff:ff:ff (SN: 0123456789)
+from bof.layers.knx import *
+
+pkt = KNXPacket(type="search request")
+responses = KNXnet.multicast(pkt, (KNX_MULTICAST_ADDR, KNX_PORT))
+for response, _ in responses:
+    print(KNXPacket(response))
 ```
 
 ### Send and receive packets
