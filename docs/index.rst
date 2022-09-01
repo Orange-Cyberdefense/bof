@@ -11,6 +11,12 @@ Boiboite Opener Framework's documentation
 
 .. toctree::
    :maxdepth: 2
+   :caption: Modules
+
+   man/discovery
+   
+.. toctree::
+   :maxdepth: 2
    :caption: Protocols
 
    man/knx

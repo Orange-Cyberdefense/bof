@@ -153,7 +153,14 @@ Device discovery using a layer's high-level function
 
 Should output something like::
 
-  Device: "boiboite" @ 192.168.1.242:3671 - KNX address: 15.15.255 - Hardware: 00:00:ff:ff:ff:ff (SN: 0123456789)
+  [KNX] Device name: boiboite
+	Description: None
+	MAC address: 00:00:ff:ff:ff:ff
+	IP address: 192.168.1.242
+	Port: 3671
+	Multicast address: 224.0.23.12
+	KNX address: 1.1.1
+	Serial number: 0123456789
 
 Create and send your own discovery packet
 +++++++++++++++++++++++++++++++++++++++++

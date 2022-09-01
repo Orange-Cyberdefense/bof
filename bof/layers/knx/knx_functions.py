@@ -55,6 +55,7 @@ class KNXDevice(BOFDevice):
                  mac_address: str, multicast_address: str=MULTICAST_ADDR,
                  serial_number: str=""):
         self.name = name
+        self.description = None
         self.ip_address = ip_address
         self.port = port
         self.knx_address = knx_address
@@ -63,13 +64,10 @@ class KNXDevice(BOFDevice):
         self.serial_number = serial_number
 
     def __str__(self):
-        descr = ["Device: \"{0}\" @ {1}:{2}".format(self.name,
-                                                    self.ip_address,
-                                                    self.port)]
-        descr += ["- KNX address: {0}".format(self.knx_address)]
-        descr += ["- Hardware: {0} (SN: {1})".format(self.mac_address,
-                                                     self.serial_number)]
-        return " ".join(descr)
+        return "{0}\n\tPort: {1}\n\tMulticast address: {2}\n\t" \
+            "KNX address: {3}\n\tSerial number: {4}".format(
+                super().__str__(), self.port, self.multicast_address,
+                self.knx_address, self.serial_number)
 
     @classmethod
     def init_from_search_response(cls, response: KNXPacket):
