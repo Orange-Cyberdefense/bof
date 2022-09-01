@@ -29,11 +29,16 @@ KNX
    :undoc-members:
    :show-inheritance:
       
-.. automodule:: bof.layers.knx.knx_feature
+.. automodule:: bof.layers.knx.knx_functions
    :members:
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: bof.layers.knx.knx_constants
+   :members:
+   :undoc-members:
+   :show-inheritance:
+      
 LLDP
 ----
 

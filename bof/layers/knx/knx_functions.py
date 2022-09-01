@@ -1,6 +1,6 @@
 """
-KNX features
-------------
+KNX functions
+-------------
 
 Higher-level functions to interact with devices using KNXnet/IP.
 
@@ -9,7 +9,7 @@ Contents:
 :KNXDevice:
     Object representation of a KNX device with multiple properties. Only
     supports KNXnet/IP servers so far, but will be extended to KNX devices.
-:Features:
+:Functions:
     High-level functions to interact with a device: search, discover, read,
     write, etc.
 
@@ -23,13 +23,6 @@ from .knx_network import *
 from .knx_packet import *
 from .knx_messages import *
 from ...layers.raw_scapy import knx as scapy_knx 
-
-###############################################################################
-# CONSTANTS                                                                   #
-###############################################################################
-
-KNX_MULTICAST_ADDR = MULTICAST_ADDR = "224.0.23.12"
-KNX_PORT = PORT = 3671
 
 def INDIV_ADDR(x: int) -> str:
     """Converts an int to KNX individual address."""
@@ -131,7 +124,7 @@ class KNXDevice(BOFDevice):
         return cls(**args)
 
 ###############################################################################
-# FEATURES                                                                    #
+# FUNCTIONS                                                                   #
 ###############################################################################
 
 #-----------------------------------------------------------------------------#

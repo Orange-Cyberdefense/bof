@@ -444,8 +444,8 @@ class Test07Messages(unittest.TestCase):
         with self.assertRaises(BOFProgrammingError):
             cemi = knx.cemi_ack("lapin")
 
-class Test08Features(unittest.TestCase):
-    """Test class for higher level features."""
+class Test08Functions(unittest.TestCase):
+    """Test class for higher level functions."""
     def test_0801_search_invalid(self):
         """Test that using wrong arguments for search raises exception."""
         with self.assertRaises(BOFProgrammingError):
