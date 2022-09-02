@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="boiboite-opener-framework",
-    version="1.0.4",
+    version="1.2.0",
     author="Claire Vacherot",
     author_email="claire.vacherot@orange.com",
     description="Industrial network protocols testing framework",
@@ -18,6 +18,6 @@ setuptools.setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
-    install_requires=['scapy==2.4.5'],
+    install_requires=['scapy==2.5.0rc1', 'packaging'],
     python_requires='>=3.6',
 )

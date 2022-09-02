@@ -8,4 +8,5 @@
    :caption: Available submodules:
 
    base
+   modules
    layers

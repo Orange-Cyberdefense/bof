@@ -21,7 +21,7 @@ Example (keep in mind that BOFPacket should not be instantiated directly :))::
     pkt.show2()
 """
 import gc
-from random import randint
+from random import randint, choice
 from copy import deepcopy
 from sys import getsizeof
 from struct import error as struct_error
@@ -212,6 +212,19 @@ class BOFPacket(object):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
+    def copy(self):
+        """Copies the current instance by rebuilding it from its bytes.
+        Works appropriately only if the original packet is valid.
+        Any attribute not strictly bound to bytes is ignored, you should add it.
+
+        Example::
+
+          copy_of_pkt = self.copy()
+          copy_of_pkt.show2() # Should be the same thing as self.show2()
+        """
+        # return self.__class__(scapy_pkt=self.scapy_pkt.copy())
+        return self.__class__(bytes(self))
+    
     def get(self, *args) -> object:
         """Get a field either from its name, partial or absolute path.
 
@@ -274,6 +287,42 @@ class BOFPacket(object):
         else:
             raise BOFProgrammingError("Unknown type to append ({0})".format(type(other)))
 
+    def fuzz(self, iterations:int=0, include:list=None, exclude:list=None):
+        """Generator function. Sets a random value to a random field in packet.
+        
+        :param iterations: Number of packet to create (default is infinite loop)
+        :param include: List of field names to include to fuzzing.
+        :param exclude: List of field names to exclude from fuzzing.
+
+        Example::
+
+          pkt = KNXPacket(type="configuration request")
+          for frame in pkt.fuzz():
+            print(frame)
+        """
+        if include and len(include):
+            include = include if isinstance(include, list) else [include]
+            fields = [x.name for x in self.fields if x.name in include]
+        else:
+            exclude = exclude if isinstance(exclude, list) else [exclude]
+            fields = [x.name for x in self.fields if x.name not in exclude]
+        ct = 0
+        # To avoid side effects, we do not use the current instance directly
+        packet = self.copy()
+        while True:
+            try:
+                field, old_value, _ = packet._get_field(choice(fields))
+            except BOFProgrammingError:
+                # Some fields cannot be changed (ex: PacketField)
+                continue
+            new_value = field.randval()
+            packet[field.name] = new_value
+            yield packet, field.name, packet[field.name]
+            packet[field.name] = old_value
+            ct += 1
+            if ct == iterations: # Can never be 0 -> infinite loop in that case
+                break
+
     #-------------------------------------------------------------------------#
     # Protected                                                               #
     #-------------------------------------------------------------------------#
@@ -320,7 +369,11 @@ class BOFPacket(object):
         return Field(name, value, fmt="{0}s".format(size))
 
     def _field_generator(self, start_packet:object=None, terminal=False) -> tuple:
-        """Yields fields in packet/packetfields with their closest parent."""
+        """Yields fields in packet/packetfields with their closest parent.
+
+        This is where the worst of Scapy comes to life (and is translated to BOF).
+        Brace yourselves, and welcome to hell.
+        """
         start_packet = self.scapy_pkt if not start_packet else start_packet
         iterlist = [start_packet] if isinstance(start_packet, PacketField) else \
                    [start_packet, start_packet.payload]
@@ -336,8 +389,8 @@ class BOFPacket(object):
                     # and causes infinite loop, so we replace with empty packet.
                     yield from self._field_generator(pkt if pkt else Packet())
                 if isinstance(field, Field):
-                    yield field, start_packet
-
+                    yield field, start_packet # Found the packet
+                    
     def _get_field(self, name:str, start_packet:object=None, packets:bool=False) -> tuple:
         """Extract a field from its name anywhere in a Scapy packet.
 
@@ -352,7 +405,8 @@ class BOFPacket(object):
                 try:
                     field_and_val = parent.getfield_and_val(name)
                 except ValueError:
-                    field_and_val = None
+                    field_and_val = parent.payload.getfield_and_val(name)
+                    # field_and_val = None
                 # We do not return packetfields directly because we should not
                 # manipulate them outside direct call to Scapy or direct access
                 # to the fields they contain.

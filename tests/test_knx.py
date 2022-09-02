@@ -32,7 +32,7 @@ class Test01KNXConnection(unittest.TestCase):
     def test_0102_knxnet_connect(self):
         knxnet = knx.KNXnet()
         knxnet.connect("localhost")
-        self.assertEqual(knxnet.source_address, "127.0.0.1")
+        self.assertEqual(knxnet._address, ("127.0.0.1", 3671))
         knxnet.disconnect()
 
 class Test02KNXExchange(unittest.TestCase):
@@ -309,96 +309,89 @@ class Test06TypeConversion(unittest.TestCase):
 
 class Test07Messages(unittest.TestCase):
     """Test class for KNX request builder functions."""
-    @classmethod
-    def setUp(self):
-        self.bof_pkt = None
-    @classmethod
-    def tearDown(self):
-        if self.bof_pkt:
-            raw(self.bof_pkt) # Should raise if wrong        
     def test_0701_search_request(self):
         """Test that search requests are correctly created."""
-        self.bof_pkt = knx.search_request(knx.KNXnet())
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x01")
-        self.assertEqual(self.bof_pkt.length, 14)
-        self.bof_pkt = knx.search_request()
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x01")
-        self.assertEqual(self.bof_pkt.length, 14)
-        self.bof_pkt = knx.search_request("not a knxnet")
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x01")
-        self.assertEqual(self.bof_pkt.length, 14)
+        bof_pkt = knx.search_request(knx.KNXnet())
+        self.assertEqual(bof_pkt.sid, b"\x02\x01")
+        self.assertEqual(bof_pkt.length, 14)
+        bof_pkt = knx.search_request()
+        self.assertEqual(bof_pkt.sid, b"\x02\x01")
+        self.assertEqual(bof_pkt.length, 14)
+        bof_pkt = knx.search_request("not a knxnet")
+        self.assertEqual(bof_pkt.sid, b"\x02\x01")
+        self.assertEqual(bof_pkt.length, 14)
     def test_0702_description_request(self):
         """Test that description requests are correctly created."""
-        self.bof_pkt = knx.description_request(knx.KNXnet())
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x03")
-        self.assertEqual(self.bof_pkt.length, 14)
-        self.bof_pkt = knx.description_request()
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x03")
-        self.assertEqual(self.bof_pkt.length, 14)
-        self.bof_pkt = knx.description_request("not a knxnet")
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x03")
-        self.assertEqual(self.bof_pkt.length, 14)
-    def test0703_connect_request_management(self):
+        bof_pkt = knx.description_request(knx.KNXnet())
+        self.assertEqual(bof_pkt.sid, b"\x02\x03")
+        self.assertEqual(bof_pkt.length, 14)
+        bof_pkt = knx.description_request()
+        self.assertEqual(bof_pkt.sid, b"\x02\x03")
+        self.assertEqual(bof_pkt.length, 14)
+        bof_pkt = knx.description_request("not a knxnet")
+        self.assertEqual(bof_pkt.sid, b"\x02\x03")
+        self.assertEqual(bof_pkt.length, 14)
+    def test_0703_connect_request_management(self):
         """Test that connect requests for management are correct."""
-        self.bof_pkt = knx.connect_request_management()
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x05")
-        self.assertEqual(self.bof_pkt.connection_type, 3)
-        self.assertEqual(self.bof_pkt.length, 24)
-    def test0704_connect_request_tunneling(self):
+        bof_pkt = knx.connect_request_management()
+        self.assertEqual(bof_pkt.sid, b"\x02\x05")
+        self.assertEqual(bof_pkt.connection_type, 3)
+        self.assertEqual(bof_pkt.length, 24)
+    def test_0704_connect_request_tunneling(self):
         """Test that connect requests for tunneling are correct."""
-        self.bof_pkt = knx.connect_request_tunneling()
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x05")
-        self.assertEqual(self.bof_pkt.connection_type, 4)
-        self.assertEqual(self.bof_pkt.length, 26)
-    def test0705_disconnect_request(self):
+        bof_pkt = knx.connect_request_tunneling()
+        self.assertEqual(bof_pkt.sid, b"\x02\x05")
+        self.assertEqual(bof_pkt.connection_type, 4)
+        self.assertEqual(bof_pkt.length, 26)
+    def test_0705_disconnect_request(self):
         """Test that disconnect requests are correctly created."""
-        self.bof_pkt = knx.disconnect_request(None, 5)
-        self.assertEqual(self.bof_pkt.sid, b"\x02\x09")
-        self.assertEqual(self.bof_pkt.communication_channel_id, 5)
-        self.assertEqual(self.bof_pkt.length, 16)
-    def test0706_configuration_request(self):
+        bof_pkt = knx.disconnect_request(None, 5)
+        self.assertEqual(bof_pkt.sid, b"\x02\x09")
+        self.assertEqual(bof_pkt.communication_channel_id, 5)
+        self.assertEqual(bof_pkt.length, 16)
+    def test_0706_configuration_request(self):
         """Test that configuration requests are correctly created."""
-        self.bof_pkt = knx.configuration_request(12, None)
-        self.assertEqual(self.bof_pkt.sid, b"\x03\x10")
-        self.assertEqual(self.bof_pkt.communication_channel_id, 12)
-        self.assertEqual(self.bof_pkt.length, 10)
-        self.bof_pkt = knx.configuration_request(1, knx.cemi_property_read(0,0))
-        self.assertEqual(self.bof_pkt.sid, b"\x03\x10")
-        self.assertEqual(self.bof_pkt.length, 17)
-        self.bof_pkt = knx.configuration_request(12, "Bad cemi")
-        self.assertEqual(self.bof_pkt.sid, b"\x03\x10")
-        self.assertEqual(self.bof_pkt.length, 18) # 10 (empty) + len("bad cemi")
-    def test0707_configuration_ack(self):
-        """Test that configuration requests are correctly created."""
-        self.bof_pkt = knx.configuration_ack(102)
-        self.assertEqual(self.bof_pkt.sid, b"\x03\x11")
-        self.assertEqual(self.bof_pkt.communication_channel_id, 102)
-        # We don't block the following behavior because bof is not supposed to
-        # prevent anyone from writing anything to packets even if it's stupid
-        self.bof_pkt = knx.configuration_ack(-102)
-        self.assertEqual(self.bof_pkt.sid, b"\x03\x11")
-        self.assertEqual(self.bof_pkt.communication_channel_id, -102)
+        bof_pkt = knx.configuration_request(12, None)
+        self.assertEqual(bof_pkt.sid, b"\x03\x10")
+        self.assertEqual(bof_pkt.communication_channel_id, 12)
+        self.assertEqual(bof_pkt.length, 10)
+        bof_pkt = knx.configuration_request(1, knx.cemi_property_read(0,0))
+        self.assertEqual(bof_pkt.sid, b"\x03\x10")
+        self.assertEqual(bof_pkt.length, 17)
+        bof_pkt = knx.configuration_request(12, "Bad cemi")
+        self.assertEqual(bof_pkt.sid, b"\x03\x10")
+        self.assertEqual(bof_pkt.length, 18) # 10 (empty) + len("bad cemi")
+    def test_0707_configuration_ack(self):
+        """Test that configuration acks are correctly created."""
+        bof_pkt = knx.configuration_ack(102)
+        self.assertEqual(bof_pkt.sid, b"\x03\x11")
+        self.assertEqual(bof_pkt.communication_channel_id, 102)
+    def test_0708_configuration_ack_weird(self):
+        """Test that configuration acks with weird values are correctly created."""
+        bof_pkt = knx.configuration_ack(-102)
+        self.assertEqual(bof_pkt.sid, b"\x03\x11")
+        self.assertEqual(bof_pkt.communication_channel_id, -102)
         with self.assertRaises(ValueError):
-            self.bof_pkt.show2()
-    def test0708_tunneling_request(self):
+            bof_pkt.show2()
+    def test_0709_tunneling_request(self):
         """Test that tunneling requests are correctly created."""
-        self.bof_pkt = knx.tunneling_request(14, 0, None)
-        self.assertEqual(self.bof_pkt.sid, b"\x04\x20")
-        self.assertEqual(self.bof_pkt.communication_channel_id, 14)
-        self.assertEqual(self.bof_pkt.length, 10)
-        # We don't block the following behavior because bof is not supposed to
-        # prevent anyone from writing anything to packets even if it's stupid
-        self.bof_pkt = knx.tunneling_request(14, -1, knx.cemi_property_read(0,0))
-        self.assertEqual(self.bof_pkt.sequence_counter, -1)
+        bof_pkt = knx.tunneling_request(14, 0, None)
+        self.assertEqual(bof_pkt.sid, b"\x04\x20")
+        self.assertEqual(bof_pkt.communication_channel_id, 14)
+        self.assertEqual(bof_pkt.length, 10)
+    def test_0710_tunneling_request_weird(self):
+        """Test that tunneling requests with weird values are correctly created."""
+        bof_pkt = knx.tunneling_request(14, -1, knx.cemi_property_read(0,0))
+        self.assertEqual(bof_pkt.sequence_counter, -1)
         with self.assertRaises(ValueError):
-            self.bof_pkt.show2()
-    def test0709_tunneling_ack(self):
+            bof_pkt.show2()
+    def test_0711_tunneling_ack(self):
         """Test that configuration requests are correctly created."""
-        self.bof_pkt = knx.tunneling_ack(102, 201)
-        self.assertEqual(self.bof_pkt.sid, b"\x04\x21")
-        self.assertEqual(self.bof_pkt.communication_channel_id, 102)
-        self.assertEqual(self.bof_pkt.sequence_counter, 201)
-    def test0710_cemi_propread(self):
+        bof_pkt = knx.tunneling_ack(102, 201)
+        self.assertEqual(bof_pkt.sid, b"\x04\x21")
+        self.assertEqual(bof_pkt.communication_channel_id, 102)
+        self.assertEqual(bof_pkt.sequence_counter, 201)
+    def test_0712_cemi_propread(self):
         """Test that PropRead.req cEMI are correctly created."""
         cemi = knx.cemi_property_read(1, 10)
         self.assertEqual(cemi.cemi_data.object_type, 1)
@@ -410,7 +403,7 @@ class Test07Messages(unittest.TestCase):
         self.assertEqual(cemi.cemi_data.property_id, 0)
         with self.assertRaises(ValueError):
             cemi.show2()
-    def test0711_cemi_groupwrite(self):
+    def test_0713_cemi_groupwrite(self):
         """Test that L_data.req GroupValueWrite cEMI are correctly created."""
         cemi = knx.cemi_group_write("1/1/1", 1, "1.1.1")
         self.assertEqual(cemi.cemi_data.destination_address, 2305)
@@ -418,7 +411,7 @@ class Test07Messages(unittest.TestCase):
         self.assertEqual(cemi.cemi_data.acpi, 2)
         with self.assertRaises(BOFProgrammingError):
             cemi = knx.cemi_group_write("lapin", 1)
-    def test0712_cemi_devdescrread(self):
+    def test_0714_cemi_devdescrread(self):
         """Test that L_data.req DevDescrRead cEMI are correctly created."""
         cemi = knx.cemi_dev_descr_read("1.1.1", 0, "2.2.2")
         self.assertEqual(cemi.cemi_data.destination_address, 4353)
@@ -426,7 +419,7 @@ class Test07Messages(unittest.TestCase):
         self.assertEqual(cemi.cemi_data.acpi, 12)
         with self.assertRaises(BOFProgrammingError):
             cemi = knx.cemi_dev_descr_read("lapin")
-    def test0713_cemi_connect(self):
+    def test_0715_cemi_connect(self):
         """Test that L_data.req Connect cEMI (control) are correctly created."""
         cemi = knx.cemi_connect("1.1.1", "2.2.2")
         self.assertEqual(cemi.cemi_data.destination_address, 4353)
@@ -434,7 +427,7 @@ class Test07Messages(unittest.TestCase):
         self.assertEqual(cemi.cemi_data.service, 0)
         with self.assertRaises(BOFProgrammingError):
             cemi = knx.cemi_connect("lapin")
-    def test0714_cemi_disconnect(self):
+    def test_0716_cemi_disconnect(self):
         """Test that L_data.req Disconnect cEMI (control) are correctly created."""
         cemi = knx.cemi_disconnect("1.1.1", "2.2.2")
         self.assertEqual(cemi.cemi_data.destination_address, 4353)
@@ -442,7 +435,7 @@ class Test07Messages(unittest.TestCase):
         self.assertEqual(cemi.cemi_data.service, 1)
         with self.assertRaises(BOFProgrammingError):
             cemi = knx.cemi_disconnect("lapin")
-    def test0715_cemi_ack(self):
+    def test_0717_cemi_ack(self):
         """Test that L_data.req ACK cEMI (control) are correctly created."""
         cemi = knx.cemi_ack("1.1.1", 0, "2.2.2")
         self.assertEqual(cemi.cemi_data.destination_address, 4353)
@@ -451,8 +444,8 @@ class Test07Messages(unittest.TestCase):
         with self.assertRaises(BOFProgrammingError):
             cemi = knx.cemi_ack("lapin")
 
-class Test08Features(unittest.TestCase):
-    """Test class for higher level features."""
+class Test08Functions(unittest.TestCase):
+    """Test class for higher level functions."""
     def test_0801_search_invalid(self):
         """Test that using wrong arguments for search raises exception."""
         with self.assertRaises(BOFProgrammingError):
@@ -476,3 +469,11 @@ class Test08Features(unittest.TestCase):
         """Test that using wrong network parameter for discover raises exception."""
         with self.assertRaises(BOFNetworkError):
             devices = knx.discover("192.168.1.0")
+
+class Test09Fuzzing(unittest.TestCase):
+    """Test class for fuzz() function inherited from BOFPacket."""
+    def test_0901_fuzz_basic(self):
+        """Test that we do not get an exception from generating 100 config req."""
+        pkt = knx.KNXPacket(type="configuration request")
+        for x in pkt.fuzz(iterations=100):
+            pass

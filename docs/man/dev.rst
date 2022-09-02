@@ -87,24 +87,31 @@ The library has the following structure::
   │   ├── __init__.py
   │   ├── layers
   │   │   ├── knx
-  │   │   │   ├── knx_feature.py
+  │   │   │   ├── knx_constants.py
+  │   │   │   ├── knx_device.py
+  │   │   │   ├── knx_functions.py
   │   │   │   ├── knx_network.py
   │   │   │   ├── knx_packet.py
   │   │   ├── other protocol
   │   │   │   ├── other protocol content
   │   │   └── raw_scapy
   │   │       ├── knx.py
+  │   ├── modules
+  │   │   ├── discovery.py
 
 * The protocol-independent part of BOF (the core) is in ``bof`` directly.
 * BOF protocol features are in ``bof/layers/[protocol]``
 * Scapy protocol implementations are imported directly from Scapy or can be
   stored in ``bof/layers/raw_scapy/[protocol].py``
-
+* Higher-level functions not speciic to a layer are in ``modules`` (e.g. the
+  ``discovery`` module for device discovery on a network using several
+  protocols).
+  
 Apart from the library:
 
 * The documentation as RestructuredText files for Sphinx is in ``docs``
 * Unit tests (one file for the core, one file per protocol) are in ``tests``
-* Implementation examples are in ``examples/[protocol]``
+* Implementation examples are in ``examples/[protocol|module]``
 
 Extend BOF
 ==========
@@ -129,3 +136,10 @@ Here is how to add a new protocol to BOF:
 5. Please refer to ``BOFPacket`` (in ``bof/packet.py``) and to other
    implementations such as ``KNX`` to know how to write the content of the
    class, until I write a better tutorial! :D
+6. Additionnaly, you can create a Python file to write higher-level functions
+   (for instance, objects inheriting ``BOFDevice`` and functions that creates
+   it), and move your protocol-dependent constants to a dedicated Python file.
+
+.. note:: You can also create the layer with only higher-level functions that
+	  rely directly on the Scapy packet without BOF's overrides (i.e.: no
+	  BOFPacket object). Layers LLDP and Profinet currently work this way.

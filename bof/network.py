@@ -39,6 +39,8 @@ from .base import BOFNetworkError, BOFProgrammingError, log
 # Global network-related constants and functions                              #
 ###############################################################################
 
+DEFAULT_IFACE="eth0"
+
 def IS_IP(ip: str):
     """Check that ip is a valid IPv4 address."""
     try:
@@ -243,7 +245,7 @@ class _Transport(object):
         try:
             data, address = await asyncio.wait_for(self._queue.get(), timeout=float(timeout))
             address = address if address else self._address
-        except futures._base.TimeoutError as te:
+        except (futures._base.TimeoutError, asyncio.exceptions.TimeoutError) as te:
             self._handle_exception(te, "Connection timeout")
         return data, address
 
@@ -400,6 +402,8 @@ class UDP(_Transport):
         ip = "127.0.0.1" if ip == "localhost" else ip
         if isinstance(ip, IPv4Address):
             ip = str(ip)
+        if port not in range(0, 65535):
+            raise BOFNetworkError("Invalid port number.")
         self._loop = asyncio.get_event_loop()
         self._loop.set_exception_handler(self._handle_exception)
         try:

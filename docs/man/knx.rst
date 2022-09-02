@@ -36,6 +36,9 @@ You can also learn more about a specific device:
 The resulting object is a ``KNXDevice`` object that comes with a set
 of attributes and methods to interact with a device.
 
+.. note:: The function ``knx_discovery()`` in the **Discovery** module can also
+	  be used (relies on ``search()``).
+
 Send commands
 -------------
 
@@ -145,8 +148,8 @@ Message types
 +++++++++++++
 
 The KNX standard describes a set of message types with different format. Please
-refer to KNX implementation using Scapy here:
-``bof/layers/raw_scapy/knx.py``. The header contains a field
+refer to KNX implementation using Scapy here: ``bof/layers/raw_scapy/knx.py`` or
+in Scapy's KNX contrib (should be the same anyway). The header contains a field
 ``service_identifier`` that states the type of message. ``knx.SID`` contains a
 list of valid types to use when creating a frame:
 

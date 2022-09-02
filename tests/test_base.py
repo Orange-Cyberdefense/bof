@@ -28,6 +28,7 @@ class Test02Import(unittest.TestCase):
     def test_0202_import_bof_submodules(self):
         """Test should not raise ImportError."""
         from bof import base
+        from bof import BOFDevice
     def test_0203_import_bof_layers(self):
         """Test should not raise ImportError."""
         from bof import layers

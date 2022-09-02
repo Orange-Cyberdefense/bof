@@ -24,3 +24,11 @@ BOFPacket base class
    :members:
    :undoc-members:
    :show-inheritance:
+
+BOFDevice base class
+--------------------
+
+.. automodule:: bof.device
+   :members:
+   :undoc-members:
+   :show-inheritance:

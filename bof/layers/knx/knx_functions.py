@@ -1,16 +1,15 @@
 """
-KNX features
-------------
+KNX functions
+-------------
 
-This module contains a set of higher-level functions to interact with devices
-using KNXnet/IP without prior knowledge about the protocol.
+Higher-level functions to interact with devices using KNXnet/IP.
 
 Contents:
 
 :KNXDevice:
-    An object representation of a KNX device with multiple properties. Only
+    Object representation of a KNX device with multiple properties. Only
     supports KNXnet/IP servers so far, but will be extended to KNX devices.
-:Features:
+:Functions:
     High-level functions to interact with a device: search, discover, read,
     write, etc.
 
@@ -19,26 +18,11 @@ Relies on **KNX Standard v2.1**
 
 from ipaddress import ip_address
 # Internal
-from ... import BOFNetworkError, BOFProgrammingError
+from ... import BOFNetworkError, BOFProgrammingError, BOFDevice, IS_IP
 from .knx_network import *
 from .knx_packet import *
 from .knx_messages import *
 from ...layers.raw_scapy import knx as scapy_knx 
-
-###############################################################################
-# CONSTANTS                                                                   #
-###############################################################################
-
-MULTICAST_ADDR = "224.0.23.12"
-KNX_PORT = 3671
-
-def IS_IP(ip: str):
-    """Check that ip is a valid IPv4 address."""
-    try:
-        ip_address(ip)
-    except ValueError:
-        raise BOFProgrammingError("Invalid IP {0}".format(ip)) from None
-
 
 def INDIV_ADDR(x: int) -> str:
     """Converts an int to KNX individual address."""
@@ -52,7 +36,7 @@ def GROUP_ADDR(x: int) -> str:
 # KNX DEVICE REPRESENTATION                                                   #
 ###############################################################################
 
-class KNXDevice(object):
+class KNXDevice(BOFDevice):
     """Object representing a KNX device.
 
     Data stored to the object is the one returned by SEARCH RESPONSE and
@@ -66,10 +50,12 @@ class KNXDevice(object):
 
     The information gathered from devices may be completed, improved later.
     """
+    protocol:str = "KNX"
     def __init__(self, name: str, ip_address: str, port: int, knx_address: str,
                  mac_address: str, multicast_address: str=MULTICAST_ADDR,
                  serial_number: str=""):
         self.name = name
+        self.description = None
         self.ip_address = ip_address
         self.port = port
         self.knx_address = knx_address
@@ -78,13 +64,10 @@ class KNXDevice(object):
         self.serial_number = serial_number
 
     def __str__(self):
-        descr = ["Device: \"{0}\" @ {1}:{2}".format(self.name,
-                                                    self.ip_address,
-                                                    self.port)]
-        descr += ["- KNX address: {0}".format(self.knx_address)]
-        descr += ["- Hardware: {0} (SN: {1})".format(self.mac_address,
-                                                     self.serial_number)]
-        return " ".join(descr)
+        return "{0}\n\tPort: {1}\n\tMulticast address: {2}\n\t" \
+            "KNX address: {3}\n\tSerial number: {4}".format(
+                super().__str__(), self.port, self.multicast_address,
+                self.knx_address, self.serial_number)
 
     @classmethod
     def init_from_search_response(cls, response: KNXPacket):
@@ -139,7 +122,7 @@ class KNXDevice(object):
         return cls(**args)
 
 ###############################################################################
-# FEATURES                                                                    #
+# FUNCTIONS                                                                   #
 ###############################################################################
 
 #-----------------------------------------------------------------------------#
