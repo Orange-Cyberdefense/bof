@@ -11,3 +11,5 @@ List of modules:
 * **Discovery**: Functions to gather initial information on industrial devices
   on a network, using active and passive techniques. Rely on several protocols.
 """
+
+from .discovery import *
