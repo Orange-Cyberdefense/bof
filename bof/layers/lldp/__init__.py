@@ -11,8 +11,8 @@ extended research or fuzzing intended).
 
 Contents:
 
-:`lldp_functions.py`: LLDP listen, send, create and device representation.
-:`lldp_constants.py`: Protocol-related constants.
+:lldp_functions: LLDP listen, send, create and device representation.
+:lldp_constants: Protocol-related constants.
 
 Uses Scapy's LLDP contrib by Thomas Tannhaeuser (hecke@naberius.de).
 """

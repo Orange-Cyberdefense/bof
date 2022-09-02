@@ -17,7 +17,7 @@ There are three ways to use BOF:
 
 :Automated: Use of higher-level interaction functions to discover devices and
 	    start basic exchanges, without requiring to know anything about the
-	    protocol.
+	    protocol. BOF also has **Modules** that gather these functions.
 
 :Standard: Perform more advanced (legitimate) operations. This requires the end
 	   user to know how the protocol works (how to establish connections,
@@ -211,6 +211,27 @@ Craft your own packets!
 
 .. note:: A recipient device will probably not respond to that, but at least
 	  now you know that BOF won't stop you from messing with your packets.
+
+Basic fuzzing
+-------------
+
+All ``BOFPacket`` inheriting packet objects in protocol (e.g. ``KNXPacket``)
+implement a ``fuzz()`` method.
+
+.. code-block:: python
+
+   for pkt in KNXPacket(type="configuration request").fuzz():
+       knxnet.send(pkt)
+
+The method generates packets mutated from the original frame. For each packet,
+one random field has a random value set. This may not work with all fields
+depending on their type, and you may also want some fields to remain unchanged.
+In this case, the ``include`` or ``exclude`` arguments can be used.
+
+.. code-block:: python
+
+   for pkt in base_pkt.fuzz(exclude=("service_identifier")):
+       knxnet.send(pkt)
 
 ----------------------
 

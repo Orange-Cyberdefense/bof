@@ -30,11 +30,15 @@ The following submodules are available:
 
 :layers:
     Protocol implementations to be imported in BOF. Importing ``layers`` gives
-    acces to BOF protocol implementations inheriting from ``BOFPacket``
+    access to BOF protocol implementations inheriting from ``BOFPacket``
     (interface between BOF and Scapy worlds).  The directory
     ``layers/raw_scapy`` may contain protocol implementations in Scapy which
     are not integrated to Scapy's repository (for instance, if you wrote your
     own but did not contribute (yet)).
+
+:modules:
+    Higher level functions gathered around a specific usage that may rely on
+    several protocols (layers).
 
 """
 

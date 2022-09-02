@@ -11,9 +11,9 @@ extended research or fuzzing intended so far).
 
 Contents:
 
-:`profinet_functions.py`: Send and receive Profinet DCP identify requests
-                          and device representation.
-:`profinet_constants.py`: Protocol-related constants.
+:profinet_functions: Send and receive Profinet DCP identify requests
+                     and device representation.
+:profinet_constants: Protocol-related constants.
 
 Uses Scapy's Profinet IO contrib by Gauthier Sebaux and Profinet DCP contrib
 by Stefan Mehner (stefan.mehner@b-tu.de).

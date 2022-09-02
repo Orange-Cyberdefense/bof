@@ -27,8 +27,11 @@ The following files are available in the module:
 :knx_packet:
     Object representation of a KNX packet. ``KNXPacket`` inherits ``BOFPacket``
     and uses Scapy's implementation of KNX (located in ``bof/layers/raw_scapy``
-    until contribution to Scapy). Contains method to build, read or alter a
+    or directly in Scapy contrib). Contains method to build, read or alter a
     frame or part of it, even if this does not follow KNX's specifications.
+
+:knx_messages:
+    Set of functions that build specific KNX messages with the right values.
 
 :knx_functions:
     Higher-level functions to discover and interact with devices via KNXnet/IP.

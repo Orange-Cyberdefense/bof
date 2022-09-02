@@ -2,7 +2,7 @@
 Profinet DCP constants
 ----------------------
 
-Protocol-dependent constants (network and functions) for PNDCP.
+Protocol-dependent constants (network and functions) for Profinet DCP.
 """
 
 PNDCP_MULTICAST_MAC = MULTICAST_MAC = "01:0e:cf:00:00:00"
