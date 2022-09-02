@@ -389,17 +389,8 @@ class BOFPacket(object):
                     # and causes infinite loop, so we replace with empty packet.
                     yield from self._field_generator(pkt if pkt else Packet())
                 if isinstance(field, Field):
-                    # We must handle a tricky situation: Sometimes part of a packet
-                    # is in payload, and Scapy will search for them only in identified
-                    # fields. So if we don't find the field in the frame, we return
-                    # the payload instead.
-                    # try:
-                    #     start_packet.getfield_and_val(field.name)
-                    # except ValueError:
-                    #     yield field, start_packet.payload # Not in packet, give payload
-                    # else:
                     yield field, start_packet # Found the packet
-
+                    
     def _get_field(self, name:str, start_packet:object=None, packets:bool=False) -> tuple:
         """Extract a field from its name anywhere in a Scapy packet.
 
@@ -414,7 +405,8 @@ class BOFPacket(object):
                 try:
                     field_and_val = parent.getfield_and_val(name)
                 except ValueError:
-                    field_and_val = None
+                    field_and_val = parent.payload.getfield_and_val(name)
+                    # field_and_val = None
                 # We do not return packetfields directly because we should not
                 # manipulate them outside direct call to Scapy or direct access
                 # to the fields they contain.

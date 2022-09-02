@@ -469,3 +469,11 @@ class Test08Functions(unittest.TestCase):
         """Test that using wrong network parameter for discover raises exception."""
         with self.assertRaises(BOFNetworkError):
             devices = knx.discover("192.168.1.0")
+
+class Test09Fuzzing(unittest.TestCase):
+    """Test class for fuzz() function inherited from BOFPacket."""
+    def test_0901_fuzz_basic(self):
+        """Test that we do not get an exception from generating 100 config req."""
+        pkt = knx.KNXPacket(type="configuration request")
+        for x in pkt.fuzz(iterations=100):
+            pass
