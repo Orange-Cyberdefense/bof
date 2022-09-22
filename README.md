@@ -60,7 +60,7 @@ layer:
     knowledge about the protocol required.
 
 * **Standard**: Craft packets from layers to interact with remote devices. Basic
-    knowledge about the protocol requred.
+    knowledge about the protocol required.
 
 * **Playful**: Play with packets, misuse the protocol (we fuzz devices with it).
   The end user should have started digging into the protocol's specifications.
@@ -78,7 +78,7 @@ Now you can start using BOF!
 TL;DR
 -----
 
-### Several ways yo discover devices on a network
+### Several ways to discover devices on a network
 
 * Passive discovery from the discovery module:
 

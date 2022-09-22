@@ -26,7 +26,7 @@ Usage is the same with raw TCP.
 """
 
 import asyncio
-from ipaddress import ip_address, IPv4Address
+from ipaddress import ip_address, ip_network, IPv4Address
 from concurrent import futures
 from socket import AF_INET, SOCK_DGRAM, IPPROTO_IP, IP_MULTICAST_TTL, \
     SOL_SOCKET, SO_BROADCAST
@@ -48,6 +48,23 @@ def IS_IP(ip: str):
     except ValueError:
         raise BOFProgrammingError("Invalid IP {0}".format(ip)) from None
 
+def IP_RANGE(ip_range: str):
+    """Convert from an IP range string to a list of IP addresses.
+
+    Supported format:
+    X.X.X.X/Y where X is the IPv4 address and Y is the mask
+    """
+    try:
+        IS_IP(ip_range)
+        return [ip_range] # No need to convert from range, already an IP
+    except BOFProgrammingError:
+        pass
+    try:
+        ip_list = [x for x in ip_network(ip_range, strict=False).hosts()]
+        return ip_list
+    except ValueError:
+        raise BOFProgrammingError("Invalid IP range") from None
+    
 ###############################################################################
 # Asyncio classes for UDP and TCP                                             #
 ###############################################################################
@@ -468,11 +485,12 @@ class TCP(_Transport):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def connect(self, ip:str, port:int) -> object:
+    def connect(self, ip:str, port:int, timeout:float=1.0) -> object:
         """Initialize asynchronous connection using TCP on ``ip``:``port``.
 
         :param ip: IPv4 address as a string with format ``A.B.C.D``.
         :param port: Port number as an integer.
+        :param timeout: Time out value in seconds, as a float (default is 1.0s).
         :returns: The instance of the TCP class created,
         :raises BOFNetworkError: if connection fails.
 
@@ -487,13 +505,19 @@ class TCP(_Transport):
         self._loop.set_exception_handler(self._handle_exception)
         try:
             ip_address(ip) # Check if IP is valid
-            connect = self._loop.create_connection(lambda: _TCP(self),
-                                                           host=ip,
-                                                           port=port,
-                                                           family=AF_INET)
+            connect = asyncio.wait_for(
+                self._loop.create_connection(lambda: _TCP(self),
+                                             host=ip,
+                                             port=port,
+                                             family=AF_INET),
+                timeout=timeout)
             transport, protocol = self._loop.run_until_complete(connect)
-        except (gaierror, OverflowError, ValueError, ConnectionRefusedError) as e:
+        except (gaierror, OverflowError, ValueError, OSError,
+                asyncio.exceptions.TimeoutError) as e:
             self._handle_exception(e, "Connection failed")
+            return None
+        except (ConnectionRefusedError) as e:
+            self._handle_exception(e, "Connection refused")
             return None
         self._address = (ip, port)
         self._socket = self._transport.get_extra_info('socket')
