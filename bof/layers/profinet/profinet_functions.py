@@ -20,8 +20,10 @@ from time import sleep
 from packaging.version import parse as version_parse
 
 from scapy import VERSION as scapy_version
-from scapy.packet import Packet
+from scapy.compat import raw
+from scapy.packet import Packet, Raw
 from scapy.layers.l2 import Ether, srp
+from scapy.sendrecv import AsyncSniffer
 
 if version_parse(scapy_version) <= version_parse("2.4.5"):
     # Layer pnio_dcp raises deprecation warnings for Scapy < 2.5.0
@@ -87,6 +89,8 @@ def create_identify_packet() -> Packet: # Should become generic at some point.
     """Create a Profinet DCP packet for discovery to be sent on Ethernet layer."""
     pn_io = ProfinetIO(frameID=DCP_IDENTIFY_REQUEST_FRAME_ID)
     pn_dcp = ProfinetDCP(service_id="Identify", service_type=DCP_REQUEST,
+                         xid=0x1366b490, # Can't figure out why, or even what is xid...
+                         reserved=192, # Reserved is actually ResponseDelay here
                          option=255, sub_option=255, dcp_data_length=4)
     pkt = pn_io/pn_dcp
     return pkt
@@ -97,6 +101,7 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
     """Send PN-DCP (Profinet Discovery/Config Proto) packets on Ethernet layer.
 
     Some industrial devices such as PLCs respond to them.
+    Responses may be embedded in 802.1Q frames.
     Multicast is used by default.
     Requires super-user privileges to send on Ethernet link.
 
@@ -105,11 +110,21 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
     :param timeout: Timeout for responses. More than 10s because some devices
                     take time to respond.
     """
-    packet = Ether(dst=mac_addr)/create_identify_packet()
+    packet = Ether(type=ETHER_TYPE_PROFINET, dst=mac_addr)/create_identify_packet()
     # Using Scapy's send function on Ethernet, requires super user privilege
     if geteuid() != 0:
         raise BOFProgrammingError("Super user privileges required to send PN-DCP requests")
+
+    # Profinet DCP responses are sometimes encapsulated inside 802.1Q
+    # We cannot only use srp because when this happens, Scapy does not detect it as replies.
+    # We sniff the network for that particular type of packets while waiting for replies.
+    lfilter = lambda x: "Ether" in x and x["Ether"].type == ETHER_TYPE_VLAN \
+              and x["Dot1Q"].type == ETHER_TYPE_PROFINET
+    listener = AsyncSniffer(iface=iface, lfilter=lfilter)
+    listener.start()
     replies, norep = srp(packet, multi=1, iface=iface, timeout=timeout, verbose=False)
+    listener.stop()
+    replies += listener.results # Responses + sniffed Profinet packets
     devices = []
     for reply in replies:
         devices.append(ProfinetDevice(reply[1]))
