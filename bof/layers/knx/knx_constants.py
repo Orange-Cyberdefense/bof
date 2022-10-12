@@ -1,8 +1,8 @@
 """
-Profinet DCP constants
-----------------------
+KNX constants
+-------------
 
-Protocol-dependent constants (network and functions) for PNDCP.
+Protocol-dependent constants (network and functions) for KNX.
 """
 
 from ... import to_property
