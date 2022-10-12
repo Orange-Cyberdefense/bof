@@ -32,6 +32,7 @@ from socket import AF_INET, SOCK_DGRAM, IPPROTO_IP, IP_MULTICAST_TTL, \
     SOL_SOCKET, SO_BROADCAST
 from socket import socket, timeout as sotimeout, gaierror
 from struct import pack
+from sys import version_info
 # Internal
 from .base import BOFNetworkError, BOFProgrammingError, log
 
@@ -64,6 +65,16 @@ def IP_RANGE(ip_range: str):
         return ip_list
     except ValueError:
         raise BOFProgrammingError("Invalid IP range") from None
+
+def TIMEOUT_EXCEPTIONS():
+    """Choose timeout exceptions to handle depending on Python version.
+
+    asyncio.exceptions does not exist prior to Python 3.8.
+    """
+    if version_info < (3, 8):
+        return futures._base.TimeoutError
+    return (futures._base.TimeoutError, asyncio.exceptions.TimeoutError)
+    
     
 ###############################################################################
 # Asyncio classes for UDP and TCP                                             #
@@ -262,7 +273,7 @@ class _Transport(object):
         try:
             data, address = await asyncio.wait_for(self._queue.get(), timeout=float(timeout))
             address = address if address else self._address
-        except (futures._base.TimeoutError, asyncio.exceptions.TimeoutError) as te:
+        except TIMEOUT_EXCEPTIONS() as te:
             self._handle_exception(te, "Connection timeout")
         return data, address
 
@@ -512,10 +523,12 @@ class TCP(_Transport):
                                              family=AF_INET),
                 timeout=timeout)
             transport, protocol = self._loop.run_until_complete(connect)
-        except (gaierror, OverflowError, ValueError, OSError,
-                asyncio.exceptions.TimeoutError) as e:
+        except (gaierror, OverflowError, ValueError, OSError) as e:
             self._handle_exception(e, "Connection failed")
             return None
+        except TIMEOUT_EXCEPTIONS() as e:
+            self._handle_exception(e, "Connection timeout")
+            return None            
         except (ConnectionRefusedError) as e:
             self._handle_exception(e, "Connection refused")
             return None

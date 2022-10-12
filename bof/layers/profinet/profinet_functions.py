@@ -20,8 +20,7 @@ from time import sleep
 from packaging.version import parse as version_parse
 
 from scapy import VERSION as scapy_version
-from scapy.compat import raw
-from scapy.packet import Packet, Raw
+from scapy.packet import Packet
 from scapy.layers.l2 import Ether, srp
 from scapy.sendrecv import AsyncSniffer
 
@@ -59,9 +58,8 @@ class ProfinetDevice(BOFDevice):
             self.parse(pkt)
             
     def parse(self, pkt: Packet=None) -> None:
-        # Service ID should be Identify, Service type should be Response success
-        if pkt["ProfinetDCP"].service_id != 0x05 or \
-           pkt["ProfinetDCP"].service_type != 0x01:
+        if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY or \
+           pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
             raise BOFProgrammingError("Expecting an identify response to create device object.")
         self.name = pkt["DCPNameOfStationBlock"].name_of_station.decode('utf-8')
         self.description = pkt["DCPManufacturerSpecificBlock"].\
@@ -122,7 +120,7 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
               and x["Dot1Q"].type == ETHER_TYPE_PROFINET
     listener = AsyncSniffer(iface=iface, lfilter=lfilter)
     listener.start()
-    replies, norep = srp(packet, multi=1, iface=iface, timeout=timeout, verbose=False)
+    replies, _ = srp(packet, multi=1, iface=iface, timeout=timeout, verbose=False)
     listener.stop()
     replies += listener.results # Responses + sniffed Profinet packets
     devices = []

@@ -53,7 +53,7 @@ def passive_discovery(iface: str=DEFAULT_IFACE,
     :param lldp_multicast: Multicast MAC address for LLDP requests.
     :param knx_multicast: Multicast IP address for KNXnet/IP requests.
     """
-    vprint = lambda msg: print("[BOF] {0}.".format(msg)) if verbose else None
+    vprint = lambda msg: print("[BOF] {0}".format(msg)) if verbose else None
     multicast_protocols = {
         # Protocol name: [Discovery function, Multicast address]
         "Profinet": [profinet_discovery, pndcp_multicast],
@@ -66,10 +66,10 @@ def passive_discovery(iface: str=DEFAULT_IFACE,
     # Multicast requests send and receive
     for protocol, proto_args in multicast_protocols.items():
         discovery_fct, multicast_addr = proto_args
-        vprint("Sending {0} request to {1}".format(protocol, multicast_addr))
+        vprint("Sending {0} request to {1}.".format(protocol, multicast_addr))
         devices = discovery_fct(mac_addr=multicast_addr, iface=iface)
         nb = len(devices)
-        vprint("{0} {1} {2} found".format(nb if nb else "No", protocol,
+        vprint("{0} {1} {2} found.".format(nb if nb else "No", protocol,
                                           "device" if nb <= 1 else "devices"))
         total_devices += devices
     # For now we need to wait a little longer to make sure we sniff something
@@ -78,7 +78,7 @@ def passive_discovery(iface: str=DEFAULT_IFACE,
     # Stop async sniffing
     devices = lldp.stop_listening(lldp_sniffer)
     nb = len(devices)
-    vprint("{0} {1} {2} found".format(nb if nb else "No", "LLDP",
+    vprint("{0} {1} {2} found.".format(nb if nb else "No", "LLDP",
                                       "device" if nb <= 1 else "devices"))
     total_devices += [lldp.LLDPDevice(device) for device in devices]
     for device in total_devices:
