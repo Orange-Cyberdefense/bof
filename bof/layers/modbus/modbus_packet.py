@@ -32,9 +32,6 @@ from scapy.packet import Packet
 from bof import BOFPacket, to_property, BOFProgrammingError
 from .modbus_constants import *
 
-###############################################################################
-# ModbusPacket class                                                          #
-###############################################################################
 
 class ModbusPacket(BOFPacket):
     """Builds a ModbusPacket from a byte array or from attributes.

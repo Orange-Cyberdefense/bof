@@ -69,7 +69,7 @@ layer:
 |--------------|-----------|----------|---------|
 | KNX          | X         | X        | X       |
 | LLDP         | X         |          |         |
-| Modbus       |           | X        | X       |
+| Modbus       | X         | X        | X       |
 | Profinet DCP | X         |          |         |
 
 

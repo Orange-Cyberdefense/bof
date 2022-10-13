@@ -3,14 +3,14 @@ Modbus TCP constants
 --------------------
 
 Protocol-dependent constants (network and functions) for Modbus TCP.
-
-
 """
 
 from ... import to_property
 from enum import Enum
 
 MODBUS_TYPES = Enum('MODBUS_TYPES', 'REQUEST RESPONSE')
+
+# User defined function codes from 65 to 72, and from 100 to 110 (decimal)
 
 MODBUS_FUNCTIONS_CODES = FUNCTION_CODES = {
     0x01: "Read Coils",
@@ -32,6 +32,7 @@ MODBUS_FUNCTIONS_CODES = FUNCTION_CODES = {
     0x16: "Mask Write Register",
     0x17: "Read Write Multiple Registers",
     0x18: "Read FIFO Queue",
+    0x2B: "Read device identification", # Subcode 14
     # Exception codes for functions (== Function code + 0x80)
     0x81: "Read Coils Exception",
     0x82: "Read Discrete Inputs Exception",

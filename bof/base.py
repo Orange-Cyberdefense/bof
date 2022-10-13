@@ -44,6 +44,14 @@ class BOFProgrammingError(BOFError):
     """ 
     pass
 
+class BOFDeviceError(BOFError):
+    """Exceptions related to errors returned by the device.
+
+    Raise when the device responds with an error code, but the network
+    connection is still fine.
+    """
+    pass
+
 ###############################################################################
 # BOF LOGGING                                                                 #
 ###############################################################################
