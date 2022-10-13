@@ -21,6 +21,29 @@ from .modbus_network import ModbusNet
 from .modbus_packet import ModbusPacket
 from .modbus_constants import *
 
+def HEX_TO_BIN_DICT(byte_count, hex_table):
+    """Convert hex value table on one or more bytes to binary bit in a dict.
+
+    Example:
+    Hex value 0x15 on 2 bytes will be translated to 10101000 00000000
+    This binary will be stored in a numbered dict starting from 1: {
+      1: 1,
+      2: 0,
+      3: 1,
+      ...
+    }
+    """
+    index = 1
+    bin_dict = {}
+    # Not a very good solution but I suck at doing this, help welcome.
+    for b in range(byte_count):
+        # Convert, reverse (to keep trailing 0 at front), padding after
+        values = "{0:b}".format(hex_table[b])[::-1].ljust(8, "0")
+        for value in values:
+            bin_dict[index] = value
+            index += 1
+    return bin_dict
+
 ###############################################################################
 # MODBUS DEVICE REPRESENTATION                                                #
 ###############################################################################
@@ -48,7 +71,7 @@ def read_coils(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
     :param modnet: Modbus connection object created previously.
     :param start_addr: First address to read coils from (default: 0).
     :param quantity: Number of coils to read from start_address (default: 1).
-    :returns: A dictionary with format {coil_number: coil_value}.
+    :returns: A dictionary with format {coil_number: value}.
     :raises BOFDeviceError: When the device responds with an exception code.
 
     Example::
@@ -66,14 +89,25 @@ def read_coils(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
     if resp.funcCode == FUNCTIONS.read_coils_exception:
-        print("Cannot read coils.")
-        return None
-    total = 1
-    coils_dict = {}
-    # Not a very good solution but I suck at doing this, help welcome.
-    for b in range(resp.byteCount):
-        coils = "{0:b}".format(resp.coilStatus[b]).ljust(8, "0")
-        for coil in coils:
-            coils_dict[total] = coil
-            total += 1
-    return coils_dict
+        raise BOFDeviceError("Cannot read coils.")
+    return HEX_TO_BIN_DICT(resp.byteCount, resp.coilStatus)
+
+def read_discrete_inputs(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
+                  unit_id: int=0) -> dict:
+    """Read one or more Modbus discrete input(s) on device.
+
+    :param modnet: Modbus connection object created previously.
+    :param start_addr: First address to read inputs from (default: 0).
+    :param quantity: Number of inputs to read from start_address (default: 1).
+    :returns: A dictionary with format {input_number: value}.
+    :raises BOFDeviceError: When the device responds with an exception code.
+
+    Example: See ``read_coils()``
+    """
+    pkt = ModbusPacket(type=MODBUS_TYPES.REQUEST,
+                       function=FUNCTIONS.read_discrete_inputs,
+                       startAddr=start_addr, quantity=quantity, unitId=unit_id)
+    resp, _ = modnet.sr(pkt)
+    if resp.funcCode == FUNCTIONS.read_discrete_inputs_exception:
+        raise BOFDeviceError("Cannot read discrete inputs.")
+    return HEX_TO_BIN_DICT(resp.byteCount, resp.inputStatus)
