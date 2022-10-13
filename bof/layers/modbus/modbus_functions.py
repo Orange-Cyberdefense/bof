@@ -40,9 +40,28 @@ def HEX_TO_BIN_DICT(byte_count, hex_table):
         # Convert, reverse (to keep trailing 0 at front), padding after
         values = "{0:b}".format(hex_table[b])[::-1].ljust(8, "0")
         for value in values:
-            bin_dict[index] = value
+            bin_dict[index] = int(value)
             index += 1
     return bin_dict
+
+def HEX_TO_DICT(byte_count, hex_table):
+    """Convert hex value table on one or more bytes to binary bit in a dict.
+
+    Example:
+    Hex value 0x15 on 2 bytes will be translated to 10101000 00000000
+    This binary will be stored in a numbered dict starting from 1: {
+      1: 1,
+      2: 0,
+      3: 1,
+      ...
+    }
+    """
+    index = 1
+    hex_dict = {}
+    for b in range(byte_count // 2):
+        hex_dict[index] = hex_table[b]
+        index += 1
+    return hex_dict
 
 ###############################################################################
 # MODBUS DEVICE REPRESENTATION                                                #
@@ -111,3 +130,46 @@ def read_discrete_inputs(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
     if resp.funcCode == FUNCTIONS.read_discrete_inputs_exception:
         raise BOFDeviceError("Cannot read discrete inputs.")
     return HEX_TO_BIN_DICT(resp.byteCount, resp.inputStatus)
+
+def read_holding_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
+                  unit_id: int=0) -> dict:
+    """Read one or more Modbus holding register(s) on device.
+
+    :param modnet: Modbus connection object created previously.
+    :param start_addr: First address to read registers from (default: 0).
+    :param quantity: Number of registers to read from start_address (default: 1).
+    :returns: A dictionary with format {reg_number: value}.
+    :raises BOFDeviceError: When the device responds with an exception code.
+
+    Example: See ``read_coils()``
+    """
+    pkt = ModbusPacket(type=MODBUS_TYPES.REQUEST,
+                       function=FUNCTIONS.read_holding_registers,
+                       startAddr=start_addr, quantity=quantity, unitId=unit_id)
+    resp, _ = modnet.sr(pkt)
+    if resp.funcCode == FUNCTIONS.read_holding_registers_exception:
+        raise BOFDeviceError("Cannot read holding registers.")
+
+    return HEX_TO_DICT(resp.byteCount // 2, resp.registerVal)
+
+def read_input_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
+                  unit_id: int=0) -> dict:
+    """Read one or more Modbus input register(s) on device.
+
+    :param modnet: Modbus connection object created previously.
+    :param start_addr: First address to read registers from (default: 0).
+    :param quantity: Number of registers to read from start_address (default: 1).
+    :returns: A dictionary with format {reg_number: value}.
+    :raises BOFDeviceError: When the device responds with an exception code.
+
+    Example: See ``read_coils()``
+    """
+    pkt = ModbusPacket(type=MODBUS_TYPES.REQUEST,
+                       function=FUNCTIONS.read_input_registers,
+                       startAddr=start_addr, quantity=quantity, unitId=unit_id)
+    resp, _ = modnet.sr(pkt)
+    if resp.funcCode == FUNCTIONS.read_input_registers_exception:
+        raise BOFDeviceError("Cannot read input registers.")
+
+    return HEX_TO_DICT(resp.byteCount // 2, resp.registerVal)
+
