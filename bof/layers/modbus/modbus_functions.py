@@ -18,6 +18,7 @@ Ken LE PRADO, Sebastien Mainand and Thomas Aurel.
 
 from ... import BOFDevice, BOFDeviceError
 from .modbus_network import ModbusNet
+from .modbus_packet import ModbusPacket
 from .modbus_constants import *
 
 ###############################################################################
