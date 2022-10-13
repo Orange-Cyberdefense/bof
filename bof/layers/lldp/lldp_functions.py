@@ -66,7 +66,9 @@ class LLDPDevice(BOFDevice):
         self.chassis_id = pkt["LLDPDUChassisID"].id
         if not isinstance(self.chassis_id, str):
             self.chassis_id = self.chassis_id.decode('utf-8')
-        self.port_id = pkt["LLDPDUPortID"].id.decode('utf-8')
+        self.port_id = pkt["LLDPDUPortID"].id
+        if not isinstance(self.port_id, str):
+            self.port_id.decode('utf-8')
         self.port_desc = pkt["LLDPDUPortDescription"].description.decode('utf-8')
         self.capabilities = pkt["LLDPDUSystemCapabilities"] # TODO
 
