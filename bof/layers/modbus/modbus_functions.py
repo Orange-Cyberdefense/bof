@@ -16,7 +16,7 @@ Uses Modbus specification v1.1b3 and Scapy's Modbus contrib Arthur Gervais,
 Ken LE PRADO, Sebastien Mainand and Thomas Aurel.
 """
 
-from ... import BOFDevice, BOFDeviceError
+from ... import BOFDevice, BOFDeviceError, IP_RANGE
 from .modbus_network import ModbusNet
 from .modbus_packet import ModbusPacket
 from .modbus_constants import *
@@ -68,8 +68,38 @@ def HEX_TO_DICT(byte_count, hex_table):
 ###############################################################################
 
 class ModbusDevice(BOFDevice):
-    pass
+    protocol: str = "Modbus TCP"
+    name: str = ""
+    coils: dict = None
+    discrete_inputs: dict = None
+    holding_registers: dict = None
+    input_registers: dict = None
 
+    @property
+    def coils_on(self):
+        return {x:y for x,y in self.coils.items() if y}
+
+    @property
+    def discrete_inputs_on(self):
+        return {x:y for x,y in self.discrete_inputs.items() if y}
+
+    @property
+    def holding_registers_nonzero(self):
+        return {x:y for x,y in self.holding_registers.items() if y}
+
+    @property
+    def input_registers_nonzero(self):
+        return {x:y for x,y in self.input_registers.items() if y}
+    
+    def __str__(self):
+        return "{0}\n\tCoils ON: {1}\n\tDiscrete inputs ON: {2}\n\t" \
+            "Holding registers != 0: {3}\n\tInput registers != 0: {4}".format(
+                super().__str__(), list(self.coils_on.keys()),
+                list(self.discrete_inputs_on.keys()), 
+                self.holding_registers_nonzero,
+                self.input_registers_nonzero, 
+        )
+    
 ###############################################################################
 # FUNCTIONS                                                                   #
 ###############################################################################
@@ -78,6 +108,44 @@ class ModbusDevice(BOFDevice):
 # Discovery                                                                   #
 #-----------------------------------------------------------------------------#
 
+def discover(ip_range: str, port: int=MODBUS_PORT) -> ModbusDevice:
+    """Returns discovered information about a device.
+    So far, we only read the different types of data stored on a device.
+
+    :param ip_range: Single IPv4 address or range of IPv4 addresses.
+    :param port: Modbus TCP port, default is 502.
+    :returns: A ModbusDevice object.
+    :raises BOFProgrammingError: if IP is invalid.
+    :raises BOFNetworkError: if device cannot be reached.
+    :raises BOFDeviceError: if request is not supported on remote device.
+    """
+    ip_addrs = IP_RANGE(ip_range)
+    devices = []
+    for ip in ip_addrs:
+        device = ModbusDevice()
+        modnet = ModbusNet().connect(ip)
+        try:
+            device.coils = read_coils(modnet, quantity=MODBUS_MAX_COIL_QUANTITY)
+        except BOFDeviceError as bde:
+            device.coils = {0: bde}
+        try:
+            device.discrete_inputs = read_discrete_inputs(
+                modnet,quantity=MODBUS_MAX_DISCRETE_QUANTITY)
+        except BOFDeviceError as bde:
+            device.discrete_inputs = {0: bde}
+        try:
+            device.holding_registers = read_holding_registers(
+                modnet, quantity=MODBUS_MAX_REGISTER_QUANTITY)
+        except BOFDeviceError as bde:
+            device.holding_registers = {0: bde}
+        try:
+            device.input_registers = read_input_registers(
+                modnet, quantity=MODBUS_MAX_REGISTER_QUANTITY)
+        except BOFDeviceError as bde:
+            device.input_registers = {0: bde}
+        modnet.disconnect()
+        devices.append(device)
+    return devices
 
 #-----------------------------------------------------------------------------#
 # Read and write operation                                                    #
@@ -172,4 +240,3 @@ def read_input_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
         raise BOFDeviceError("Cannot read input registers.")
 
     return HEX_TO_DICT(resp.byteCount // 2, resp.registerVal)
-

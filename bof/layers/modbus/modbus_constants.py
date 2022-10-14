@@ -8,6 +8,7 @@ Protocol-dependent constants (network and functions) for Modbus TCP.
 from ... import to_property
 from enum import Enum
 
+MODBUS_PORT = 502
 MODBUS_TYPES = Enum('MODBUS_TYPES', 'REQUEST RESPONSE')
 
 # User defined function codes from 65 to 72, and from 100 to 110 (decimal)
