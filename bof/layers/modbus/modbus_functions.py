@@ -16,7 +16,7 @@ Uses Modbus specification v1.1b3 and Scapy's Modbus contrib Arthur Gervais,
 Ken LE PRADO, Sebastien Mainand and Thomas Aurel.
 """
 
-from ... import BOFDevice, BOFDeviceError, IP_RANGE
+from ... import BOFDevice, BOFDeviceError, IS_IP
 from .modbus_network import ModbusNet
 from .modbus_packet import ModbusPacket
 from .modbus_constants import *
@@ -108,44 +108,41 @@ class ModbusDevice(BOFDevice):
 # Discovery                                                                   #
 #-----------------------------------------------------------------------------#
 
-def discover(ip_range: str, port: int=MODBUS_PORT) -> ModbusDevice:
+def discover(ip: str, port: int=MODBUS_PORT) -> ModbusDevice:
     """Returns discovered information about a device.
     So far, we only read the different types of data stored on a device.
 
-    :param ip_range: Single IPv4 address or range of IPv4 addresses.
+    :param ip_range: IPv4 address of a Modbus device.
     :param port: Modbus TCP port, default is 502.
     :returns: A ModbusDevice object.
     :raises BOFProgrammingError: if IP is invalid.
     :raises BOFNetworkError: if device cannot be reached.
     :raises BOFDeviceError: if request is not supported on remote device.
     """
-    ip_addrs = IP_RANGE(ip_range)
-    devices = []
-    for ip in ip_addrs:
-        device = ModbusDevice()
-        modnet = ModbusNet().connect(ip)
-        try:
-            device.coils = read_coils(modnet, quantity=MODBUS_MAX_COIL_QUANTITY)
-        except BOFDeviceError as bde:
-            device.coils = {0: bde}
-        try:
-            device.discrete_inputs = read_discrete_inputs(
-                modnet,quantity=MODBUS_MAX_DISCRETE_QUANTITY)
-        except BOFDeviceError as bde:
-            device.discrete_inputs = {0: bde}
-        try:
-            device.holding_registers = read_holding_registers(
-                modnet, quantity=MODBUS_MAX_REGISTER_QUANTITY)
-        except BOFDeviceError as bde:
-            device.holding_registers = {0: bde}
-        try:
-            device.input_registers = read_input_registers(
-                modnet, quantity=MODBUS_MAX_REGISTER_QUANTITY)
-        except BOFDeviceError as bde:
-            device.input_registers = {0: bde}
-        modnet.disconnect()
-        devices.append(device)
-    return devices
+    IS_IP(ip)
+    device = ModbusDevice()
+    modnet = ModbusNet().connect(ip)
+    try:
+        device.coils = read_coils(modnet, quantity=MODBUS_MAX_COIL_QUANTITY)
+    except BOFDeviceError as bde:
+        device.coils = {0: bde}
+    try:
+        device.discrete_inputs = read_discrete_inputs(
+            modnet,quantity=MODBUS_MAX_DISCRETE_QUANTITY)
+    except BOFDeviceError as bde:
+        device.discrete_inputs = {0: bde}
+    try:
+        device.holding_registers = read_holding_registers(
+            modnet, quantity=MODBUS_MAX_REGISTER_QUANTITY)
+    except BOFDeviceError as bde:
+        device.holding_registers = {0: bde}
+    try:
+        device.input_registers = read_input_registers(
+            modnet, quantity=MODBUS_MAX_REGISTER_QUANTITY)
+    except BOFDeviceError as bde:
+        device.input_registers = {0: bde}
+    modnet.disconnect()
+    return device
 
 #-----------------------------------------------------------------------------#
 # Read and write operation                                                    #

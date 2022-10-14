@@ -8,7 +8,7 @@
 # custom port can be used as a second argument).
 # discover() returns a KNXDevice object.
 #
-# discover() and KNXDevice implemented in bof/layers/knx/knx_feature.py
+# discover() and KNXDevice implemented in bof/layers/knx/knx_functions.py
 
 from sys import argv, path
 path.append('../../')
