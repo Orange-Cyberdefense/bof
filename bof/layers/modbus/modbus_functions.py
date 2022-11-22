@@ -26,12 +26,8 @@ def HEX_TO_BIN_DICT(byte_count, hex_table):
 
     Example:
     Hex value 0x15 on 2 bytes will be translated to 10101000 00000000
-    This binary will be stored in a numbered dict starting from 1: {
-      1: 1,
-      2: 0,
-      3: 1,
-      ...
-    }
+    This binary will be stored in a numbered dict starting from 1:
+    { 1: 1, 2: 0, 3: 1, ... }
     """
     index = 1
     bin_dict = {}
@@ -49,12 +45,8 @@ def HEX_TO_DICT(byte_count, hex_table):
 
     Example:
     Hex value 0x15 on 2 bytes will be translated to 10101000 00000000
-    This binary will be stored in a numbered dict starting from 1: {
-      1: 1,
-      2: 0,
-      3: 1,
-      ...
-    }
+    This binary will be stored in a numbered dict starting from 1:
+    { 1: 1, 2: 0, 3: 1, ... }
     """
     index = 1
     hex_dict = {}

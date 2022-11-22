@@ -131,14 +131,14 @@ Now you can start using BOF!
 Several ways to discover devices on a network
 ---------------------------------------------
 
-Passive discovery from the discovery module
-+++++++++++++++++++++++++++++++++++++++++++
+Targeted discovery from the discovery module
+++++++++++++++++++++++++++++++++++++++++++++
 
 .. code-block:: python
 
    from bof.modules.discovery import *
 
-   devices = passive_discovery(iface="eth0", verbose=True)
+   devices = targeted_discovery(iface="eth0", verbose=True)
 
 Device discovery using a layer's high-level function
 ++++++++++++++++++++++++++++++++++++++++++++++++++++

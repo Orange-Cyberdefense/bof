@@ -2,7 +2,7 @@
 Module: Discovery
 -----------------
 
-Functions for passive and active discovery of industrial devices on a network.
+Functions for targeted discovery of industrial devices on a network.
 """
 
 from time import sleep
@@ -11,7 +11,7 @@ from .. import DEFAULT_IFACE
 from ..layers import knx, lldp, profinet
 
 ###############################################################################
-# Passive discovery                                                           #
+# Targeteddiscovery                                                           #
 ###############################################################################
 
 def lldp_discovery(iface: str=DEFAULT_IFACE,
@@ -41,11 +41,11 @@ def knx_discovery(ip: str=knx.MULTICAST_ADDR, port=knx.PORT, **kwargs):
     """
     return knx.search(ip, port)
 
-def passive_discovery(iface: str=DEFAULT_IFACE,
+def targeted_discovery(iface: str=DEFAULT_IFACE,
                       pndcp_multicast: str=profinet.MULTICAST_MAC,
                       knx_multicast: str=knx.MULTICAST_ADDR,
                       verbose: bool=False):
-    """Discover devices on an industrial network using passive methods.
+    """Discover devices on an industrial network using targeted methods.
 
     Requests are sent to protocols' multicast addresses or via broadcast.
     Currently, LLDP and KNX are supported.

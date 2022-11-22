@@ -9,7 +9,7 @@ of functions to call in a script.
 List of modules:
 
 * **Discovery**: Functions to gather initial information on industrial devices
-  on a network, using active and passive techniques. Rely on several protocols.
+  on a network, using targeted techniques. Rely on several protocols.
 """
 
 from .discovery import *

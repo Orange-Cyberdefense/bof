@@ -7,18 +7,17 @@ Overview
 This module constains high-level functions for device discovery on a network
 using several protocols.
 
-Passive discovery
------------------
+Targeted discovery
+------------------
 
 When discovering devices on an industrial network, the less we interact directly
 with devices the better (otherwise we may break something). The
-``passive_discovery()`` function sends identify requests to protocol-specific
-multicast addresses. Devices that subscribe to them are supposed to
-respond.
+``targeted_discovery()`` function sends identify requests to protocol-specific
+multicast addresses. Devices that subscribe to them are supposed to respond.
 
 .. code-block:: python
 
-   passive_discovery(iface="eth0", verbose=True)
+   targeted_discovery(iface="eth0", verbose=True)
 
 So far, here is what the function does:
 
