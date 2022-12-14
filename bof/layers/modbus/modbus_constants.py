@@ -53,6 +53,7 @@ MODBUS_FUNCTIONS_CODES = FUNCTION_CODES = {
     0x96: "Mask Write Register Exception",
     0x97: "Read Write Multiple Exception",
     0x98: "Read FIFO Queue Exception",
+    0xAB: "Read Device Identification Exception",
     # Function code for Schneider UMAS (90)
     0x5a: "Schneider"
 }

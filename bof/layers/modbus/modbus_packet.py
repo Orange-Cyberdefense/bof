@@ -114,8 +114,10 @@ class ModbusPacket(BOFPacket):
                 modbus_pdu = scapy_modbus._modbus_response_classes[function_code]
         elif type == MODBUS_TYPES.REQUEST:
             modbus_adu = scapy_modbus.ModbusADURequest
-            if function_code == 0x0E:
-                modbus_pdu = scapy_modbus._mei_types_request[function_code]
+            # Dirty fix: For some reason, Scapy's Modbus layer has function
+            # code 0x0E for device identification, and I have 0x2B.
+            if function_code in [0x0E, 0x2B]:
+                modbus_pdu = scapy_modbus._mei_types_request[0x0E]
             else:
                 modbus_pdu = scapy_modbus._modbus_request_classes[function_code]
         else:

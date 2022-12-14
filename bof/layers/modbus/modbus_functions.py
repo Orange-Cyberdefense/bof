@@ -16,10 +16,12 @@ Uses Modbus specification v1.1b3 and Scapy's Modbus contrib Arthur Gervais,
 Ken LE PRADO, Sebastien Mainand and Thomas Aurel.
 """
 
-from ... import BOFDevice, BOFDeviceError, IS_IP
+from ... import BOFDevice, BOFDeviceError, BOFNetworkError, IS_IP, log
 from .modbus_network import ModbusNet
 from .modbus_packet import ModbusPacket
 from .modbus_constants import *
+
+from scapy.contrib import modbus as scapy_modbus
 
 def HEX_TO_BIN_DICT(byte_count, hex_table):
     """Convert hex value table on one or more bytes to binary bit in a dict.
@@ -114,6 +116,10 @@ def discover(ip: str, port: int=MODBUS_PORT) -> ModbusDevice:
     IS_IP(ip)
     device = ModbusDevice()
     modnet = ModbusNet().connect(ip)
+    try:
+        full_read_device_identification(modnet, device)
+    except BOFDeviceError as bde:
+        log("Modbus: Function code 43 (Read Device Id) not supported")
     try:
         device.coils = read_coils(modnet, quantity=MODBUS_MAX_COIL_QUANTITY)
     except BOFDeviceError as bde:
@@ -229,3 +235,52 @@ def read_input_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
         raise BOFDeviceError("Cannot read input registers.")
 
     return HEX_TO_DICT(resp.byteCount // 2, resp.registerVal)
+
+def read_device_identification(modnet: ModbusNet, read_code: int=1,
+                               object_id: int=0x00):
+    """Read device information (if the devices supports function code 43).
+
+    :param modnet: Modbus connection object created previously.
+    :param readCode: Read level to use: 1:basic, 2:regular, 3:extended, 4:specific.
+    :param objectId: Object to read: 0: VendorName, 1:ProductCode, 2:Revision,
+                     3: VendorUrl, 4: ProductName, 5: ModelName, 6: UserAppName.
+    :returns: TODO.
+    :raises BOFDeviceError: When the device does not respond or responds
+                            with an exception code.
+
+    :warning: This function is not finished and has not been tested yet!!!
+    """
+    pkt = ModbusPacket(type=MODBUS_TYPES.REQUEST,
+                       function=FUNCTIONS.read_device_identification,
+                       readCode=read_code, objectId=object_id)
+    try:
+        resp, _ = modnet.sr(pkt)
+    except BOFNetworkError as bne: # Modnet object exist: connection should be ok
+        raise BOFDeviceError("Cannot read device identification.") from None
+    pkt.show2()
+    resp.show2()
+    if resp.funcCode == FUNCTIONS.read_device_identification_exception:
+        raise BOFDeviceError("Cannot read device identification.")
+    # TODO: Return something
+    
+def full_read_device_identification(modnet: ModbusNet, device: ModbusDevice=None):
+    """Read all information available on the device using read device id requests.
+
+    This function sends as many read device identification requests as there are
+    objects to read (6). Returns data as a ModbusDevice object.
+
+    :param modnet: Modbus connection object created previously.
+    :param device: ModbusDevice object. If none: creates a new one.
+    :returns: The ModbusDevice object.
+    :raises BOFDeviceError: When the device responds with an exception code.
+
+    :warning: This function is not finished and has not been tested yet!!!
+    """
+    if device == None:
+        device = ModbusDevice()
+    read_code = 3 # Extended
+    for object_id, name in scapy_modbus._read_device_id_object_id.items():
+        print(object_id, name)
+        read_device_identification(modnet, read_code, object_id)
+        # TODO: Store values to device
+    return device
