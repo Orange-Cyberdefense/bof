@@ -38,4 +38,5 @@ The following discovery functions are available independently:
 :``profinet_discovery()``: Send an identify request on Profinet DCP's multicast
 			   MAC address.
 :``knx_discovery()``: Send a search request on KNXnet/IP's multicast IP address.
-			   
+:``modbus_discovery()``: Send unicast Modbus TCP requests to retrieve a
+			 description and coils and registers values.

@@ -10,9 +10,9 @@ Contents:
     Object representation of a Modbus device with multiple properties. Only
     supports basic functions so far.
 :Functions:
-    High-level functions to interact with a device: read coils.
+    High-level functions to interact with a device.
 
-Uses Modbus specification v1.1b3 and Scapy's Modbus contrib Arthur Gervais,
+Uses Modbus specification v1.1b3 and Scapy's Modbus contrib by Arthur Gervais,
 Ken LE PRADO, Sebastien Mainand and Thomas Aurel.
 """
 
@@ -63,12 +63,16 @@ def HEX_TO_DICT(byte_count, hex_table):
 
 class ModbusDevice(BOFDevice):
     protocol: str = "Modbus TCP"
-    name: str = ""
+    name: str = "" # ProductCode
+    description: dict = None
     coils: dict = None
     discrete_inputs: dict = None
     holding_registers: dict = None
     input_registers: dict = None
 
+    def __init__(self):
+        self.description = {}
+    
     @property
     def coils_on(self):
         return {x:y for x,y in self.coils.items() if y}
@@ -244,11 +248,9 @@ def read_device_identification(modnet: ModbusNet, read_code: int=1,
     :param readCode: Read level to use: 1:basic, 2:regular, 3:extended, 4:specific.
     :param objectId: Object to read: 0: VendorName, 1:ProductCode, 2:Revision,
                      3: VendorUrl, 4: ProductName, 5: ModelName, 6: UserAppName.
-    :returns: TODO.
+    :returns: A tuple (objectId, value) from the response.
     :raises BOFDeviceError: When the device does not respond or responds
                             with an exception code.
-
-    :warning: This function is not finished and has not been tested yet!!!
     """
     pkt = ModbusPacket(type=MODBUS_TYPES.REQUEST,
                        function=FUNCTIONS.read_device_identification,
@@ -257,11 +259,9 @@ def read_device_identification(modnet: ModbusNet, read_code: int=1,
         resp, _ = modnet.sr(pkt)
     except BOFNetworkError as bne: # Modnet object exist: connection should be ok
         raise BOFDeviceError("Cannot read device identification.") from None
-    pkt.show2()
-    resp.show2()
     if resp.funcCode == FUNCTIONS.read_device_identification_exception:
         raise BOFDeviceError("Cannot read device identification.")
-    # TODO: Return something
+    return resp.id, resp.value
     
 def full_read_device_identification(modnet: ModbusNet, device: ModbusDevice=None):
     """Read all information available on the device using read device id requests.
@@ -273,14 +273,15 @@ def full_read_device_identification(modnet: ModbusNet, device: ModbusDevice=None
     :param device: ModbusDevice object. If none: creates a new one.
     :returns: The ModbusDevice object.
     :raises BOFDeviceError: When the device responds with an exception code.
-
-    :warning: This function is not finished and has not been tested yet!!!
     """
     if device == None:
         device = ModbusDevice()
     read_code = 3 # Extended
     for object_id, name in scapy_modbus._read_device_id_object_id.items():
-        print(object_id, name)
-        read_device_identification(modnet, read_code, object_id)
-        # TODO: Store values to device
+        key, value = read_device_identification(modnet, read_code, object_id)
+        # Store to device object
+        if key == 0x01: # ProductCode
+            device.name = value.decode('utf-8')
+        key = scapy_modbus._read_device_id_object_id[key]
+        device.description[key] = value.decode('utf-8')
     return device

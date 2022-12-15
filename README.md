@@ -57,7 +57,9 @@ There are three ways to use BOF, not all of them are available depending on the
 layer:
 
 * **Automated**: Import or call directly higher-level functions from layers. No
-    knowledge about the protocol required.
+    knowledge about the protocol required. For instance, the **discovery**
+    module contains a few functions to discover devices using several industrial
+    network protocols.
 
 * **Standard**: Craft packets from layers to interact with remote devices. Basic
     knowledge about the protocol required.

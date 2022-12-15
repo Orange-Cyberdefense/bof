@@ -7,11 +7,12 @@ Functions for targeted discovery of industrial devices on a network.
 
 from time import sleep
 # Internal
-from .. import DEFAULT_IFACE
+from .. import DEFAULT_IFACE, IP_RANGE, BOFNetworkError
 from ..layers import knx, lldp, profinet
+from ..layers.modbus import discover as modbusdiscover, MODBUS_PORT
 
 ###############################################################################
-# Targeteddiscovery                                                           #
+# Targeted discovery                                                          #
 ###############################################################################
 
 def lldp_discovery(iface: str=DEFAULT_IFACE,
@@ -84,3 +85,31 @@ def targeted_discovery(iface: str=DEFAULT_IFACE,
     for device in total_devices:
         vprint(device)
     return total_devices
+
+###############################################################################
+# End-to-end discovery                                                        #
+###############################################################################
+
+def modbus_discovery(ip_range: object, port: int=MODBUS_PORT) -> list:
+    """Retrieve informations from one or more Modbus devices.
+
+    Sends several Modbus request to gather device identification details
+    and coils and registers values.
+
+    :param ip_range: Can be a single IP, or an IP range with format X.X.X.X/Y
+    :param port: Modbus port to connect to (default: 502).
+    :raises BOFProgrammingError: if ip_range is invalid.
+
+    Warning: This method tries to establish a TCP connection to every device,
+    so it is better to first make sure that the devices you are trying to
+    contact are actual Modbus devices.
+    """
+    devices = []
+    ip_addrs = IP_RANGE(ip_range)
+    for ip in ip_addrs:
+        try:
+            device = modbusdiscover(ip)
+            devices.append(device)
+        except BOFNetworkError:
+            pass # Device did not respond
+    return devices
