@@ -1,10 +1,10 @@
 # BOF Discovery mpdule example
-# Perform targeted discovery on an industrial network by sending multicast
-# packets using various protocols. Requires super user privileges.
-# Usage: sudo python targeted_discovery.py [network interface]
+# Perform discovery using multicast on an industrial network using
+# various protocols. Requires super user privileges.
+# Usage: sudo python multicast_discovery.py [network interface]
 #
-# targeted_discovery() uses LLDP, Profinet DCP and KNX to find devices on an
-# industrial devices. All packets are sent to the default multicast MAC or IP
+# multicast_discovery() uses LLDP, Profinet DCP and KNX to find devices on an
+# industrial network. All packets are sent to the default multicast MAC or IP
 # address of each protocol.
 # LLDP is more likely used to discover switchs and network routing devices
 # Profinet DCP may help us find PLC or engineering workstations from some vendors.
@@ -13,7 +13,9 @@
 # *********************************************************************
 # *                              WARNING                              *
 # *     Industrial networks and devices are critical and fragile.     *
-# *   Here, we use targeted discovery to interact with them directly  *
+# *   Here, we use multicast discovery to only reach devices that     *
+# *   suscribed to specific multicast addresses (and therefore not    *
+# *       send requests to devices that may not support them,         *
 # *                      but please remain careful.                   *
 # *********************************************************************
 
@@ -25,7 +27,7 @@ from bof.modules.discovery import *
 
 iface = argv[1] if len(argv) > 1 else DEFAULT_IFACE
 try:
-    devices = targeted_discovery(iface=iface, verbose=True)
+    devices = multicast_discovery(iface=iface, verbose=True)
 except BOFProgrammingError as be:
     print(be)
 except OSError as oe:

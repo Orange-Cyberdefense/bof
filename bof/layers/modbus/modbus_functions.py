@@ -21,8 +21,6 @@ from .modbus_network import ModbusNet
 from .modbus_packet import ModbusPacket
 from .modbus_constants import *
 
-from scapy.contrib import modbus as scapy_modbus
-
 def HEX_TO_BIN_DICT(byte_count, hex_table):
     """Convert hex value table on one or more bytes to binary bit in a dict.
 
@@ -175,7 +173,8 @@ def read_coils(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
     if resp.funcCode == FUNCTIONS.read_coils_exception:
-        raise BOFDeviceError("Cannot read coils.")
+        msg = MODBUS_EXCEPTIONS[resp.exceptCode]
+        raise BOFDeviceError("Cannot read coils (Exception returned: {0}).".format(msg))
     return HEX_TO_BIN_DICT(resp.byteCount, resp.coilStatus)
 
 def read_discrete_inputs(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
@@ -195,7 +194,8 @@ def read_discrete_inputs(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
     if resp.funcCode == FUNCTIONS.read_discrete_inputs_exception:
-        raise BOFDeviceError("Cannot read discrete inputs.")
+        msg = MODBUS_EXCEPTIONS[resp.exceptCode]
+        raise BOFDeviceError("Cannot read discrete inputs (Exception returned: {0}).".format(msg))
     return HEX_TO_BIN_DICT(resp.byteCount, resp.inputStatus)
 
 def read_holding_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
@@ -215,7 +215,8 @@ def read_holding_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
     if resp.funcCode == FUNCTIONS.read_holding_registers_exception:
-        raise BOFDeviceError("Cannot read holding registers.")
+        msg = MODBUS_EXCEPTIONS[resp.exceptCode]
+        raise BOFDeviceError("Cannot read holding registers (Exception returned: {0}).".format(msg))
 
     return HEX_TO_DICT(resp.byteCount // 2, resp.registerVal)
 
@@ -236,7 +237,8 @@ def read_input_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
     if resp.funcCode == FUNCTIONS.read_input_registers_exception:
-        raise BOFDeviceError("Cannot read input registers.")
+        msg = MODBUS_EXCEPTIONS[resp.exceptCode]
+        raise BOFDeviceError("Cannot read input registers (Exception returned: {0}).".format(msg))
 
     return HEX_TO_DICT(resp.byteCount // 2, resp.registerVal)
 
@@ -260,7 +262,8 @@ def read_device_identification(modnet: ModbusNet, read_code: int=1,
     except BOFNetworkError as bne: # Modnet object exist: connection should be ok
         raise BOFDeviceError("Cannot read device identification.") from None
     if resp.funcCode == FUNCTIONS.read_device_identification_exception:
-        raise BOFDeviceError("Cannot read device identification.")
+        msg = MODBUS_EXCEPTIONS[resp.exceptCode]
+        raise BOFDeviceError("Cannot read device identification (Exception returned: {0}).".format(msg))
     return resp.id, resp.value
     
 def full_read_device_identification(modnet: ModbusNet, device: ModbusDevice=None):
@@ -277,11 +280,11 @@ def full_read_device_identification(modnet: ModbusNet, device: ModbusDevice=None
     if device == None:
         device = ModbusDevice()
     read_code = 3 # Extended
-    for object_id, name in scapy_modbus._read_device_id_object_id.items():
+    for object_id, name in MODBUS_OBJECT_ID.items():
         key, value = read_device_identification(modnet, read_code, object_id)
         # Store to device object
         if key == 0x01: # ProductCode
             device.name = value.decode('utf-8')
-        key = scapy_modbus._read_device_id_object_id[key]
+        key = MODBUS_OBJECT_ID[key]
         device.description[key] = value.decode('utf-8')
     return device

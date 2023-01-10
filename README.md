@@ -7,8 +7,9 @@ send, receive, create, parse and manipulate frames from supported protocols.
 
 The library currently provides discovery and extended testing features for
 **KNXnet/IP**, which is our focus, but it can be extended to other types of BMS
-or industrial network protocols. It also provides targeted discovery functions
-for industrial networks relying on KNXnet/IP, LLDP and Profinet DCP.
+or industrial network protocols. It also provides multicast and/or end-to-end
+discovery functions for industrial networks relying on KNXnet/IP, LLDP,
+Profinet DCP and Modbus TCP.
 
 **Please note that targeting industrial systems can have a severe impact on
 people, industrial operations and buildings and that BOF must be used
@@ -82,12 +83,13 @@ TL;DR
 
 ### Several ways to discover devices on a network
 
-* Targeted discovery from the discovery module:
+* Mutlcast discovery from the discovery module (currently with LLDP, Profinet
+  DCP, KNX):
 
 ```python
 from bof.modules.discovery import *
 
-devices = targeted_discovery(iface="eth0", verbose=True)
+devices = multicast_discovery(iface="eth0", verbose=True)
 ```
 
 * Device discovery using a layer's high-level function

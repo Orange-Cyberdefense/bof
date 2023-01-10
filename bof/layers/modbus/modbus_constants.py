@@ -7,9 +7,15 @@ Protocol-dependent constants (network and functions) for Modbus TCP.
 
 from ... import to_property
 from enum import Enum
+# We interface some dictionaries here so that this file is the only one
+# to update if the Scapy implementation changes.
+from scapy.contrib import modbus as scapy_modbus
 
 MODBUS_PORT = 502
 MODBUS_TYPES = Enum('MODBUS_TYPES', 'REQUEST RESPONSE')
+
+MODBUS_EXCEPTIONS = scapy_modbus._modbus_exceptions
+MODBUS_OBJECT_ID = scapy_modbus._read_device_id_object_id
 
 # User defined function codes from 65 to 72, and from 100 to 110 (decimal)
 
