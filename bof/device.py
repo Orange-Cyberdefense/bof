@@ -26,7 +26,7 @@ class BOFDevice(object):
         self.description = description
         self.mac_address = mac_address
         self.ip_address = ip_address
-
+        
     def __str__(self):
         return "[{0}] Device name: {1}\n\tDescription: {2}\n\tMAC address: {3}" \
             "\n\tIP address: {4}".format(self.protocol, self.name, self.description,
