@@ -31,5 +31,4 @@ try:
 except BOFProgrammingError as be:
     print(be)
 except OSError as oe:
-    print("Invalid interface: {0}. Please specify valid network interface" \
-          " as first argument.".format(iface))
+    print("Network error: {0}".format(oe))

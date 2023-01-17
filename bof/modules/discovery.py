@@ -94,13 +94,16 @@ def multicast_discovery(iface: str=DEFAULT_IFACE,
     lldp_sniffer = lldp.start_listening(iface)
     # Multicast requests send and receive
     for protocol, proto_args in multicast_protocols.items():
-        discovery_fct, multicast_addr = proto_args
-        vprint("Sending {0} request to {1}.".format(protocol, multicast_addr))
-        devices = discovery_fct(mac_addr=multicast_addr, iface=iface)
-        nb = len(devices)
-        vprint("{0} {1} {2} found.".format(nb if nb else "No", protocol,
-                                          "device" if nb <= 1 else "devices"))
-        total_devices += devices
+        try:
+            discovery_fct, multicast_addr = proto_args
+            vprint("Sending {0} request to {1}.".format(protocol, multicast_addr))
+            devices = discovery_fct(mac_addr=multicast_addr, iface=iface)
+            nb = len(devices)
+            vprint("{0} {1} {2} found.".format(nb if nb else "No", protocol,
+                                               "device" if nb <= 1 else "devices"))
+            total_devices += devices
+        except OSError as oe:
+            vprint("Skipping {0}: {1}".format(protocol, oe))
     # For now we need to wait a little longer to make sure we sniff something
     vprint("Still waiting for LLDP requests...")
     sleep(lldp.LLDP_DEFAULT_TIMEOUT - profinet.DEFAULT_TIMEOUT)

@@ -21,7 +21,7 @@ from packaging.version import parse as version_parse
 
 from scapy import VERSION as scapy_version
 from scapy.packet import Packet
-from scapy.layers.l2 import Ether, srp
+from scapy.layers.l2 import Ether, sendp
 from scapy.sendrecv import AsyncSniffer
 
 if version_parse(scapy_version) <= version_parse("2.4.5"):
@@ -56,23 +56,29 @@ class ProfinetDevice(BOFDevice):
     def __init__(self, pkt: Packet=None):
         if pkt:
             self.parse(pkt)
-            
+
+    # TODO: Refactoring
     def parse(self, pkt: Packet=None) -> None:
-        if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY or \
-           pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
-            raise BOFProgrammingError("Expecting an identify response to create device object.")
-        self.name = pkt["DCPNameOfStationBlock"].name_of_station.decode('utf-8')
-        self.description = pkt["DCPManufacturerSpecificBlock"].\
-                           device_vendor_value.decode('utf-8')
+        if pkt.haslayer(ProfinetDCP):
+            if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY or \
+               pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
+                raise BOFProgrammingError("Expecting an identify response to create device object.")
+        if pkt.haslayer(DCPNameOfStationBlock):
+            self.name = pkt["DCPNameOfStationBlock"].name_of_station.decode('utf-8')
+        if pkt.haslayer(DCPManufacturerSpecificBlock):
+            self.description = pkt["DCPManufacturerSpecificBlock"].\
+                               device_vendor_value.decode('utf-8')
         if "Ether" in pkt:
             self.mac_address = pkt["Ether"].src
-        self.ip_address = pkt["DCPIPBlock"].ip
-        self.ip_netmask = pkt["DCPIPBlock"].netmask
-        self.ip_gateway = pkt["DCPIPBlock"].gateway
-        self.vendor_id = str(pkt["DCPDeviceIDBlock"].vendor_id)
-        self.vendor_id = VENDOR[self.vendor_id] if self.vendor_id in \
-                         VENDOR.keys() else "Unknown"
-        self.device_id = pkt["DCPDeviceIDBlock"].device_id
+        if pkt.haslayer(DCPIPBlock):
+            self.ip_address = pkt["DCPIPBlock"].ip
+            self.ip_netmask = pkt["DCPIPBlock"].netmask
+            self.ip_gateway = pkt["DCPIPBlock"].gateway
+        if pkt.haslayer(DCPDeviceIDBlock):
+            self.vendor_id = str(pkt["DCPDeviceIDBlock"].vendor_id)
+            self.vendor_id = VENDOR[self.vendor_id] if self.vendor_id in \
+                             VENDOR.keys() else "Unknown"
+            self.device_id = pkt["DCPDeviceIDBlock"].device_id
 
     def __str__(self):
         return "{0}\n\tIP Netmask: {1}\n\tIP gateway: {2}\n\tVendor ID: {3}" \
@@ -117,12 +123,13 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
     # We cannot only use srp because when this happens, Scapy does not detect it as replies.
     # We sniff the network for that particular type of packets while waiting for replies.
     lfilter = lambda x: "Ether" in x and x["Ether"].type == ETHER_TYPE_VLAN \
-              and x["Dot1Q"].type == ETHER_TYPE_PROFINET
-    listener = AsyncSniffer(iface=iface, lfilter=lfilter)
+              and x["Dot1Q"].type == ETHER_TYPE_PROFINET and "ProfinetDCP" in x
+    listener = AsyncSniffer(iface=iface, lfilter=lfilter, stop_filter=lfilter,
+                            timeout=timeout) #, prn=lambda x: x.summary())
     listener.start()
-    replies, _ = srp(packet, multi=1, iface=iface, timeout=timeout, verbose=False)
-    listener.stop()
-    replies += listener.results # Responses + sniffed Profinet packets
+    sendp(packet, iface=iface, verbose=False)
+    listener.join()
+    replies = listener.results # Responses + sniffed Profinet packets
     devices = []
     for reply in replies:
         devices.append(ProfinetDevice(reply[1]))
