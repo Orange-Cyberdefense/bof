@@ -79,17 +79,17 @@ class LLDPDevice(BOFDevice):
                 self.port_id = self.port_id.decode('utf-8')
         if pkt.haslayer(LLDPDUPortDescription):
             self.port_desc = pkt["LLDPDUPortDescription"].description.decode('utf-8')
-        if pkt.haslayer(LLDPDUSystemCapabilities):
-            self.capabilities = pkt["LLDPDUSystemCapabilities"] # TODO
+        # if pkt.haslayer(LLDPDUSystemCapabilities):
+        #     self.capabilities = pkt["LLDPDUSystemCapabilities"] # TODO
         if pkt.haslayer(LLDPDUGenericOrganisationSpecific):
             # We look for the name matching the code
             self.organisation = ORG_CODES[pkt["LLDPDUGenericOrganisationSpecific"].org_code]
 
     def __str__(self):
         return "{0}\n\tChassis ID: {1}\n\tPort ID: {2}\n\t" \
-            "Port description: {3}\n\tCapabilities: {4}\n\tOrganisation: {5}".format(
+            "Port description: {3}\n\tOrganisation: {4}".format(
                 super().__str__(), self.chassis_id, self.port_id,
-                self.port_desc, self.capabilities, self.organisation)
+                self.port_desc, self.organisation)
             
 #-----------------------------------------------------------------------------#
 # Listen to LLDP packets on the network                                       #

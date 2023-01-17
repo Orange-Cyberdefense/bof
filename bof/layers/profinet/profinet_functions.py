@@ -124,7 +124,7 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
     # We sniff the network for that particular type of packets while waiting for replies.
     lfilter = lambda x: "Ether" in x and x["Ether"].type == ETHER_TYPE_VLAN \
               and x["Dot1Q"].type == ETHER_TYPE_PROFINET and "ProfinetDCP" in x
-    listener = AsyncSniffer(iface=iface, lfilter=lfilter, stop_filter=lfilter,
+    listener = AsyncSniffer(iface=iface, lfilter=lfilter, # stop_filter=lfilter,
                             timeout=timeout) #, prn=lambda x: x.summary())
     listener.start()
     sendp(packet, iface=iface, verbose=False)
