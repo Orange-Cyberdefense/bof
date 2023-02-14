@@ -60,8 +60,8 @@ class ProfinetDevice(BOFDevice):
     # TODO: Refactoring
     def parse(self, pkt: Packet=None) -> None:
         if pkt.haslayer(ProfinetDCP):
-            if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY or \
-               pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
+            if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY:# or \
+#               pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
                 raise BOFProgrammingError("Expecting an identify response to create device object.")
         if pkt.haslayer(DCPNameOfStationBlock):
             self.name = pkt["DCPNameOfStationBlock"].name_of_station.decode('utf-8')
@@ -119,14 +119,20 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
     if geteuid() != 0:
         raise BOFProgrammingError("Super user privileges required to send PN-DCP requests")
 
-    # Profinet DCP responses are sometimes encapsulated inside 802.1Q
-    # We cannot only use srp because when this happens, Scapy does not detect it as replies.
-    # We sniff the network for that particular type of packets while waiting for replies.
-    lfilter = lambda x: "Ether" in x and x["Ether"].type == ETHER_TYPE_VLAN \
-              and x["Dot1Q"].type == ETHER_TYPE_PROFINET and "ProfinetDCP" in x
+    # Profinet DCP responses are sometimes encapsulated inside 802.1Q, sometimes not
+    # Here are some additional restrictive filters, they may prevent some replies
+    # from being intercepted but they may be required sometimes until someone comes
+    # up with a universal filter
+    # x["Ether"].type == ETHER_TYPE_VLAN \
+    #(x["Dot1Q"].type == ETHER_TYPE_PROFINET and "ProfinetDCP" in x)
+    lfilter = lambda x: "Ether" in x and "ProfinetDCP" in x
+    # We have to set a listener and not use srp in case the request is encapsulated
+    # (Scapy does not detect it as a reply in this case). So we sniff the network
+    # for any Profinet DCP replies (see filters).
     listener = AsyncSniffer(iface=iface, lfilter=lfilter, # stop_filter=lfilter,
-                            timeout=timeout) #, prn=lambda x: x.summary())
+                            timeout=timeout)#, prn=lambda x: x.summary())
     listener.start()
+    # Issue to fix: we may sniff this packet as well (it appears as None)
     sendp(packet, iface=iface, verbose=False)
     listener.join()
     replies = listener.results # Responses + sniffed Profinet packets
