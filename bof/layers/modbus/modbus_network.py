@@ -38,7 +38,7 @@ class ModbusNet(TCP):
         * MODBUS Messaging on TCP/IP Implementation Guide V1.0b
     """
 
-    def connect(self, ip: str, port: int = 502):
+    def connect(self, ip: str, port: int = 502, timeout:float=1.0):
         """Connects to a Modbus Server (opens socket). Default port is ``3671``.
 
         :param ip: IPv4 address as a string with format ``A.B.C.D``.

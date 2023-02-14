@@ -32,6 +32,15 @@ def GROUP_ADDR(x: int) -> str:
     """Converts an int to KNX group address."""
     return "%d/%d/%d" % ((x >> 11) & 0x1f, (x >> 8) & 0x7, (x & 0xff))
 
+def ADDR_TO_INT(x, y, z) -> int:
+    """Converts a splitted KNX address to an integer"""
+    if not 0 <= int(x) <= 15 or not 0 <= int(y) <= 15 or not 0 <= int(z) <= 255:
+        raise ValueError("Invalid interval")
+    xb = format(int(x), 'b').zfill(4)
+    yb = format(int(y), 'b').zfill(4)
+    zb = format(int(z), 'b').zfill(8)
+    return int(xb + yb + zb, 2)
+
 ###############################################################################
 # KNX DEVICE REPRESENTATION                                                   #
 ###############################################################################
@@ -290,14 +299,15 @@ def line_scan(ip: str, line: str="", port: int=3671) -> list:
                  from 0.0.0 to 15.15.255)
     :param port: KNX port, default is 3671.
     :returns: A list of existing individual addresses on the KNX bus.
-
-    Methods require smart detection of line, so far only line 1.1.X is
-    supported and it is dirty.
+    :raises BOFProgrammingError: if KNX address is invalid.
     """
-    # TODO: decent line parsing and handling
-    if line.startswith("1.1."):
-        begin, end = 4352, 4352+255
-    else:
-        begin, end = 0, 65635
-    addr = [INDIV_ADDR(x) for x in range(begin, end)]
+    try:
+        line = line.split(".")
+        begin = ADDR_TO_INT(*line)
+        end = ADDR_TO_INT(*line[:2] + [255])
+        if not 0 <= begin <= 65535 or not 0 <= end <= 65535:
+            raise ValueError
+    except ValueError as ve:
+        raise BOFProgrammingError("Invalid KNX address.") from None
+    addr = [INDIV_ADDR(x) for x in range(begin, end + 1)]
     return individual_address_scan(ip, addr, port)

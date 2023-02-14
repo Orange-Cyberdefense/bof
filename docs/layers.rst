@@ -57,6 +57,29 @@ LLDP
    :undoc-members:
    :show-inheritance:
 
+Modbus TCP
+----------
+
+.. automodule:: bof.layers.modbus
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: bof.layers.modbus.modbus_network
+   :members:
+   :undoc-members:
+   :show-inheritance:
+      
+.. automodule:: bof.layers.modbus.modbus_functions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: bof.layers.modbus.modbus_constants
+   :members:
+   :undoc-members:
+   :show-inheritance:
+      
 Profinet DCP
 ------------
 

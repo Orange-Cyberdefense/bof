@@ -12,54 +12,25 @@ directly with the Scapy packet if she wants, using ``scapy_pkt`` attribute.
 
 Example::
 
-    >>> from bof.layers.knx import *
+    >>> from bof.layers.modbus import *
     >>> modbus_packet = ModbusPacket(type=MODBUS_TYPES.REQUEST, function="Read Coils")
     >>> modbus_packet
     <bof.layers.modbus.modbus_packet.ModbusPacket object at 0x7f0d96f6c160>
     >>> modbus_packet.scapy_pkt
     <ModbusADURequest  |<ModbusPDU01ReadCoilsRequest  |>>
+
+Uses Modbus specification v1.1b3 and Scapy's Modbus contrib Arthur Gervais,
+Ken LE PRADO, Sebastien Mainand and Thomas Aurel.
 """
-import enum
-from enum import Enum
+
 from typing import Union
+from enum import Enum
 
 import scapy.contrib.modbus as scapy_modbus
 from scapy.packet import Packet
 
 from bof import BOFPacket, to_property, BOFProgrammingError
-
-###############################################################################
-# CONSTANTS                                                                   #
-###############################################################################
-
-MODBUS_TYPES = Enum('MODBUS_TYPES', 'REQUEST RESPONSE')
-
-MODBUS_FUNCTIONS_CODES = {
-    0x01: "Read Coils",
-    0x02: "Read Discrete Inputs",
-    0x03: "Read Holding Registers",
-    0x04: "Read Input Registers",
-    0x05: "Write Single Coil",
-    0x06: "Write Single Register",
-    0x07: "Read ExceptionStatus",
-    0x08: "Diagnostics",
-    0x0B: "Get Comm Event Counter",
-    0x0C: "Get Comm Event Log",
-    0x0F: "Write Multiple Coils",
-    0x10: "Write Multiple Registers",
-    0x11: "Report Slave Id",
-    0x14: "Read File Record",
-    0x15: "Write File Record",
-    0x16: "Mask Write Register",
-    0x17: "Read Write Multiple Registers",
-    0x18: "Read FIFO Queue",
-    0x0E: "Read Device Identification"
-}
-
-
-###############################################################################
-# ModbusPacket class                                                          #
-###############################################################################
+from .modbus_constants import *
 
 
 class ModbusPacket(BOFPacket):
@@ -124,7 +95,7 @@ class ModbusPacket(BOFPacket):
     # Public                                                                  #
     #-------------------------------------------------------------------------#
 
-    def set_function(self, type: enum, function: Union[bytes, int, str]):
+    def set_function(self, type: Enum, function: Union[bytes, int, str]):
         """Format packet according to the specified function (name or code)
 
         :param type: Type of frame to build (Modbus request or response).
@@ -143,8 +114,10 @@ class ModbusPacket(BOFPacket):
                 modbus_pdu = scapy_modbus._modbus_response_classes[function_code]
         elif type == MODBUS_TYPES.REQUEST:
             modbus_adu = scapy_modbus.ModbusADURequest
-            if function_code == 0x0E:
-                modbus_pdu = scapy_modbus._mei_types_request[function_code]
+            # Dirty fix: For some reason, Scapy's Modbus layer has function
+            # code 0x0E for device identification, and I have 0x2B.
+            if function_code in [0x0E, 0x2B]:
+                modbus_pdu = scapy_modbus._mei_types_request[0x0E]
             else:
                 modbus_pdu = scapy_modbus._modbus_request_classes[function_code]
         else:

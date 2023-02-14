@@ -7,8 +7,9 @@ send, receive, create, parse and manipulate frames from supported protocols.
 
 The library currently provides discovery and extended testing features for
 **KNXnet/IP**, which is our focus, but it can be extended to other types of BMS
-or industrial network protocols. It also provides passive discovery functions
-for industrial networks relying on KNXnet/IP, LLDP and Profinet DCP.
+or industrial network protocols. It also provides multicast and/or end-to-end
+discovery functions for industrial networks relying on KNXnet/IP, LLDP,
+Profinet DCP and Modbus TCP.
 
 **Please note that targeting industrial systems can have a severe impact on
 people, industrial operations and buildings and that BOF must be used
@@ -57,10 +58,12 @@ There are three ways to use BOF, not all of them are available depending on the
 layer:
 
 * **Automated**: Import or call directly higher-level functions from layers. No
-    knowledge about the protocol required.
+    knowledge about the protocol required. For instance, the **discovery**
+    module contains a few functions to discover devices using several industrial
+    network protocols.
 
 * **Standard**: Craft packets from layers to interact with remote devices. Basic
-    knowledge about the protocol requred.
+    knowledge about the protocol required.
 
 * **Playful**: Play with packets, misuse the protocol (we fuzz devices with it).
   The end user should have started digging into the protocol's specifications.
@@ -69,7 +72,7 @@ layer:
 |--------------|-----------|----------|---------|
 | KNX          | X         | X        | X       |
 | LLDP         | X         |          |         |
-| Modbus       |           | X        | X       |
+| Modbus       | X         | X        | X       |
 | Profinet DCP | X         |          |         |
 
 
@@ -78,14 +81,15 @@ Now you can start using BOF!
 TL;DR
 -----
 
-### Several ways yo discover devices on a network
+### Several ways to discover devices on a network
 
-* Passive discovery from the discovery module:
+* Mutlcast discovery from the discovery module (currently with LLDP, Profinet
+  DCP, KNX):
 
 ```python
 from bof.modules.discovery import *
 
-devices = passive_discovery(iface="eth0", verbose=True)
+devices = multicast_discovery(iface="eth0", verbose=True)
 ```
 
 * Device discovery using a layer's high-level function
