@@ -33,7 +33,7 @@ if version_parse(scapy_version) <= version_parse("2.4.5"):
 from scapy.contrib.pnio import ProfinetIO
 from scapy.contrib.pnio_dcp import *
 
-from ... import BOFProgrammingError, BOFDevice, DEFAULT_IFACE
+from ... import BOFProgrammingError, BOFDevice, DEFAULT_IFACE, to_property
 from .profinet_constants import *
 
 #-----------------------------------------------------------------------------#
@@ -63,8 +63,15 @@ class ProfinetDevice(BOFDevice):
             if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY:# or \
 #               pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
                 raise BOFProgrammingError("Expecting an identify response to create device object.")
+        # Sometimes everything is in the ProfinetDCP frame directly, we extract data based on options
+        if pkt["ProfinetDCP"].option == 0x02 and pkt["ProfinetDCP"].sub_option in [0x02, 0x06]:
+            option = DCP_SUBOPTIONS[pkt["ProfinetDCP"].option][pkt["ProfinetDCP"].sub_option]
+            self.name = getattr(pkt["ProfinetDCP"], to_property(option))
+        # And sometimes there are dedicated blocks...
         if pkt.haslayer(DCPNameOfStationBlock):
             self.name = pkt["DCPNameOfStationBlock"].name_of_station.decode('utf-8')
+        elif pkt.haslayer(DCPAliasNameBlock):
+            self.name = pkt["DCPAliasNameBlock"].alias_name.decode('utf-8')
         if pkt.haslayer(DCPManufacturerSpecificBlock):
             self.description = pkt["DCPManufacturerSpecificBlock"].\
                                device_vendor_value.decode('utf-8')
