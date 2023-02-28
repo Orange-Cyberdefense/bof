@@ -66,7 +66,7 @@ class ProfinetDevice(BOFDevice):
         # Sometimes everything is in the ProfinetDCP frame directly, we extract data based on options
         if pkt["ProfinetDCP"].option == 0x02 and pkt["ProfinetDCP"].sub_option in [0x02, 0x06]:
             option = DCP_SUBOPTIONS[pkt["ProfinetDCP"].option][pkt["ProfinetDCP"].sub_option]
-            self.name = getattr(pkt["ProfinetDCP"], to_property(option))
+            self.name = getattr(pkt["ProfinetDCP"], to_property(option)).decode('utf-8')
         # And sometimes there are dedicated blocks...
         if pkt.haslayer(DCPNameOfStationBlock):
             self.name = pkt["DCPNameOfStationBlock"].name_of_station.decode('utf-8')
@@ -88,9 +88,16 @@ class ProfinetDevice(BOFDevice):
             self.device_id = pkt["DCPDeviceIDBlock"].device_id
 
     def __str__(self):
-        return "{0}\n\tIP Netmask: {1}\n\tIP gateway: {2}\n\tVendor ID: {3}" \
-            "\n\tDevice ID: {4}".format(
-                super().__str__(), self.ip_netmask, self.ip_gateway, self.vendor_id, self.device_id)
+        data = [super().__str__()]
+        if self.ip_netmask:
+            data += ["IP Netmask: {0}".format(self.ip_netmask)]
+        if self.ip_gateway:
+            data += ["IP Gateway: {0}".format(self.ip_gateway)]
+        if self.vendor_id:
+            data += ["Vendor ID: {0}".format(self.vendor_id)]
+        if self.device_id:
+            data += ["Device ID: {0}".format(self.device_id)]
+        return "\t\n".join(data)
 
 #-----------------------------------------------------------------------------#
 # Send PNDCP indentify packets on the network                                 #
