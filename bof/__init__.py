@@ -51,4 +51,3 @@ from .network import *
 from .packet import *
 from .device import *
 from .layers import *
-from .modules import *
