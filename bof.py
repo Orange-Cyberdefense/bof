@@ -24,7 +24,7 @@ DISCOVER = "discover"
 DISCOVER_HELP = "Discovery function"
 
 AVAILABLE = [DISCOVER]
-HELP = "ToolBOF contains a set of ready-to-use features to interact with " \
+HELP = "BOF contains a set of ready-to-use features to interact with " \
        "industrial devices."
 
 LINE_WIDTH = 79
@@ -34,14 +34,14 @@ def toolbof_help():
     for l in wrap(HELP, width=LINE_WIDTH):
         print(l)
     print(("{:-^"+str(LINE_WIDTH)+"}").format("-"))
-    print(discover.HELP)
+    print("{0}: {1}".format(DISCOVER, discover.HELP))
 
 #-----------------------------------------------------------------------------#
 # Discover                                                                    #
 #-----------------------------------------------------------------------------#
     
 if len(argv) >= 2 and argv[1].lower() == DISCOVER.lower():
-    discover.dispatch(argv[1:])
+    discover.run(argv[1:])
 else:
     print("ERROR: Invalid argument. Available: {0}.".format(", ".join(AVAILABLE)))
     toolbof_help()
