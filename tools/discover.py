@@ -33,7 +33,7 @@ OPTIONS = (
     ("-M", "--multicast", "only send multicast requests (UDP only)", False, None),    
     ("-B", "--broadcast", "only send broadcast trquests (UDP only)", False, None),
     ("-U", "--unicast", "discover a specific target by connecting to it (TCP and UDP)",
-     None, "target"),
+     False, "target"),
     # ("-c", "--categories", "protocol categories to use (default: all)",
     #  "all", "categories"),
     ("-i", "--iface", "specify interface name (default: eth0)", IFACE, "iface"),
