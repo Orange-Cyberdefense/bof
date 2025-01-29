@@ -8,8 +8,8 @@ purposes.
 The following submodules are available:
 
 :base:
-    Basic helpers for correct module usage (error handling, logging, some
-    parsing features.
+    Basic helpers for correct module usage (error handling, some parsing
+    features.
 
 :network:
     Global network classes, used by protocol implementations in submodules.

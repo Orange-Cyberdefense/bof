@@ -16,7 +16,7 @@ Uses Modbus specification v1.1b3 and Scapy's Modbus contrib by Arthur Gervais,
 Ken LE PRADO, Sebastien Mainand and Thomas Aurel.
 """
 
-from ... import BOFDevice, BOFDeviceError, BOFNetworkError, IS_IP, log
+from ... import BOFDevice, BOFDeviceError, BOFNetworkError, IS_IP
 from .modbus_network import ModbusNet
 from .modbus_packet import ModbusPacket
 from .modbus_constants import *
@@ -121,7 +121,9 @@ def discover(ip: str, port: int=MODBUS_PORT) -> ModbusDevice:
     try:
         full_read_device_identification(modnet, device)
     except BOFDeviceError as bde:
-        log("Modbus: Function code 43 (Read Device Id) not supported")
+        # Modbus: Function code 43 (Read Device Id) not supported
+        # Used to be logged but not handled, so let's just try to do nothing
+        pass
     try:
         device.coils = read_coils(modnet, quantity=MODBUS_MAX_COIL_QUANTITY)
     except BOFDeviceError as bde:

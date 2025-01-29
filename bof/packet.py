@@ -39,7 +39,7 @@ from scapy.compat import raw
 from scapy.packet import Packet, RawVal
 from scapy.fields import *
 # Internal
-from bof import log, BOFProgrammingError
+from bof import BOFProgrammingError
 
 ###############################################################################
 # Constants                                                                   #

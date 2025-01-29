@@ -34,7 +34,7 @@ from socket import socket, timeout as sotimeout, gaierror
 from struct import pack
 from sys import version_info
 # Internal
-from .base import BOFNetworkError, BOFProgrammingError, log
+from .base import BOFNetworkError, BOFProgrammingError
 
 ###############################################################################
 # Global network-related constants and functions                              #
@@ -165,7 +165,6 @@ class _Transport(object):
         if self._transport:
             self._transport.close()
             self._transport = None
-            log("Disconnected.")
 
     def send(self, data:bytes, address:tuple=None) -> int:
         """Sends ``data`` to ``address``. (ABSTRACT)
@@ -189,7 +188,6 @@ class _Transport(object):
             response, address = udp.receive()
         """
         data, address = self._loop.run_until_complete(self.__listen_once(timeout))
-        log("Received from {0}:{1} : {2}".format(address[0], address[1], data))
         return data, address
 
     def send_receive(self, data:bytes, address:tuple=None, timeout:float=1.0) -> (bytes, tuple):
@@ -221,11 +219,10 @@ class _Transport(object):
     #-------------------------------------------------------------------------#
 
     def _handle_exception(self, loop:object, context) -> None:
-        """Log exception and raise BOF-defined network exception instead.
+        """Receives exception but raises BOF-defined network exception instead.
 
         .. seealso:: bof.base.BOFNetworkError"""
         message = context if isinstance(context, str) else context.get("exception", context["message"])
-        log("Exception occurred: {0}".format(message), "ERROR")
         raise BOFNetworkError(message) from None
 
     def _receive(self, data:bytes, address:tuple) -> None:
@@ -236,7 +233,6 @@ class _Transport(object):
         try:
             self._queue.put_nowait((data, address))
         except asyncio.QueueFull:
-            log("Queue is full", "ERROR")
             raise BOFNetworkError("Queue is full")
 
     def _argument_check(data:bytes, address:tuple) -> None:
@@ -446,7 +442,6 @@ class UDP(_Transport):
             return None
         self._address = (ip, port)
         self._socket = self._transport.get_extra_info('socket')
-        log("Connected to {0}:{1}".format(ip, port))
         return self
 
     def send(self, data:bytes, address:tuple=None) -> int:
@@ -469,13 +464,11 @@ class UDP(_Transport):
             bdata = data
         address = address if address else self._address
         if not self._transport:
-            log("Cannot send data to {0}:{1}".format(address[0], address[1]))
             return 0
         try:
             self._transport.sendto(bdata, address)
         except TypeError as te:
             raise BOFNetworkError(str(te)) from None
-        log("Send to {0}:{1} : {2}".format(address[0], address[1], data))
         return len(bdata)
 
 ###############################################################################
@@ -535,7 +528,6 @@ class TCP(_Transport):
             return None
         self._address = (ip, port)
         self._socket = self._transport.get_extra_info('socket')
-        log("Connected to {0}:{1}".format(ip, port))
         return self
 
     def send(self, data:bytes, address:tuple=None) -> int:
@@ -558,11 +550,9 @@ class TCP(_Transport):
             bdata = data
         address = address if address else self._address
         if not self._transport:
-            log("Cannot send data to {0}:{1}".format(address[0], address[1]))
             return 0
         try:
             self._transport.write(bdata)
         except TypeError as te:
             raise BOFNetworkError(str(te)) from None
-        log("Send to {0}:{1} : {2}".format(address[0], address[1], data))
         return len(bdata)
