@@ -88,9 +88,11 @@ class ModbusDevice(BOFDevice):
         return {x:y for x,y in self.input_registers.items() if y}
     
     def __str__(self):
-        return "{0}\n\tCoils ON: {1}\n\tDiscrete inputs ON: {2}\n\t" \
-            "Holding registers != 0: {3}\n\tInput registers != 0: {4}".format(
-                super().__str__(), list(self.coils_on.keys()),
+        return "{0}\n\tDescription: {1}\n\tCoils ON: {2}\n\t" \
+            "Discrete inputs ON: {3}\n\tHolding registers != 0: {4}\n\t" \
+            "Input registers != 0: {5}".format(
+                super().__str__(), self.description,
+                list(self.coils_on.keys()),
                 list(self.discrete_inputs_on.keys()), 
                 self.holding_registers_nonzero,
                 self.input_registers_nonzero, 
@@ -116,7 +118,7 @@ def discover(ip: str, port: int=MODBUS_PORT) -> ModbusDevice:
     :raises BOFDeviceError: if request is not supported on remote device.
     """
     IS_IP(ip)
-    device = ModbusDevice()
+    device = ModbusDevice(ip_address=ip)
     modnet = ModbusNet().connect(ip)
     try:
         full_read_device_identification(modnet, device)

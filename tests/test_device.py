@@ -11,18 +11,12 @@ class Test01BOFDevice(unittest.TestCase):
     def test_0101_bofdevice_empty(self):
         dev = BOFDevice()
         self.assertIsNone(dev.name)
-        self.assertIsNone(dev.description)
-        self.assertIsNone(dev.mac_address)
         self.assertIsNone(dev.ip_address)
     def test_0102_bofdevice_allargs(self):
-        dev = BOFDevice("a", "b", "c", "d")
+        dev = BOFDevice("a", "d")
         self.assertEqual(dev.name, "a")
-        self.assertEqual(dev.description, "b")
-        self.assertEqual(dev.mac_address, "c")
         self.assertEqual(dev.ip_address, "d")
     def test_0103_bofdevice_partial(self):
-        dev = BOFDevice(mac_address="c")
+        dev = BOFDevice(ip_address="c")
         self.assertIsNone(dev.name)
-        self.assertIsNone(dev.description)
-        self.assertEqual(dev.mac_address, "c")
-        self.assertIsNone(dev.ip_address)
+        self.assertEqual(dev.ip_address, "c")

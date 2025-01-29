@@ -73,9 +73,11 @@ class KNXDevice(BOFDevice):
         self.serial_number = serial_number
 
     def __str__(self):
-        return "{0}\n\tPort: {1}\n\tMulticast address: {2}\n\t" \
-            "KNX address: {3}\n\tSerial number: {4}".format(
-                super().__str__(), self.port, self.multicast_address,
+        return "{0}\n\tDescription: {1}\n\tMAC address: {2}\n\t" \
+            "Port: {3}\n\tMulticast address: {4}\n\t" \
+            "KNX address: {5}\n\tSerial number: {6}".format(
+                super().__str__(), self.description, self.mac_address,
+                self.port, self.multicast_address,
                 self.knx_address, self.serial_number)
 
     @classmethod

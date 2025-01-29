@@ -86,9 +86,11 @@ class LLDPDevice(BOFDevice):
             self.organisation = ORG_CODES[pkt["LLDPDUGenericOrganisationSpecific"].org_code]
 
     def __str__(self):
-        return "{0}\n\tChassis ID: {1}\n\tPort ID: {2}\n\t" \
-            "Port description: {3}\n\tOrganisation: {4}".format(
-                super().__str__(), self.chassis_id, self.port_id,
+        return "{0}\n\t\n\tDescription: {1}\n\tMAC address: {2}\n\t" \
+            "Chassis ID: {3}\n\tPort ID: {4}\n\t" \
+            "Port description: {5}\n\tOrganisation: {6}".format(
+                super().__str__(), self.description, self.mac_address,
+                self.chassis_id, self.port_id,
                 self.port_desc, self.organisation)
             
 #-----------------------------------------------------------------------------#

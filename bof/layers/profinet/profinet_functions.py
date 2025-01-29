@@ -89,6 +89,10 @@ class ProfinetDevice(BOFDevice):
 
     def __str__(self):
         data = [super().__str__()]
+        if self.description:
+            data += ["Description: {0}".format(self.description)]
+        if self.mac_address:
+            data += ["MAC Address: {0}".format(self.mac_address)]
         if self.ip_netmask:
             data += ["IP Netmask: {0}".format(self.ip_netmask)]
         if self.ip_gateway:
