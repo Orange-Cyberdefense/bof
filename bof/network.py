@@ -138,7 +138,7 @@ class _TCP(asyncio.Protocol):
 ###############################################################################
 
 class _Transport(object):
-    """Transport protocol endpoint. UDP and TCP endpoint are inheriting it.
+    """Transport protocol endpoint. UDP and TCP endpoint inherit it.
     Relies on _TCP and _UDP asyncio classes, specified in the constructor.
     Transport class shall never be instantiated directly.
     """
@@ -226,7 +226,6 @@ class _Transport(object):
         .. seealso:: bof.base.BOFNetworkError"""
         message = context if isinstance(context, str) else context.get("exception", context["message"])
         log("Exception occurred: {0}".format(message), "ERROR")
-        # self.disconnect()
         raise BOFNetworkError(message) from None
 
     def _receive(self, data:bytes, address:tuple) -> None:
@@ -335,7 +334,8 @@ class UDP(_Transport):
     It can be instantiated as is, however this is not the expected behavior.
     Uses protected ``_UDP`` classes implementing ``asyncio`` UDP handler.
 
-    .. warning:: Should not be instantiated directly.
+    .. warning:: It is better to override it in layers with protocol-specific
+                 packet handling.
     """
 
     #-------------------------------------------------------------------------#
@@ -489,7 +489,8 @@ class TCP(_Transport):
     It can be instantiated as is, however this is not the expected behavior.
     Uses protected ``_TCP`` classes implementing ``asyncio`` TCP handler.
 
-    .. warning:: Should not be instantiated directly.
+    .. warning:: It is better to override it in layers with protocol-specific
+                 packet handling.
     """
 
     #-------------------------------------------------------------------------#

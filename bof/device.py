@@ -7,11 +7,9 @@ class BOFDevice(object):
     """Interface class for devices, to inherit in layer-specific device classes.
 
     Device objects are usually built from device description requests in layers.
-    A device has a set of basic information: a name, a description, a MAC
-    address and an IP address. All of them are attributes to this base object,
-    but not all of them may be provided when asking protocols for device
-    descriptions. On the other hand, most of protocol-specific devices will have
-    additional attributes.
+    We can collect different information about a device depending on its type
+    and the protocol used. That is why BOFObject must be overriden in layers to
+    store more details given. Only the name and IP address are known for sure.
     """
     protocol:str = "BOF"
     name:str = None
