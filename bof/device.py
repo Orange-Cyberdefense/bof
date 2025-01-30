@@ -21,5 +21,5 @@ class BOFDevice(object):
         self.ip_address = ip_address
         
     def __str__(self):
-        return "[{0}] Results for {1} (2)".format(
+        return "[{0}] Results for {1} ({2})".format(
             self.protocol, self.name, self.ip_address)

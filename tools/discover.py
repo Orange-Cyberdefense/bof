@@ -5,6 +5,7 @@ from ipaddress import ip_address
 from time import sleep
 # BOF
 try:
+    from bof import BOFNetworkError
     from bof.layers import knx
     from bof.layers import profinet
     from bof.layers import lldp
@@ -32,24 +33,27 @@ OPTIONS = (
     ("-P", "--passive", "listen to the network without sending requests", False, None),    
     ("-M", "--multicast", "only send multicast requests (UDP only)", False, None),    
     ("-B", "--broadcast", "only send broadcast trquests (UDP only)", False, None),
-    ("-U", "--unicast", "discover a specific target by connecting to it (TCP and UDP)",
+    ("-T", "--target", "discover a specific target by connecting to it (TCP and UDP)",
      False, "target"),
     # ("-c", "--categories", "protocol categories to use (default: all)",
     #  "all", "categories"),
     ("-i", "--iface", "specify interface name (default: eth0)", IFACE, "iface"),
     ("-t", "--timeout", "time to wait for sniffing (light)", TIMEOUT, "seconds"),
-    ("-v", "--verbose", "print more details about the process", False, None)
+    ("-v", "--verbose", "print more details about the process", False, None),
+    ("-f", "--force", "do not print warning messages before dangerous tests", False, None)
 )
 
 VERBOSE = False
+FORCE = False
 
 def vprint(msg: str) -> None:
     if VERBOSE: print("[BOF] {0}".format(msg))
 
 def warn() -> None:
-    print(WARNING)
-    if input("Do you want to continue? [y/N]: ") not in ("Y", "y"):
-        return False
+    if not FORCE:
+        print(WARNING)
+        if input("Do you want to continue? [y/N]: ") not in ("Y", "y"):
+            return False
     return True
     
 #-----------------------------------------------------------------------------#
@@ -143,21 +147,26 @@ def broadcast(iface: str = IFACE) -> list:
     return []
 
 #-----------------------------------------------------------------------------#
-# Unicast                                                                    #
+# Targeted                                                                    #
 #-----------------------------------------------------------------------------#
     
-def unicast(target: str = None) -> list:
+def targeted(target: str = None) -> list:
     """Discover a given device on the network with direct (unicast) requests.
 
     Currently supported:
-    - TODO
+    - KNXnet/IP
     """
+    results = []
     if not warn():
-        return []
-    vprint("TODO discovery on target {0}.".format(target))
-    raise NotImplementedError("unicast")
-    return []
-    
+        return results
+    vprint("KNXnet/IP discovery on target {0}.".format(target))
+    try:
+        knx_dev = knx.discover(target) # Should return only one object
+        results.append(knx_dev)
+    except BOFNetworkError:
+        vprint("No KNXnet/IP device found at {0}.".format(target))
+    return results
+
 #-----------------------------------------------------------------------------#
 # Run                                                                         #
 #-----------------------------------------------------------------------------#
@@ -181,10 +190,11 @@ def display(results: list) -> None:
 
 def run(args) -> None:
     """Run the discovery module according to the options provided."""
-    global VERBOSE
+    global VERBOSE, FORCE
     opt = set_options()
-    options = (opt.passive, opt.multicast, opt.broadcast, opt.unicast)
+    options = (opt.passive, opt.multicast, opt.broadcast, opt.target)
     VERBOSE = opt.verbose
+    FORCE = opt.force
     results = []
     try:
         ifaddresses(opt.iface)
@@ -194,12 +204,12 @@ def run(args) -> None:
             results += multicast(opt.iface)
         if opt.broadcast:
             results += broadcast(opt.iface)
-        if opt.unicast:
-            results += unicast(ip_address(opt.unicast))
+        if opt.target:
+            results += targeted(ip_address(opt.target))
         if opt.light or all(value is False for value in options):
             results += light(opt.iface, opt.timeout)
     except ValueError as ve:
-        print("ERROR:", str(ve))
+        print("[ERROR]", str(ve))
         exit (-1)
     display(results)
         
