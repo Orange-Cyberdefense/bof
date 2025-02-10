@@ -8,7 +8,8 @@ Relies on **KNX Standard v2.1**
 """
 
 # Scapy
-from scapy.contrib import knx as scapy_knx
+# from scapy.contrib import knx as scapy_knx
+from bof.layers.raw_scapy import knx as scapy_knx
 
 # Internal
 from ... import BOFDevice, BOFNetworkError

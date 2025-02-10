@@ -16,7 +16,8 @@ Contents:
 """
 
 # Scapy
-from scapy.contrib import knx as scapy_knx 
+# from scapy.contrib import knx as scapy_knx
+from bof.layers.raw_scapy import knx as scapy_knx
 
 # Internal
 from .knx_network import KNXnet
@@ -229,7 +230,8 @@ def cemi_group_write(knx_group_addr: str, value, knx_source: str="0.0.0") -> Pac
 # L_data.req (0x11) with ACPI DevDescrRead                                    #
 #-----------------------------------------------------------------------------#
 
-def cemi_dev_descr_read(knx_indiv_addr: str, seq_num: int=0, knx_source: str="0.0.0") -> Packet:
+def cemi_dev_descr_read(knx_indiv_addr: str, seq_num: int=0,
+                        knx_source: str="0.0.0") -> Packet:
     """Builds a KNX message (cEMI) to write a value to a group address.
 
     :param knx_indiv_addr: KNX individual address of device (with format X.Y.Z)
@@ -250,8 +252,9 @@ def cemi_dev_descr_read(knx_indiv_addr: str, seq_num: int=0, knx_source: str="0.
     try:
         cemi.cemi_data.source_address = knx_source
         cemi.cemi_data.destination_address = knx_indiv_addr
-    except ValueError:
-        raise BOFProgrammingError("Values given to addresses are not supported.")
+    except ValueError as ve:
+        raise BOFProgrammingError("Values given to addresses are not supported ({0})."
+                                  .format(ve)) # from None
     cemi.cemi_data.npdu_length = 1 # size of data
     cemi.cemi_data.packet_type = 0 # data
     cemi.cemi_data.sequence_type = 1 # numbered
@@ -282,8 +285,9 @@ def cemi_connect(knx_indiv_addr: str, knx_source: str="0.0.0") -> Packet:
     try:
         cemi.cemi_data.source_address = knx_source
         cemi.cemi_data.destination_address = knx_indiv_addr
-    except ValueError:
-        raise BOFProgrammingError("Values given to addresses are not supported.")
+    except ValueError as ve:
+        raise BOFProgrammingError("Values given to addresses are not supported ({0})."
+                                  .format(ve)) from None
     cemi.cemi_data.npdu_length = 0 # no data
     cemi.cemi_data.packet_type = 1 # control
     cemi.cemi_data.sequence_type = 0 # unnumbered
@@ -313,8 +317,9 @@ def cemi_disconnect(knx_indiv_addr: str, knx_source: str="0.0.0") -> Packet:
     try:
         cemi.cemi_data.source_address = knx_source
         cemi.cemi_data.destination_address = knx_indiv_addr
-    except ValueError:
-        raise BOFProgrammingError("Values given to addresses are not supported.")
+    except ValueError as ve:
+        raise BOFProgrammingError("Values given to addresses are not supported ({0})."
+                                  .format(ve)) from None
     cemi.cemi_data.npdu_length = 0 # no data
     cemi.cemi_data.packet_type = 1 # control
     cemi.cemi_data.sequence_type = 0 # unnumbered
@@ -346,8 +351,9 @@ def cemi_ack(knx_indiv_addr: str, seq_num: int=0, knx_source: str="0.0.0") -> Pa
     try:
         cemi.cemi_data.source_address = knx_source
         cemi.cemi_data.destination_address = knx_indiv_addr
-    except ValueError:
-        raise BOFProgrammingError("Values given to addresses are not supported.")
+    except ValueError as ve:
+        raise BOFProgrammingError("Values given to addresses are not supported ({0})."
+                                  .format(ve)) from None
     cemi.cemi_data.npdu_length = 0 # no data
     cemi.cemi_data.packet_type = 1 # control
     cemi.cemi_data.sequence_type = 1 # numbered
