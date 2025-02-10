@@ -90,21 +90,21 @@ class ProfinetDevice(BOFDevice):
     def __str__(self):
         data = [super().__str__()]
         if self.description:
-            data += ["Description: {0}".format(self.description)]
+            data += ["\tDescription: {0}".format(self.description)]
         if self.mac_address:
-            data += ["MAC Address: {0}".format(self.mac_address)]
+            data += ["\tMAC Address: {0}".format(self.mac_address)]
         if self.ip_netmask:
-            data += ["IP Netmask: {0}".format(self.ip_netmask)]
+            data += ["\tIP Netmask: {0}".format(self.ip_netmask)]
         if self.ip_gateway:
-            data += ["IP Gateway: {0}".format(self.ip_gateway)]
+            data += ["\tIP Gateway: {0}".format(self.ip_gateway)]
         if self.vendor_id:
-            data += ["Vendor ID: {0}".format(self.vendor_id)]
+            data += ["\tVendor ID: {0}".format(self.vendor_id)]
         if self.device_id:
-            data += ["Device ID: {0}".format(self.device_id)]
+            data += ["\tDevice ID: {0}".format(self.device_id)]
         return "\t\n".join(data)
 
 #-----------------------------------------------------------------------------#
-# Send PNDCP indentify packets on the network                                 #
+# Send PNDCP identify packets on the network                                 #
 #-----------------------------------------------------------------------------#
 
 def create_identify_packet() -> Packet: # Should become generic at some point.
@@ -143,14 +143,15 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
     # up with a universal filter
     # x["Ether"].type == ETHER_TYPE_VLAN \
     #(x["Dot1Q"].type == ETHER_TYPE_PROFINET and "ProfinetDCP" in x)
-    lfilter = lambda x: "Ether" in x and "ProfinetDCP" in x
+    # Exclude "Padding" prevents from having an additional "None" result
+    # Please create an issue if it prevents from discovering some devices
+    lfilter = lambda x: "Ether" in x and "ProfinetDCP" in x and not "Padding" in x
     # We have to set a listener and not use srp in case the request is encapsulated
     # (Scapy does not detect it as a reply in this case). So we sniff the network
     # for any Profinet DCP replies (see filters).
     listener = AsyncSniffer(iface=iface, lfilter=lfilter, # stop_filter=lfilter,
                             timeout=timeout)#, prn=lambda x: x.summary())
     listener.start()
-    # Issue to fix: we may sniff this packet as well (it appears as None)
     sendp(packet, iface=iface, verbose=False)
     listener.join()
     replies = listener.results # Responses + sniffed Profinet packets

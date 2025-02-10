@@ -18,14 +18,14 @@ class Test01PNDCPPacket(unittest.TestCase):
         self.assertEqual(DCP_SERVICE_TYPE[pkt["ProfinetDCP"].service_type],
                          "Request")
 
-class Test02LLDPSend(unittest.TestCase):
+class Test02PNDCPSend(unittest.TestCase):
     """Test class for PNDCP packet send."""
     def test_0201_pndcp_packet_send_default(self):
         """Test that nothing wrong happens when sending packet."""
         with self.assertRaises(BOFProgrammingError): # Test not run as sudo
             profinet.send_identify_request()
 
-class Test03LLDPDevice(unittest.TestCase):
+class Test03PNDCPDevice(unittest.TestCase):
     """Test class for LLDP device objects."""
     def test_0301_pndcp_device_raise(self):
         """Test that we cannot create a PNDCP device with request and not response."""

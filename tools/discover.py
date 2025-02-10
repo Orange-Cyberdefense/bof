@@ -32,7 +32,7 @@ OPTIONS = (
     ("-L", "--light", "discover using passive and multicast (default)", False, None),
     ("-P", "--passive", "listen to the network without sending requests", False, None),    
     ("-M", "--multicast", "only send multicast requests (UDP only)", False, None),    
-    ("-B", "--broadcast", "only send broadcast trquests (UDP only)", False, None),
+    ("-B", "--broadcast", "only send broadcast requests (UDP only)", False, None),
     ("-T", "--target", "discover a specific target by connecting to it (TCP and UDP)",
      False, "target"),
     # ("-c", "--categories", "protocol categories to use (default: all)",
@@ -65,7 +65,7 @@ def start_passive(iface: str) -> object:
 
     Protocols: LLDP (L2).
     """
-    vprint("Starting network listener.")
+    vprint("Starting network listener for LLDP.")
     lldp_sniffer = lldp.start_listening(iface)
     return lldp_sniffer
 
@@ -75,10 +75,10 @@ def end_passive(lldp_sniffer: object) -> list:
     Protocols: LLDP (L2).
     """
     devices = lldp.stop_listening(lldp_sniffer)
-    vprint("Stopping network listener.")
+    vprint("Stopping network listener for LLDP.")
     return [lldp.LLDPDevice(d) for d in devices]
 
-def passive(iface: str) -> list:
+def passive(iface: str, timeout: int = TIMEOUT) -> list:
     """Listen to the network without sending requests.
 
     Protocols: LLDP (L2).
@@ -124,7 +124,7 @@ def light(iface: str = IFACE, timeout: int = TIMEOUT) -> list:
     lldp_sniffer = start_passive(iface)
     try:
         devices += multicast(iface)
-        sleep(timeout)
+        sleep(timeout / 2)
     except KeyboardInterrupt:
         print("Terminating, please wait.")
     devices += end_passive(lldp_sniffer)
@@ -199,7 +199,7 @@ def run(args) -> None:
     try:
         ifaddresses(opt.iface)
         if opt.passive:
-            results += passive(opt.iface)
+            results += passive(opt.iface, opt.timeout)
         if opt.multicast:
             results += multicast(opt.iface)
         if opt.broadcast:

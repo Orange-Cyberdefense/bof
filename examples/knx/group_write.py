@@ -26,5 +26,8 @@ from bof.layers.knx import *
 if len(argv) != 4:
     print("Usage: python {0} device_ip knx_group_addr value".format(argv[0]))
     exit(-1)
-    
-group_write(argv[1], argv[2], argv[3])
+
+try:
+    group_write(argv[1], argv[2], argv[3])
+except BOFNetworkError as bne:
+    print("Error:", bne)

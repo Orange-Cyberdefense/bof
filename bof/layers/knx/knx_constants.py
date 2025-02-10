@@ -5,8 +5,11 @@ KNX constants
 Protocol-dependent constants (network and functions) for KNX.
 """
 
+# Scapy
+from scapy.contrib import knx as scapy_knx
+
+# Internal
 from ... import to_property
-from ...layers.raw_scapy import knx as scapy_knx
 
 KNX_MULTICAST_ADDR = MULTICAST_ADDR = "224.0.23.12"
 KNX_PORT = PORT = 3671

@@ -15,9 +15,12 @@ Contents:
     KNX messages).
 """
 
+# Scapy
+from scapy.contrib import knx as scapy_knx 
+
+# Internal
 from .knx_network import KNXnet
 from .knx_packet import *
-from ...layers.raw_scapy import knx as scapy_knx 
 
 ###############################################################################
 # REQUESTS                                                                    #

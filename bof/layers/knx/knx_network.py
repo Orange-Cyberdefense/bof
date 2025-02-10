@@ -23,6 +23,7 @@ Usage::
 # Scapy
 from scapy.compat import raw
 from scapy.packet import Packet
+
 # Internal
 from bof.network import UDP
 from .knx_packet import KNXPacket
