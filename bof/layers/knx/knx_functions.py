@@ -4,25 +4,24 @@ KNX functions
 
 Higher-level functions to interact with devices using KNXnet/IP.
 
-Contents:
-
-:KNXDevice:
-    Object representation of a KNX device with multiple properties. Only
-    supports KNXnet/IP servers so far, but will be extended to KNX devices.
-:Functions:
-    High-level functions to interact with a device: search, discover, read,
-    write, etc.
-
 Relies on **KNX Standard v2.1**
 """
 
-from ipaddress import ip_address
+# Scapy
+# from scapy.contrib import knx as scapy_knx
+from bof.layers.raw_scapy import knx as scapy_knx
+
 # Internal
-from ... import BOFNetworkError, BOFProgrammingError, BOFDevice, IS_IP
-from .knx_network import *
-from .knx_packet import *
+from ... import BOFNetworkError, BOFProgrammingError, IS_IP
+from .knx_network import KNXnet
+from .knx_device import KNXDevice
+from .knx_packet import KNXPacket
 from .knx_messages import *
-from ...layers.raw_scapy import knx as scapy_knx 
+from .knx_constants import PORT
+
+#-----------------------------------------------------------------------------#
+# Utils                                                                       #
+#-----------------------------------------------------------------------------#
 
 def INDIV_ADDR(x: int) -> str:
     """Converts an int to KNX individual address."""
@@ -40,99 +39,6 @@ def ADDR_TO_INT(x, y, z) -> int:
     yb = format(int(y), 'b').zfill(4)
     zb = format(int(z), 'b').zfill(8)
     return int(xb + yb + zb, 2)
-
-###############################################################################
-# KNX DEVICE REPRESENTATION                                                   #
-###############################################################################
-
-class KNXDevice(BOFDevice):
-    """Object representing a KNX device.
-
-    Data stored to the object is the one returned by SEARCH RESPONSE and
-    DESCRIPTION RESPONSE messages, stored to public attributes::
-
-      Device name, IPv4 address, KNXnet/IP port, KNX individual address, MAC
-      address, KNX multicast address used, device serial number.
-
-    This class provides two factory class methods to build a KNXDevice object
-    from search responses and description responses.
-
-    The information gathered from devices may be completed, improved later.
-    """
-    protocol:str = "KNX"
-    def __init__(self, name: str, ip_address: str, port: int, knx_address: str,
-                 mac_address: str, multicast_address: str=MULTICAST_ADDR,
-                 serial_number: str=""):
-        self.name = name
-        self.description = None
-        self.ip_address = ip_address
-        self.port = port
-        self.knx_address = knx_address
-        self.mac_address = mac_address
-        self.multicast_address = multicast_address
-        self.serial_number = serial_number
-
-    def __str__(self):
-        return "{0}\n\tPort: {1}\n\tMulticast address: {2}\n\t" \
-            "KNX address: {3}\n\tSerial number: {4}".format(
-                super().__str__(), self.port, self.multicast_address,
-                self.knx_address, self.serial_number)
-
-    @classmethod
-    def init_from_search_response(cls, response: KNXPacket):
-        """Set appropriate values according to the content of search response.
-
-        :param response: Search Response provided by a device as a KNXPacket.
-        :returns: A KNXDevice object.
-
-        Uage example::
-
-          responses = KNXnet.multicast(search_request(), (ip, port))
-          for response, source in responses:
-            device = KNXDevice.init_from_search_response(KNXPacket(response))
-        """
-        try:
-            args = {
-                "name": response.device_friendly_name.decode('utf-8'),
-                "ip_address": response.ip_address,
-                "port": response.port,
-                "knx_address": scapy_knx.KNXAddressField.i2repr(None, None, response.knx_address),
-                "mac_address": response.device_mac_address,
-                "multicast_address": response.device_multicast_address,
-                "serial_number": response.device_serial_number
-            }
-        except AttributeError:
-            raise BOFNetworkError("Search Response has invalid format.") from None
-        return cls(**args)
-
-    @classmethod
-    def init_from_description_response(cls, response: KNXPacket, source: tuple):
-        """Set appropriate values according to the content of description response.
-
-        :param response: Description Response provided by a device as a KNXPacket.
-        :param source: Source of the response, usually provided in KNXnet's receive()
-                       and sr() return values.
-        :returns: A KNXDevice object.
-
-        Usage example::
-
-          response, source = knxnet.sr(description_request(knxnet))
-          device = KNXDevice.init_from_description_response(response, source)
-        """
-        args = {
-            "name": response.device_friendly_name.decode('utf-8'),
-            "ip_address": source[0],
-            "port": source[1],
-            "knx_address": scapy_knx.KNXAddressField.i2repr(None, None, response.knx_address),
-            "mac_address": response.device_mac_address,
-            "multicast_address": response.device_multicast_address,
-            "serial_number": response.device_serial_number            
-        }
-        return cls(**args)
-
-###############################################################################
-# FUNCTIONS                                                                   #
-###############################################################################
 
 #-----------------------------------------------------------------------------#
 # Discovery                                                                   #
@@ -157,7 +63,7 @@ def search(ip: object=MULTICAST_ADDR, port: int=KNX_PORT) -> list:
         devices.append(device)
     return devices
 
-def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
+def discover(ip: str, port: int=PORT) -> KNXDevice:
     """Returns discovered information about a device.
     So far, only sends a DESCRIPTION REQUEST and uses the DESCRIPTION RESPONSE.
     This function may evolve to gather data on underlying devices.
@@ -185,7 +91,7 @@ def discover(ip: str, port: int=KNX_PORT) -> KNXDevice:
 # Read and write operations                                                   #
 #-----------------------------------------------------------------------------#
 
-def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> None:
+def group_write(ip: str, knx_group_addr: str, value, port: int=PORT) -> None:
     """Writes value to KNX group address via the server at address ip.
     We first need to establish a tunneling connection so that we can reach
     underlying device groups.
@@ -219,7 +125,7 @@ def group_write(ip: str, knx_group_addr: str, value, port: int=3671) -> None:
     response, source = knxnet.sr(disconnect_request(knxnet, channel))
     knxnet.disconnect()
 
-def individual_address_scan(ip: str, addresses: object, port: str=3671) -> bool:
+def individual_address_scan(ip: str, addresses: object, port: str=PORT) -> bool:
     """Scans KNX gateway to find if individual address exists.
     We first need to establish a tunneling connection and use cemi connect
     messages on each address to find out which one responds.
@@ -287,7 +193,7 @@ def individual_address_scan(ip: str, addresses: object, port: str=3671) -> bool:
     knxnet.disconnect()
     return exists
     
-def line_scan(ip: str, line: str="", port: int=3671) -> list:
+def line_scan(ip: str, line: str="", port: int=PORT) -> list:
     """Scans KNX gateway to find existing individual addresses on a line.
     We first need to establish a tunneling connection and use cemi connect
     messages on each address to find out which one responds.

@@ -35,9 +35,13 @@ The following files are available in the module:
 
 :knx_functions:
     Higher-level functions to discover and interact with devices via KNXnet/IP.
+
+:knx_device:
+    Object representation of a device that communicates using KNXnet/IP.
 """
 
 from .knx_network import *
 from .knx_packet import *
 from .knx_messages import *
 from .knx_functions import *
+from .knx_device import *

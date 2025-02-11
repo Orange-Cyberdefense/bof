@@ -8,12 +8,6 @@ Boiboite Opener Framework's documentation
    :caption: User manual
 
    man/user
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Modules
-
-   man/discovery
    
 .. toctree::
    :maxdepth: 2

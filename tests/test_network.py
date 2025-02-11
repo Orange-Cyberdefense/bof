@@ -10,6 +10,8 @@ import bof
 from time import sleep
 from subprocess import Popen
 
+# Uses ncat (nmap), install from package manager or from https://nmap.org/ncat
+# Creates a server that replies the same thing it receives on a port.
 UDP_ECHO_SERVER_CMD = "ncat -e /bin/cat -k -u -l 13671"
 TCP_ECHO_SERVER_CMD = "ncat -e /bin/cat -k -t -l 23671"
 

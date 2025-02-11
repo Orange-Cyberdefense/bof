@@ -3,7 +3,6 @@
 - Dependencies (Make sure that they are installed)
 - Module and submodule imports
 - Exceptions
-- Logging
 - String manipulation
 """
 
@@ -62,24 +61,7 @@ class Test03Exceptions(unittest.TestCase):
         with self.assertRaises(bof.BOFProgrammingError):
             raise bof.BOFProgrammingError("Programming error")
 
-class Test04Logging(unittest.TestCase):
-    """Test class for logging features."""
-    def test_0401_enable_logging(self):
-        """Test that the logging boolean is set to ``True`` when function
-        ``enable_logging()`` is called. The global variable tested is not
-        supposed to be retrieved this way by final users.
-        """
-        bof.enable_logging()
-        self.assertTrue(bof.base._LOGGING_ENABLED)
-    def test_0402_disable_logging(self):
-        """Test that the logging boolean is set to ``False`` when function
-        ``disable_logging()`` is called. The global variable tested is not
-        supposed to be retrieved this way by final users.
-        """
-        bof.disable_logging()
-        self.assertFalse(bof.base._LOGGING_ENABLED)
-
-class Test05StringManipulation(unittest.TestCase):
+class Test04StringManipulation(unittest.TestCase):
     """Test class for string manipulation functions."""
     def test_0501_to_property(self):
         """Test that function to_property replaces all non-alnum character in a

@@ -5,3 +5,4 @@ dist
 docs/_build
 bof.log
 examples/*/drafts
+.readthedocs.yaml

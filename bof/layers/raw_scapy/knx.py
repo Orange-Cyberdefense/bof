@@ -1,29 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 # This file is part of Scapy
-# Scapy is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 2 of the License, or
-# any later version.
-#
-# Scapy is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Scapy. If not, see <http://www.gnu.org/licenses/>.
+# See https://scapy.net/ for more information
+# Copyright (C) 2021-2025 Julien BEDEL <contact[at]julienbedel.com>
+#                         Claire VACHEROT <claire.vacherot[at]pm.me>
 
-# Copyright (C) 2021 Julien BEDEL <contact[at]julienbedel.com>, Claire VACHEROT <lex[at]lex.os>
+"""
+KNXNet/IP
 
-# This module provides Scapy layers for KNXNet/IP communications over UDP
-# according to KNX specifications v2.1 / ISO-IEC 14543-3.
-# Specifications can be downloaded for free here : https://my.knx.org/en/shop/knx-specifications
-#
-# Currently, the module (partially) supports the following services :
-#   * SEARCH REQUEST/RESPONSE
-#   * DESCRIPTION REQUEST/RESPONSE
-#   * CONNECT, DISCONNECT, CONNECTION_STATE REQUEST/RESPONSE
-#   * CONFIGURATION REQUEST/RESPONSE
-#   * TUNNELING REQUEST/RESPONSE
+This module provides Scapy layers for KNXNet/IP communications over UDP
+according to KNX specifications v2.1 / ISO-IEC 14543-3.
+Specifications can be downloaded for free here :
+https://my.knx.org/en/shop/knx-specifications
+
+Currently, the module (partially) supports the following services :
+* SEARCH REQUEST/RESPONSE
+* DESCRIPTION REQUEST/RESPONSE
+* CONNECT, DISCONNECT, CONNECTION_STATE REQUEST/RESPONSE
+* CONFIGURATION REQUEST/RESPONSE
+* TUNNELING REQUEST/RESPONSE
+"""
 
 # scapy.contrib.description = KNX Protocol
 # scapy.contrib.status = loads
@@ -227,7 +222,8 @@ class ServiceFamily(Packet):
 
 
 # Different DIB types depends on the "description_type_code" field
-# Defining a generic DIB packet and differentiating with `dispatch_hook` or `MultipleTypeField` may better fit KNX specs
+# Defining a generic DIB packet and differentiating with `dispatch_hook`
+# or `MultipleTypeField` may better fit KNX specs
 class DIBDeviceInfo(Packet):
     name = "DIB: DEVICE_INFO"
     fields_desc = [
@@ -287,7 +283,8 @@ class CRI(Packet):
     fields_desc = [
         ByteField("structure_length", 0x02),
         ByteEnumField("connection_type", 0x03, CONNECTION_TYPE_CODES),
-        ConditionalField(PacketField("connection_data", TunnelingConnection(), TunnelingConnection),
+        ConditionalField(PacketField("connection_data", TunnelingConnection(),
+                                     TunnelingConnection),
                          lambda pkt: pkt.connection_type == 0x04)
     ]
 
@@ -301,7 +298,8 @@ class CRD(Packet):
     fields_desc = [
         ByteField("structure_length", 0x00),
         ByteEnumField("connection_type", 0x03, CONNECTION_TYPE_CODES),
-        ConditionalField(PacketField("connection_data", CRDTunnelingConnection(), CRDTunnelingConnection),
+        ConditionalField(PacketField("connection_data", CRDTunnelingConnection(),
+                                     CRDTunnelingConnection),
                          lambda pkt: pkt.connection_type == 0x04)
     ]
 
@@ -344,8 +342,10 @@ class LcEMI(Packet):
         KNXAddressField("source_address", None),
         MultipleTypeField(
             [
-                (KNXGroupField("destination_address", "1/2/3"), lambda pkt: pkt.address_type==1),
-                (KNXAddressField("destination_address", "1.2.3"), lambda pkt: pkt.address_type==0)
+                (KNXGroupField("destination_address", "1/2/3"),
+                 lambda pkt: pkt.address_type==1),
+                (KNXAddressField("destination_address", "1.2.3"),
+                 lambda pkt: pkt.address_type==0)
             ],
                 ShortField("destination_address", "")
             ),
@@ -440,7 +440,8 @@ class KNXDescriptionResponse(Packet):
         PacketField("device_info", DIBDeviceInfo(), DIBDeviceInfo),
         PacketField("supported_service_families", DIBSuppSvcFamilies(),
                     DIBSuppSvcFamilies)
-        # TODO: this is an optional field in KNX specs, add conditions to take it into account
+        # TODO: this is an optional field in KNX specs, add conditions to
+        # take it into account
         # PacketField("other_device_info", DIBDeviceInfo(), DIBDeviceInfo)
     ]
 
@@ -579,7 +580,8 @@ class KNXRoutingIndication(Packet):
 ### KNX FRAME
 
 # we made the choice to define a KNX service as a payload for a KNX Header
-# it could also be possible to define the body as a conditionnal PacketField contained after the header
+# it could also be possible to define the body as a conditionnal PacketField
+# contained after the header.
 
 class KNX(Packet):
     name = "KNXnet/IP"
@@ -599,7 +601,6 @@ class KNX(Packet):
 
 
 ### LAYERS BINDING
-
 
 bind_bottom_up(UDP, KNX, dport=3671)
 bind_bottom_up(UDP, KNX, sport=3671)
@@ -623,7 +624,8 @@ bind_layers(KNX, KNXRoutingIndication, service_identifier=0x0530)
 
 # we bind every layer to Padding in order to delete their payloads
 # (from https://github.com/secdev/scapy/issues/360)
-# we could also define a new Packet class with no payload and inherit every KNX packet from it :
+# we could also define a new Packet class with no payload and inherit
+# every KNX packet from it :
 """
 class _KNXBodyNoPayload(Packet):
 

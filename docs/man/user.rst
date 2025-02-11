@@ -426,15 +426,16 @@ to send requests via multicast:
 
    responses = KNXnet.multicast(pkt, (KNX_MULTICAST_ADDR, KNX_PORT))
        
-Error handling and logging
---------------------------
+Error handling
+--------------
 
 BOF has custom exceptions inheriting from a global custom exception class
 ``BOFError`` (code in `bof/base.py`):
 
 :BOFLibraryError: Library, files and import-related exceptions.
 :BOFNetworkError: Network-related exceptions (connection errors, etc.).
-:BOFProgrammingError: Misuse of the framework (most frequent one)
+:BOFProgrammingError: Misuse of the framework (most frequent one).
+:BOFDeviceError: Exceptions related to errors returned by a remote device.
 
 .. code-block:: python
 
@@ -447,13 +448,4 @@ BOF has custom exceptions inheriting from a global custom exception class
       pkt.KNXPacket(type=SID.configuration_request)
       pkt.update("unknown", 4)
    except BOFProgrammingError:
-      print("Field does not exist.")     
-
-Logging features can be enabled for the entire framework. They are disabled by
-default. Events are stored to a file (default name is ``bof.log``). One can make
-direct call to bof's logger to record custom events.
-
-.. code-block:: python
-
-    bof.enable_logging()
-    bof.log("Cannot send data to {0}:{1}".format(ip, port), level="ERROR")
+      print("Field does not exist.")

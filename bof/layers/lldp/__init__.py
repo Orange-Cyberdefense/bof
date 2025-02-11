@@ -13,9 +13,11 @@ Contents:
 
 :lldp_functions: LLDP listen, send, create and device representation.
 :lldp_constants: Protocol-related constants.
+:lldp_device: Object representation of a device that communicates using LLDP.
 
 Uses Scapy's LLDP contrib by Thomas Tannhaeuser (hecke@naberius.de).
 """
 
 from .lldp_constants import *
 from .lldp_functions import *
+from .lldp_device import *

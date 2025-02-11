@@ -19,10 +19,14 @@ The following files are available in the module:
     ``BOFPacket`` and uses Uses Modbus specification v1.1b3 and Scapy's Modbus
     contrib Arthur Gervais, Ken LE PRADO, Sebastien Mainand and Thomas Aurel.
 
+:modbus_device:
+    Object representation of a Modbus device.
+
 :modbus_functions:
     Higher-level functions to discover and interact with devices via Modbus TCP.
 """
 
 from .modbus_network import *
 from .modbus_packet import *
+from .modbus_device import *
 from .modbus_functions import *
