@@ -4,12 +4,7 @@ Profinet DCP functions
 
 Higher-level functions for network discovery using PNDCP.
 
-Contents:
-
-:PNDCPDevice:
-    Object representation of a device discovered via PNDCP.
-:Identify requests:
-    Send and receive identify requests and response to discover devices.
+Send and receive identify requests and response to discover devices.
 
 Uses Scapy's Profinet IO contrib by Gauthier Sebaux and Profinet DCP contrib
 by Stefan Mehner (stefan.mehner@b-tu.de).
@@ -19,11 +14,11 @@ from os import geteuid
 from time import sleep
 from packaging.version import parse as version_parse
 
+# Scapy
 from scapy import VERSION as scapy_version
 from scapy.packet import Packet
 from scapy.layers.l2 import Ether, sendp
 from scapy.sendrecv import AsyncSniffer
-
 if version_parse(scapy_version) <= version_parse("2.4.5"):
     # Layer pnio_dcp raises deprecation warnings for Scapy < 2.5.0
     from warnings import filterwarnings
@@ -33,75 +28,11 @@ if version_parse(scapy_version) <= version_parse("2.4.5"):
 from scapy.contrib.pnio import ProfinetIO
 from scapy.contrib.pnio_dcp import *
 
-from ... import BOFProgrammingError, BOFDevice, DEFAULT_IFACE, to_property
+# Internal
+from ... import BOFProgrammingError, DEFAULT_IFACE, to_property
 from .profinet_constants import *
+from .profinet_device import ProfinetDevice
 
-#-----------------------------------------------------------------------------#
-# PNDCP device                                                                #
-#-----------------------------------------------------------------------------#
-
-class ProfinetDevice(BOFDevice):
-    """Object representation of a device responding to PN-DCP requests."""
-    protocol:str = "ProfinetDCP"
-    name: str = None
-    description: str = None # device_vendor_value
-    mac_address: str = None
-    ip_address: str = None
-    # Specific
-    ip_netmask: str = None
-    ip_gateway: str = None    
-    vendor_id: str = None
-    device_id:str = None
-
-    def __init__(self, pkt: Packet=None):
-        if pkt:
-            self.parse(pkt)
-
-    # TODO: Refactoring
-    def parse(self, pkt: Packet=None) -> None:
-        if pkt.haslayer(ProfinetDCP):
-            if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY:# or \
-#               pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
-                raise BOFProgrammingError("Expecting an identify response to create device object.")
-        # Sometimes everything is in the ProfinetDCP frame directly, we extract data based on options
-        if pkt["ProfinetDCP"].option == 0x02 and pkt["ProfinetDCP"].sub_option in [0x02, 0x06]:
-            option = DCP_SUBOPTIONS[pkt["ProfinetDCP"].option][pkt["ProfinetDCP"].sub_option]
-            self.name = getattr(pkt["ProfinetDCP"], to_property(option)).decode('utf-8')
-        # And sometimes there are dedicated blocks...
-        if pkt.haslayer(DCPNameOfStationBlock):
-            self.name = pkt["DCPNameOfStationBlock"].name_of_station.decode('utf-8')
-        elif pkt.haslayer(DCPAliasNameBlock):
-            self.name = pkt["DCPAliasNameBlock"].alias_name.decode('utf-8')
-        if pkt.haslayer(DCPManufacturerSpecificBlock):
-            self.description = pkt["DCPManufacturerSpecificBlock"].\
-                               device_vendor_value.decode('utf-8')
-        if "Ether" in pkt:
-            self.mac_address = pkt["Ether"].src
-        if pkt.haslayer(DCPIPBlock):
-            self.ip_address = pkt["DCPIPBlock"].ip
-            self.ip_netmask = pkt["DCPIPBlock"].netmask
-            self.ip_gateway = pkt["DCPIPBlock"].gateway
-        if pkt.haslayer(DCPDeviceIDBlock):
-            self.vendor_id = str(pkt["DCPDeviceIDBlock"].vendor_id)
-            self.vendor_id = VENDOR[self.vendor_id] if self.vendor_id in \
-                             VENDOR.keys() else "Unknown"
-            self.device_id = pkt["DCPDeviceIDBlock"].device_id
-
-    def __str__(self):
-        data = [super().__str__()]
-        if self.description:
-            data += ["\tDescription: {0}".format(self.description)]
-        if self.mac_address:
-            data += ["\tMAC Address: {0}".format(self.mac_address)]
-        if self.ip_netmask:
-            data += ["\tIP Netmask: {0}".format(self.ip_netmask)]
-        if self.ip_gateway:
-            data += ["\tIP Gateway: {0}".format(self.ip_gateway)]
-        if self.vendor_id:
-            data += ["\tVendor ID: {0}".format(self.vendor_id)]
-        if self.device_id:
-            data += ["\tDevice ID: {0}".format(self.device_id)]
-        return "\t\n".join(data)
 
 #-----------------------------------------------------------------------------#
 # Send PNDCP identify packets on the network                                 #

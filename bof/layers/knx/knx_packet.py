@@ -24,6 +24,7 @@ Example::
 # Scapy
 from scapy.packet import Packet
 # Internal
+# from scapy.contrib import knx as scapy_knx
 from bof.layers.raw_scapy import knx as scapy_knx
 
 from bof.packet import BOFPacket
