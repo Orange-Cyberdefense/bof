@@ -18,7 +18,7 @@ KNX
    :members:
    :undoc-members:
    :show-inheritance:
-
+  
 .. automodule:: bof.layers.knx.knx_packet
    :members:
    :undoc-members:
@@ -34,6 +34,11 @@ KNX
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: bof.layers.knx.knx_device
+   :members:
+   :undoc-members:
+   :show-inheritance:
+      
 .. automodule:: bof.layers.knx.knx_constants
    :members:
    :undoc-members:
@@ -46,8 +51,13 @@ LLDP
    :members:
    :undoc-members:
    :show-inheritance:
-
+      
 .. automodule:: bof.layers.lldp.lldp_functions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: bof.layers.lldp.lldp_device
    :members:
    :undoc-members:
    :show-inheritance:
@@ -75,6 +85,12 @@ Modbus TCP
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: bof.layers.modbus.modbus_device
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+      
 .. automodule:: bof.layers.modbus.modbus_constants
    :members:
    :undoc-members:
@@ -93,6 +109,11 @@ Profinet DCP
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: bof.layers.profinet.profinet_device
+   :members:
+   :undoc-members:
+   :show-inheritance:
+      
 .. automodule:: bof.layers.profinet.profinet_constants
    :members:
    :undoc-members:
