@@ -67,7 +67,11 @@ class LLDPDevice(BOFDevice):
         #     self.capabilities = pkt["LLDPDUSystemCapabilities"] # TODO
         if pkt.haslayer(LLDPDUGenericOrganisationSpecific):
             # We look for the name matching the code
-            self.organisation = ORG_CODES[pkt["LLDPDUGenericOrganisationSpecific"].org_code]
+            try:
+                self.organisation = ORG_CODES[
+                    pkt["LLDPDUGenericOrganisationSpecific"].org_code]
+            except KeyError: # Code not found, use value as is
+                self.organisation = pkt["LLDPDUGenericOrganisationSpecific"].org_code
 
     def __str__(self):
         return "{0}\t\n\tDescription: {1}\n\tMAC address: {2}\n\t" \

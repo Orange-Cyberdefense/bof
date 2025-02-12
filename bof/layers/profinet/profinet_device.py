@@ -23,11 +23,9 @@ from .profinet_constants import *
 class ProfinetDevice(BOFDevice):
     """Object representation of a device responding to PN-DCP requests."""
     protocol:str = "ProfinetDCP"
-    name: str = None
+    # Specific
     description: str = None # device_vendor_value
     mac_address: str = None
-    ip_address: str = None
-    # Specific
     ip_netmask: str = None
     ip_gateway: str = None    
     vendor_id: str = None

@@ -76,7 +76,9 @@ def end_passive(lldp_sniffer: object) -> list:
     """
     devices = lldp.stop_listening(lldp_sniffer)
     vprint("Stopping network listener for LLDP.")
-    return [lldp.LLDPDevice(d) for d in devices]
+    lldp_list = [lldp.LLDPDevice(d) for d in devices]
+    vprint("Found {0} LLDP devices.".format(len(lldp_list)))
+    return lldp_list
 
 def passive(iface: str, timeout: int = TIMEOUT) -> list:
     """Listen to the network without sending requests.
@@ -94,14 +96,15 @@ def passive(iface: str, timeout: int = TIMEOUT) -> list:
 # Light                                                                       #
 #-----------------------------------------------------------------------------#
 
-def multicast(iface: str) -> list:
+def multicast(iface: str, timeout: int = TIMEOUT) -> list:
     """Discover devices using protocols that support multicast (L2, UDP).
 
     Protocols: Profinet DCP (L2), KNXnet/IP (UDP).
     """
     pdcp_list, knx_list = [], []
     vprint("Profinet DCP discovery (multicast).")
-    pdcp_list = profinet.send_identify_request(iface, profinet.MULTICAST_MAC)
+    pdcp_list = profinet.send_identify_request(iface, profinet.MULTICAST_MAC,
+                                               timeout=timeout)
     vprint("Found {0} Profinet DCP devices.".format(len(pdcp_list)))
     vprint("KNXnet/IP discovery (multicast).")
     knx_list = knx.search(knx.MULTICAST_ADDR, knx.PORT)
@@ -123,8 +126,7 @@ def light(iface: str = IFACE, timeout: int = TIMEOUT) -> list:
     devices = []
     lldp_sniffer = start_passive(iface)
     try:
-        devices += multicast(iface)
-        sleep(timeout / 2)
+        devices += multicast(iface, timeout)
     except KeyboardInterrupt:
         print("Terminating, please wait.")
     devices += end_passive(lldp_sniffer)
@@ -185,8 +187,13 @@ def set_options() -> object:
 
 def display(results: list) -> None:
     """Print the list of devices found using discover."""
-    for result in results:
-        print(result)
+    # Remove duplicates and sort by IP addresses
+    ip_addresses = sorted(list(set([x.ip_address for x in results])))
+    for ip in ip_addresses:
+        devices = [x for x in results if x.ip_address == ip]
+        for device in devices:
+            print("BOF discovery report for {0} ({1})".format(device.name, ip))
+            print(device) # TODO
 
 def run(args) -> None:
     """Run the discovery module according to the options provided."""
@@ -195,19 +202,20 @@ def run(args) -> None:
     options = (opt.passive, opt.multicast, opt.broadcast, opt.target)
     VERBOSE = opt.verbose
     FORCE = opt.force
+    timeout = int(opt.timeout)
     results = []
     try:
         ifaddresses(opt.iface)
         if opt.passive:
-            results += passive(opt.iface, opt.timeout)
+            results += passive(opt.iface, timeout)
         if opt.multicast:
-            results += multicast(opt.iface)
+            results += multicast(opt.iface, timeout)
         if opt.broadcast:
             results += broadcast(opt.iface)
         if opt.target:
             results += targeted(ip_address(opt.target))
         if opt.light or all(value is False for value in options):
-            results += light(opt.iface, opt.timeout)
+            results += light(opt.iface, timeout)
     except ValueError as ve:
         print("[ERROR]", str(ve))
         exit (-1)
