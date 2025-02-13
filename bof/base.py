@@ -54,7 +54,7 @@ class BOFDeviceError(BOFError):
 # STRING MANIPULATION                                                         #
 ###############################################################################
 
-def to_property(value:str) -> str:
+def to_property(value: str) -> str:
     """Lower a string and replace all non alnum characters with ``_``"""
     if isinstance(value, str):
         return sub('[^0-9a-zA-Z]+', '_', value.lower().strip())

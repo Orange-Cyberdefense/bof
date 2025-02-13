@@ -88,5 +88,5 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
     replies = listener.results # Responses + sniffed Profinet packets
     devices = []
     for reply in replies:
-        devices.append(ProfinetDevice(reply[1]))
+        devices.append(ProfinetDevice.init_from_packet(reply[1]))
     return devices

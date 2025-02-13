@@ -68,7 +68,7 @@ def listen_sync(iface: str=DEFAULT_IFACE, timeout: int=DEFAULT_TIMEOUT) -> list:
     results = stop_listening(sniffer)
     devices = []
     for result in results:
-        devices.append(LLDPDevice(result))
+        devices.append(LLDPDevice.init_from_packet(result))
     return devices
 
 #-----------------------------------------------------------------------------#

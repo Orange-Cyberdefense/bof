@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from netifaces import ifaddresses
 from ipaddress import ip_address
 from time import sleep
+from ipaddress import IPv4Address
 # BOF
 try:
     from bof import BOFNetworkError
@@ -76,7 +77,7 @@ def end_passive(lldp_sniffer: object) -> list:
     """
     devices = lldp.stop_listening(lldp_sniffer)
     vprint("Stopping network listener for LLDP.")
-    lldp_list = [lldp.LLDPDevice(d) for d in devices]
+    lldp_list = [lldp.LLDPDevice.init_from_packet(d) for d in devices]
     vprint("Found {0} LLDP devices.".format(len(lldp_list)))
     return lldp_list
 
@@ -188,12 +189,16 @@ def set_options() -> object:
 def display(results: list) -> None:
     """Print the list of devices found using discover."""
     # Remove duplicates and sort by IP addresses
-    ip_addresses = sorted(list(set([x.ip_address for x in results])))
+    ip_addresses = [IPv4Address(x.ip_address) for x in results]
+    ip_addresses = sorted(list(set(ip_addresses)))
+    print()
     for ip in ip_addresses:
-        devices = [x for x in results if x.ip_address == ip]
+        devices = [x for x in results if str(x.ip_address) == str(ip)]
         for device in devices:
-            print("BOF discovery report for {0} ({1})".format(device.name, ip))
-            print(device) # TODO
+            print("BOF discovery report for {0} ({1}) with {2}".format(
+                device.name, ip, device.protocol))
+            print(device)
+            print()
 
 def run(args) -> None:
     """Run the discovery module according to the options provided."""

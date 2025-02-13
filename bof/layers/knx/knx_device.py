@@ -13,7 +13,7 @@ from bof.layers.raw_scapy import knx as scapy_knx
 
 # Internal
 from ... import BOFDevice, BOFNetworkError
-from .knx_constants import MULTICAST_ADDR
+from .knx_constants import MULTICAST_ADDR, PORT
 from .knx_packet import KNXPacket
 
 class KNXDevice(BOFDevice):
@@ -31,25 +31,6 @@ class KNXDevice(BOFDevice):
     The information gathered from devices may be completed, improved later.
     """
     protocol:str = "KNX"
-    def __init__(self, name: str, ip_address: str, port: int, knx_address: str,
-                 mac_address: str, multicast_address: str=MULTICAST_ADDR,
-                 serial_number: str=""):
-        self.name = name
-        self.description = None
-        self.ip_address = ip_address
-        self.port = port
-        self.knx_address = knx_address
-        self.mac_address = mac_address
-        self.multicast_address = multicast_address
-        self.serial_number = serial_number
-
-    def __str__(self):
-        return "{0}\n\tDescription: {1}\n\tMAC address: {2}\n\t" \
-            "Port: {3}\n\tMulticast address: {4}\n\t" \
-            "KNX address: {5}\n\tSerial number: {6}".format(
-                super().__str__(), self.description, self.mac_address,
-                self.port, self.multicast_address,
-                self.knx_address, self.serial_number)
 
     @classmethod
     def init_from_search_response(cls, response: KNXPacket):
