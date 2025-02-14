@@ -31,4 +31,4 @@ class Test03PNDCPDevice(unittest.TestCase):
         """Test that we cannot create a PNDCP device with request and not response."""
         pkt = profinet.create_identify_packet()
         with self.assertRaises(BOFProgrammingError):
-            device = profinet.ProfinetDevice(pkt)
+            device = profinet.ProfinetDevice.init_from_packet(pkt)

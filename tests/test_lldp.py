@@ -47,7 +47,7 @@ class Test03LLDPDevice(unittest.TestCase):
     def test_0301_lldp_device_ether(self):
         """Test that we correctly create a LLDPDevice object with Ether."""
         pkt = Ether(type=0x88cc, src=lldp.MULTICAST_MAC)/lldp.create_packet()
-        device = lldp.LLDPDevice(pkt)
+        device = lldp.LLDPDevice.init_from_packet(pkt)
         self.assertEqual(device.name, lldp.DEFAULT_PARAM["system_name"])
         self.assertEqual(device.description, lldp.DEFAULT_PARAM["system_desc"])
         self.assertEqual(device.mac_address, lldp.MULTICAST_MAC)
