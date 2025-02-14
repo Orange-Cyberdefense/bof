@@ -10,11 +10,13 @@ try:
     from bof.layers import knx
     from bof.layers import profinet
     from bof.layers import lldp
+    from bof.layers import modbus
 except ImportError:
     path.append('../')
     from bof.layers import knx
     from bof.layers import profinet
     from bof.layers import lldp
+    from bof.layers import modbus
 
 #-----------------------------------------------------------------------------#
 # Constants                                                                   #
@@ -24,7 +26,7 @@ IFACE = "eth0" # Change with -i
 TIMEOUT = 30 # Change with -t
 
 WARNING = " /!\\ WARNING: Industrial devices may crash when receiving requests " \
-    "they cannot \ninterpret, please only use broadcast and unicast modes on " \
+    "they cannot \ninterpret, please only use broadcast and targeted modes on " \
     "test environments."
 
 HELP = "Network discovery using several network protocols."
@@ -162,12 +164,18 @@ def targeted(target: str = None) -> list:
     results = []
     if not warn():
         return results
-    vprint("KNXnet/IP discovery on target {0}.".format(target))
     try:
+        vprint("KNXnet/IP discovery on target {0}.".format(target))
         knx_dev = knx.discover(target) # Should return only one object
         results.append(knx_dev)
     except BOFNetworkError:
         vprint("No KNXnet/IP device found at {0}.".format(target))
+    try:
+        vprint("Modbus discovery on target {0}.".format(target))
+        modbus_dev = modbus.discover(target)
+        results.append(modbus_dev)
+    except BOFNetworkError:
+        vprint("No Modbus device found at {0}.".format(target))
     return results
 
 #-----------------------------------------------------------------------------#
