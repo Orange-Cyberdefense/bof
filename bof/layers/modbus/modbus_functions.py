@@ -72,18 +72,10 @@ def discover(ip: str, port: int=MODBUS_PORT) -> ModbusDevice:
     :raises BOFDeviceError: if request is not supported on remote device.
     """
     IS_IP(ip)
+    modnet = ModbusNet().connect(ip, port)
     device = ModbusDevice(ip_address=ip)
-    modnet = ModbusNet().connect(ip)
-    try:
-        full_read_device_identification(modnet, device)
-    except BOFDeviceError as bde:
-        # Modbus: Function code 43 (Read Device Id) not supported
-        # Used to be logged but not handled, so let's just try to do nothing
-        pass
-    try:
-        device.coils = read_coils(modnet, quantity=MODBUS_MAX_COIL_QUANTITY)
-    except BOFDeviceError as bde:
-        device.coils = {0: bde}
+    full_read_device_identification(modnet, device)
+    device.coils = read_coils(modnet, quantity=MODBUS_MAX_COIL_QUANTITY)
     try:
         device.discrete_inputs = read_discrete_inputs(
             modnet,quantity=MODBUS_MAX_DISCRETE_QUANTITY)
@@ -113,8 +105,8 @@ def read_coils(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
     :param modnet: Modbus connection object created previously.
     :param start_addr: First address to read coils from (default: 0).
     :param quantity: Number of coils to read from start_address (default: 1).
-    :returns: A dictionary with format {coil_number: value}.
-    :raises BOFDeviceError: When the device responds with an exception code.
+    :returns: A dictionary with format {coil_number: value} or None.
+    :raises BOFNetworkError: If we cannot send or receive data from the device.
 
     Example::
     
@@ -130,10 +122,10 @@ def read_coils(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
     pkt = ModbusPacket(type=MODBUS_TYPES.REQUEST, function=FUNCTIONS.read_coils,
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
+    # If device does not support function code (not implemented), we ignore it.
     if resp.funcCode == FUNCTIONS.read_coils_exception:
         msg = MODBUS_EXCEPTIONS[resp.exceptCode]
-        raise BOFDeviceError(
-    "Cannot read coils (Exception returned: {0}).".format(msg))
+        return None
     return HEX_TO_BIN_DICT(resp.byteCount, resp.coilStatus)
 
 def read_discrete_inputs(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
@@ -143,8 +135,8 @@ def read_discrete_inputs(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
     :param modnet: Modbus connection object created previously.
     :param start_addr: First address to read inputs from (default: 0).
     :param quantity: Number of inputs to read from start_address (default: 1).
-    :returns: A dictionary with format {input_number: value}.
-    :raises BOFDeviceError: When the device responds with an exception code.
+    :returns: A dictionary with format {input_number: value} or None.
+    :raises BOFNetworkError: If we cannot send or receive data from the device.
 
     Example: See ``read_coils()``
     """
@@ -152,10 +144,10 @@ def read_discrete_inputs(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
                        function=FUNCTIONS.read_discrete_inputs,
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
+    # If device does not support function code (not implemented), we ignore it.
     if resp.funcCode == FUNCTIONS.read_discrete_inputs_exception:
         msg = MODBUS_EXCEPTIONS[resp.exceptCode]
-        raise BOFDeviceError(
-            "Cannot read discrete inputs (Exception returned: {0}).".format(msg))
+        return None
     return HEX_TO_BIN_DICT(resp.byteCount, resp.inputStatus)
 
 def read_holding_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
@@ -165,8 +157,8 @@ def read_holding_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1
     :param modnet: Modbus connection object created previously.
     :param start_addr: First address to read registers from (default: 0).
     :param quantity: Number of registers to read from start_address (default: 1).
-    :returns: A dictionary with format {reg_number: value}.
-    :raises BOFDeviceError: When the device responds with an exception code.
+    :returns: A dictionary with format {reg_number: value} or None.
+    :raises BOFNetworkError: If we cannot send or receive data from the device.
 
     Example: See ``read_coils()``
     """
@@ -174,10 +166,10 @@ def read_holding_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1
                        function=FUNCTIONS.read_holding_registers,
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
+    # If device does not support function code (not implemented), we ignore it.
     if resp.funcCode == FUNCTIONS.read_holding_registers_exception:
         msg = MODBUS_EXCEPTIONS[resp.exceptCode]
-        raise BOFDeviceError(
-            "Cannot read holding registers (Exception returned: {0}).".format(msg))
+        return None
     return HEX_TO_DICT(resp.byteCount // 2, resp.registerVal)
 
 def read_input_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
@@ -187,8 +179,8 @@ def read_input_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
     :param modnet: Modbus connection object created previously.
     :param start_addr: First address to read registers from (default: 0).
     :param quantity: Number of registers to read from start_address (default: 1).
-    :returns: A dictionary with format {reg_number: value}.
-    :raises BOFDeviceError: When the device responds with an exception code.
+    :returns: A dictionary with format {reg_number: value} or None.
+    :raises BOFNetworkError: If we cannot send or receive data from the device.
 
     Example: See ``read_coils()``
     """
@@ -196,10 +188,10 @@ def read_input_registers(modnet: ModbusNet, start_addr: int=0, quantity: int=1,
                        function=FUNCTIONS.read_input_registers,
                        startAddr=start_addr, quantity=quantity, unitId=unit_id)
     resp, _ = modnet.sr(pkt)
+    # If device does not support function code (not implemented), we ignore it.
     if resp.funcCode == FUNCTIONS.read_input_registers_exception:
         msg = MODBUS_EXCEPTIONS[resp.exceptCode]
-        raise BOFDeviceError(
-            "Cannot read input registers (Exception returned: {0}).".format(msg))
+        return None
     return HEX_TO_DICT(resp.byteCount // 2, resp.registerVal)
 
 def read_device_identification(modnet: ModbusNet, read_code: int=1,
@@ -210,21 +202,17 @@ def read_device_identification(modnet: ModbusNet, read_code: int=1,
     :param readCode: Read level to use: 1:basic, 2:regular, 3:extended, 4:specific.
     :param objectId: Object to read: 0: VendorName, 1:ProductCode, 2:Revision,
                      3: VendorUrl, 4: ProductName, 5: ModelName, 6: UserAppName.
-    :returns: A tuple (objectId, value) from the response.
-    :raises BOFDeviceError: When the device does not respond or responds
-                            with an exception code.
+    :returns: A tuple (objectId, value) from the response or None.
+    :raises BOFNetworkError: If we cannot send or receive data from the device.
     """
     pkt = ModbusPacket(type=MODBUS_TYPES.REQUEST,
                        function=FUNCTIONS.read_device_identification,
                        readCode=read_code, objectId=object_id)
-    try:
-        resp, _ = modnet.sr(pkt)
-    except BOFNetworkError as bne: # Modnet object exist: connection should be ok
-        raise BOFDeviceError("Cannot read device identification.") from None
+    resp, _ = modnet.sr(pkt)
+    # If device does not support function code (not implemented), we ignore it.
     if resp.funcCode == FUNCTIONS.read_device_identification_exception:
         msg = MODBUS_EXCEPTIONS[resp.exceptCode]
-        raise BOFDeviceError(
-            "Cannot read device identification (Exception returned: {0}).".format(msg))
+        return None, None
     return resp.id, resp.value
     
 def full_read_device_identification(modnet: ModbusNet, device: ModbusDevice=None):
@@ -236,16 +224,15 @@ def full_read_device_identification(modnet: ModbusNet, device: ModbusDevice=None
     :param modnet: Modbus connection object created previously.
     :param device: ModbusDevice object. If none: creates a new one.
     :returns: The ModbusDevice object.
-    :raises BOFDeviceError: When the device responds with an exception code.
     """
-    if device == None:
-        device = ModbusDevice()
+    if not device:
+        device = ModbusDevice(modnet.ip_address)
     read_code = 3 # Extended
     for object_id, name in MODBUS_OBJECT_ID.items():
         key, value = read_device_identification(modnet, read_code, object_id)
         # Store to device object
         if key == 0x01: # ProductCode
             device.name = value.decode('utf-8')
-        key = MODBUS_OBJECT_ID[key]
-        device.description[key] = value.decode('utf-8')
+        if key:
+            device.description[MODBUS_OBJECT_ID[key]] = value.decode('utf-8')
     return device

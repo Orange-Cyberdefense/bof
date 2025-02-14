@@ -16,6 +16,9 @@ class BOFDevice(object):
     store more details given. Only the name and IP address are known for sure.
     """
     protocol = "BOF"
+    # Why did I not move attributes specific to a protocol in their subclasses?
+    # Because several protocols could use the same categories / attributes.
+    # And because it avoids additional code with partial overloads in children.
     _attributes = {
         # Device identification
         "name": "Name",
@@ -32,13 +35,17 @@ class BOFDevice(object):
         "multicast_address": "Multicast address",
         # Ethernet layer
         "mac_address": "MAC address",
-        # Specific. TODO: Move in layers? Requires extra code to overload...
-        "knx_address": "KNX individual address",
         # Physical layer
         "chassis_id": "Chassis identifier",
         "port_id": "Port identifier",
         "port_desc": "Port description",
-        "capabilities": "Capabilities"
+        "capabilities": "Capabilities",
+        # Protocol specific
+        "knx_address": "KNX individual address", # KNX
+        "coils": "Coils", # Modbus
+        "discrete_inputs": "Discrete inputs", # Modbus
+        "holding_registers": "Holding registers", # Modbus
+        "input_registers": "Input registers" # Modbus
     }
 
     def __init__(self, **kwargs):

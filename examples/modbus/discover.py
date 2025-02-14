@@ -26,7 +26,4 @@ except BOFProgrammingError as bpe:
     exit(-1)
 
 for ip in ip_addrs:
-    try:
-        print(discover(ip))
-    except BOFNetworkError:
-        pass # Device did not respond
+    print(discover(ip))
