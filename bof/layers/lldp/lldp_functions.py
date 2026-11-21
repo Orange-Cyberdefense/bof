@@ -186,5 +186,5 @@ def send_multicast(pkt: Packet=None, iface: str=DEFAULT_IFACE, mac_addr:
     if geteuid() != 0:
         raise BOFProgrammingError("Super user privileges required to send LLDP requests")
     # Timeout should be high because devices take time to respond
-    sendp(packet, multi=1, iface=iface, verbose=False)
+    sendp(pkt, multi=1, iface=iface, verbose=False)
     return pkt
