@@ -8,6 +8,7 @@
 
 import unittest
 from subprocess import Popen
+from unittest.mock import patch
 
 from scapy.compat import raw
 
@@ -477,3 +478,97 @@ class Test09Fuzzing(unittest.TestCase):
         pkt = knx.KNXPacket(type="configuration request")
         for x in pkt.fuzz(iterations=100):
             pass
+
+class Test10LineScan(unittest.TestCase):
+    """Test class for line_scan() address range computation.
+
+    individual_address_scan() is mocked so that no network access is needed:
+    we capture the list of individual addresses line_scan() asks to scan.
+    """
+    def _run_line_scan(self, *args, **kwargs):
+        """Call line_scan("127.0.0.1", *args, **kwargs) with a mocked
+        individual_address_scan. Returns (result, mock)."""
+        with patch("bof.layers.knx.knx_functions.individual_address_scan") as scan:
+            scan.return_value = ["existing_device"]
+            result = knx.line_scan("127.0.0.1", *args, **kwargs)
+        return result, scan
+
+    def test_1001_default_line_scans_all_lines(self):
+        """line_scan(ip) with default line="" scans 0.0.0 to 15.15.255."""
+        result, scan = self._run_line_scan()
+        self.assertEqual(result, ["existing_device"])
+        scan.assert_called_once()
+        ip, addresses, port = scan.call_args[0]
+        self.assertEqual(ip, "127.0.0.1")
+        self.assertEqual(port, 3671)
+        self.assertEqual(len(addresses), 65536)
+        self.assertEqual(addresses[0], "0.0.0")
+        self.assertEqual(addresses[-1], "15.15.255")
+        self.assertEqual(addresses, [knx.INDIV_ADDR(x) for x in range(0, 65536)])
+
+    def test_1002_explicit_empty_line_scans_all_lines(self):
+        """line_scan(ip, "") behaves exactly like the default value."""
+        _, scan = self._run_line_scan("")
+        addresses = scan.call_args[0][1]
+        self.assertEqual(len(addresses), 65536)
+        self.assertEqual(addresses[0], "0.0.0")
+        self.assertEqual(addresses[-1], "15.15.255")
+
+    def test_1003_line_scans_from_address_to_line_end(self):
+        """line="1.2.3" scans from 1.2.3 to 1.2.255 inclusive."""
+        _, scan = self._run_line_scan("1.2.3")
+        addresses = scan.call_args[0][1]
+        self.assertEqual(len(addresses), 253)
+        self.assertEqual(addresses[0], "1.2.3")
+        self.assertEqual(addresses[-1], "1.2.255")
+        self.assertEqual(addresses, [knx.INDIV_ADDR(x) for x in
+                                     range(knx.ADDR_TO_INT(1, 2, 3),
+                                           knx.ADDR_TO_INT(1, 2, 255) + 1)])
+
+    def test_1004_max_address_scans_single_address(self):
+        """line="15.15.255" (max individual address) scans only itself."""
+        _, scan = self._run_line_scan("15.15.255")
+        addresses = scan.call_args[0][1]
+        self.assertEqual(addresses, ["15.15.255"])
+
+    def test_1005_min_address_scans_line_from_start(self):
+        """line="0.0.0" (min) scans 0.0.0 to 0.0.255."""
+        _, scan = self._run_line_scan("0.0.0")
+        addresses = scan.call_args[0][1]
+        self.assertEqual(len(addresses), 256)
+        self.assertEqual(addresses[0], "0.0.0")
+        self.assertEqual(addresses[-1], "0.0.255")
+
+    def test_1006_max_line_scans_whole_line(self):
+        """line="15.15.0" scans 15.15.0 to 15.15.255."""
+        _, scan = self._run_line_scan("15.15.0")
+        addresses = scan.call_args[0][1]
+        self.assertEqual(len(addresses), 256)
+        self.assertEqual(addresses[0], "15.15.0")
+        self.assertEqual(addresses[-1], "15.15.255")
+
+    def test_1007_port_is_forwarded(self):
+        """The port argument is forwarded to individual_address_scan."""
+        _, scan = self._run_line_scan("1.2.3", port=1234)
+        self.assertEqual(scan.call_args[0][2], 1234)
+
+    def test_1008_invalid_lines_raise_bofprogrammingerror(self):
+        """Malformed or out-of-range lines raise BOFProgrammingError
+        (not a raw TypeError) and do not trigger any scan."""
+        bad_lines = ["16.0.0",   # area > 15
+                     "1.16.0",   # line > 15
+                     "1.2.256",  # device > 255
+                     "-1.0.0",   # negative
+                     "1.2",      # 2 components
+                     "1.2.3.4",  # 4 components
+                     "1.2.3.4.5",# 5 components
+                     "abc",      # not numeric
+                     "1..2",     # empty component
+                     "1.2.x"]    # non-numeric component
+        for bad in bad_lines:
+            with self.subTest(line=bad):
+                with patch("bof.layers.knx.knx_functions.individual_address_scan") as scan:
+                    with self.assertRaises(BOFProgrammingError) as ctx:
+                        knx.line_scan("127.0.0.1", bad)
+                    self.assertEqual(str(ctx.exception), "Invalid KNX address.")
+                    scan.assert_not_called()
