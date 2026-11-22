@@ -138,5 +138,8 @@ def send_identify_request(iface: str=DEFAULT_IFACE,
     replies = listener.results # Responses + sniffed Profinet packets
     devices = []
     for reply in replies:
-        devices.append(ProfinetDevice(reply[1]))
+        # listener.results holds whole sniffed packets (Ether/ProfinetIO/ProfinetDCP),
+        # not (sent, received) couples like srp(): pass the full packet so that
+        # ProfinetDevice.parse() can read the Ether layer (mac_address).
+        devices.append(ProfinetDevice(reply))
     return devices
