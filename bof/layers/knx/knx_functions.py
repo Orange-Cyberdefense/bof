@@ -302,12 +302,18 @@ def line_scan(ip: str, line: str="", port: int=3671) -> list:
     :raises BOFProgrammingError: if KNX address is invalid.
     """
     try:
-        line = line.split(".")
-        begin = ADDR_TO_INT(*line)
-        end = ADDR_TO_INT(*line[:2] + [255])
+        if line == "":
+            # Default == empty == scan all lines from 0.0.0 to 15.15.255
+            begin, end = 0, 65535
+        else:
+            line = line.split(".")
+            begin = ADDR_TO_INT(*line)
+            end = ADDR_TO_INT(*line[:2] + [255])
         if not 0 <= begin <= 65535 or not 0 <= end <= 65535:
             raise ValueError
-    except ValueError as ve:
+    except (ValueError, TypeError):
+        # TypeError: malformed line (not exactly 3 components, e.g. "",
+        # "1.2", "1.2.3.4") makes ADDR_TO_INT() fail on argument count
         raise BOFProgrammingError("Invalid KNX address.") from None
     addr = [INDIV_ADDR(x) for x in range(begin, end + 1)]
     return individual_address_scan(ip, addr, port)
