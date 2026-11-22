@@ -41,16 +41,18 @@ def HEX_TO_BIN_DICT(byte_count, hex_table):
     return bin_dict
 
 def HEX_TO_DICT(byte_count, hex_table):
-    """Convert hex value table on one or more bytes to binary bit in a dict.
+    """Convert a table of 16-bit register values to a numbered dict.
+
+    ``byte_count`` is the number of registers in ``hex_table`` (one 16-bit
+    integer per register). All registers are stored in a numbered dict
+    starting from 1.
 
     Example:
-    Hex value 0x15 on 2 bytes will be translated to 10101000 00000000
-    This binary will be stored in a numbered dict starting from 1:
-    { 1: 1, 2: 0, 3: 1, ... }
+    [0x1234, 0x5678] will be stored as { 1: 0x1234, 2: 0x5678 }
     """
     index = 1
     hex_dict = {}
-    for b in range(byte_count // 2):
+    for b in range(byte_count):
         hex_dict[index] = hex_table[b]
         index += 1
     return hex_dict

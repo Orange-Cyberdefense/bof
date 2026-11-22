@@ -8,10 +8,11 @@
 import unittest
 from subprocess import Popen
 from time import sleep
+from types import SimpleNamespace
 
 from scapy.contrib.modbus import ModbusADURequest, ModbusPDU01ReadCoilsRequest
 
-from bof import BOFProgrammingError
+from bof import BOFProgrammingError, BOFDeviceError
 from bof.layers import modbus
 
 TCP_ECHO_SERVER_CMD_1 = "ncat -e /bin/cat -k -l 1502"
@@ -206,3 +207,120 @@ class Test03ModbusFrameConstructor(unittest.TestCase):
         self.assertEqual(modbus_frame.scapy_pkt.startAddr, 0x42)
         self.assertEqual(bytes(modbus_frame),
                          b'\x00\x00\x00\x00\x00\x06\xff\x01\x00\x42\x00\x01')
+
+
+class Test04HexToDict(unittest.TestCase):
+    """Unit tests for ``HEX_TO_DICT`` (pure function, no network needed).
+
+    ``HEX_TO_DICT(n, table)`` must return ALL n registers of the table as a
+    dict numbered from 1: {1: table[0], ..., n: table[n-1]}.
+    """
+
+    def assertRegisterDict(self, result, expected_table):
+        """Check that result is a dict with keys 1..n and values table[0..n-1]."""
+        n = len(expected_table)
+        self.assertIsInstance(result, dict)
+        self.assertEqual(len(result), n)
+        self.assertEqual(list(result.keys()), list(range(1, n + 1)))
+        for i, value in enumerate(expected_table):
+            self.assertEqual(result[i + 1], value)
+        self.assertEqual(result, {i + 1: v for i, v in enumerate(expected_table)})
+
+    def test_0401_zero_registers(self):
+        """HEX_TO_DICT(0, []) must return an empty dict"""
+        self.assertEqual(modbus.HEX_TO_DICT(0, []), {})
+        # n=0 wins even if the table holds values
+        self.assertEqual(modbus.HEX_TO_DICT(0, [0x1234, 0x5678]), {})
+
+    def test_0402_one_register(self):
+        """HEX_TO_DICT(1, [v]) must return {1: v}"""
+        self.assertRegisterDict(modbus.HEX_TO_DICT(1, [0xABCD]), [0xABCD])
+
+    def test_0403_two_registers(self):
+        """HEX_TO_DICT(2, [0x1234, 0x5678]) must return both registers
+        (regression test: used to return only the first one)"""
+        self.assertRegisterDict(modbus.HEX_TO_DICT(2, [0x1234, 0x5678]),
+                                [0x1234, 0x5678])
+        self.assertEqual(modbus.HEX_TO_DICT(2, [0x1234, 0x5678]),
+                         {1: 4660, 2: 22136})
+
+    def test_0404_odd_register_count(self):
+        """Odd n (3) must also return all registers (old code returned n // 2)"""
+        self.assertRegisterDict(modbus.HEX_TO_DICT(3, [1, 2, 3]), [1, 2, 3])
+
+    def test_0405_n_registers(self):
+        """HEX_TO_DICT(5, table) must return keys 1..5 with the 5 values"""
+        table = [10, 20, 30, 40, 50]
+        self.assertRegisterDict(modbus.HEX_TO_DICT(5, table), table)
+
+    def test_0406_max_register_quantity(self):
+        """Cardinality limit: MODBUS_MAX_REGISTER_QUANTITY (125) registers,
+        the maximum a Modbus read response can carry, must all be returned"""
+        n = modbus.MODBUS_MAX_REGISTER_QUANTITY  # 125
+        table = list(range(n))
+        self.assertRegisterDict(modbus.HEX_TO_DICT(n, table), table)
+
+    def test_0407_beyond_max_register_quantity(self):
+        """Just beyond the spec limit (126): HEX_TO_DICT itself imposes no
+        cap, it must still return all 126 registers"""
+        n = modbus.MODBUS_MAX_REGISTER_QUANTITY + 1  # 126
+        table = list(range(n))
+        self.assertRegisterDict(modbus.HEX_TO_DICT(n, table), table)
+
+    def test_0408_16bit_value_boundaries(self):
+        """Values at 16-bit boundaries must be preserved as-is"""
+        table = [0x0000, 0xFFFF, 0x8000, 0x0001]
+        result = modbus.HEX_TO_DICT(4, table)
+        self.assertRegisterDict(result, table)
+        self.assertEqual(result, {1: 0, 2: 65535, 3: 32768, 4: 1})
+
+    def test_0409_table_longer_than_n(self):
+        """If the table holds more entries than n, only the first n are used"""
+        self.assertRegisterDict(modbus.HEX_TO_DICT(2, [1, 2, 3, 4]), [1, 2])
+
+
+class _StubModbusNet:
+    """Minimal ModbusNet stub: returns a canned response from sr()."""
+    def __init__(self, func_code, register_values):
+        self.response = SimpleNamespace(
+            funcCode=func_code,
+            byteCount=2 * len(register_values),  # 2 bytes per 16-bit register
+            registerVal=list(register_values),
+        )
+    def sr(self, pkt):
+        return self.response, None
+
+
+class Test05ReadRegistersFunctions(unittest.TestCase):
+    """Test read_holding_registers()/read_input_registers() with a stubbed
+    network layer (no ncat needed): they must return ALL read registers."""
+
+    def test_0501_read_holding_registers_returns_all(self):
+        """A response with byteCount=4 (2 registers) must give 2 dict entries"""
+        modnet = _StubModbusNet(modbus.FUNCTIONS.read_holding_registers,
+                                [0x1234, 0x5678])
+        result = modbus.read_holding_registers(modnet)
+        self.assertEqual(result, {1: 4660, 2: 22136})
+
+    def test_0502_read_input_registers_returns_all(self):
+        """Same for read_input_registers()"""
+        modnet = _StubModbusNet(modbus.FUNCTIONS.read_input_registers,
+                                [0x1234, 0x5678])
+        result = modbus.read_input_registers(modnet)
+        self.assertEqual(result, {1: 4660, 2: 22136})
+
+    def test_0503_read_holding_registers_n_registers(self):
+        """5 registers (byteCount=10) must give keys 1..5 with all values"""
+        table = [10, 20, 30, 40, 50]
+        modnet = _StubModbusNet(modbus.FUNCTIONS.read_holding_registers, table)
+        result = modbus.read_holding_registers(modnet)
+        self.assertEqual(list(result.keys()), [1, 2, 3, 4, 5])
+        self.assertEqual(result, {1: 10, 2: 20, 3: 30, 4: 40, 5: 50})
+
+    def test_0504_read_holding_registers_exception_still_raises(self):
+        """An exception response must still raise BOFDeviceError"""
+        modnet = _StubModbusNet(modbus.FUNCTIONS.read_holding_registers_exception,
+                                [])
+        modnet.response.exceptCode = 0x02
+        with self.assertRaises(BOFDeviceError):
+            modbus.read_holding_registers(modnet)
