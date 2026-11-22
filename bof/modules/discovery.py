@@ -77,16 +77,22 @@ def multicast_discovery(iface: str=DEFAULT_IFACE,
                       verbose: bool=False):
     """Discover devices on a network using dedicated multicast addresses.
 
-    Currently, LLDP and KNX are supported.
+    Currently, LLDP, Profinet and KNX are supported.
 
-    :param lldp_multicast: Multicast MAC address for LLDP requests.
+    :param iface: Network interface to use for requests and LLDP sniffing.
+    :param pndcp_multicast: Multicast MAC address for Profinet DCP requests.
     :param knx_multicast: Multicast IP address for KNXnet/IP requests.
+    :param verbose: Print progress information.
     """
     vprint = lambda msg: print("[BOF] {0}".format(msg)) if verbose else None
     multicast_protocols = {
-        # Protocol name: [Discovery function, Multicast address]
-        "Profinet": [profinet_discovery, pndcp_multicast],
-        "KNX": [knx_discovery, knx_multicast]
+        # Protocol name: [Discovery function, Discovery kwargs, Multicast address]
+        "Profinet": [profinet_discovery,
+                     {"iface": iface, "mac_addr": pndcp_multicast},
+                     pndcp_multicast],
+        "KNX": [knx_discovery,
+                {"ip": knx_multicast},
+                knx_multicast]
     }
     total_devices = []
     # Start async sniffing
@@ -95,9 +101,9 @@ def multicast_discovery(iface: str=DEFAULT_IFACE,
     # Multicast requests send and receive
     for protocol, proto_args in multicast_protocols.items():
         try:
-            discovery_fct, multicast_addr = proto_args
+            discovery_fct, fct_kwargs, multicast_addr = proto_args
             vprint("Sending {0} request to {1}.".format(protocol, multicast_addr))
-            devices = discovery_fct(mac_addr=multicast_addr, iface=iface)
+            devices = discovery_fct(**fct_kwargs)
             nb = len(devices)
             vprint("{0} {1} {2} found.".format(nb if nb else "No", protocol,
                                                "device" if nb <= 1 else "devices"))
