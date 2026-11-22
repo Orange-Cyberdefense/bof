@@ -60,8 +60,8 @@ class ProfinetDevice(BOFDevice):
     # TODO: Refactoring
     def parse(self, pkt: Packet=None) -> None:
         if pkt.haslayer(ProfinetDCP):
-            if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY:# or \
-#               pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
+            if pkt["ProfinetDCP"].service_id != SERVICE_ID_IDENTIFY or \
+               pkt["ProfinetDCP"].service_type != SERVICE_TYPE_RESPONSE_SUCCESS:
                 raise BOFProgrammingError("Expecting an identify response to create device object.")
         if pkt.haslayer(DCPNameOfStationBlock):
             self.name = pkt["DCPNameOfStationBlock"].name_of_station.decode('utf-8')
